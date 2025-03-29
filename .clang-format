@@ -1,0 +1,21 @@
+---
+BasedOnStyle: Google
+---
+Language: Cpp
+IndentWidth: 2
+ColumnLimit: 120
+DerivePointerAlignment: false
+PointerAlignment: Left
+SortIncludes: CaseSensitive
+Standard: Auto
+AccessModifierOffset: -2
+SpacesBeforeTrailingComments: 2
+AllowShortBlocksOnASingleLine: Never
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: Empty
+AlignTrailingComments: true
+BinPackParameters: false
+AllowAllParametersOfDeclarationOnNextLine: false
+IndentAccessModifiers: false
+NamespaceIndentation: None
