@@ -7,3 +7,9 @@
 [submodule "thirdparty/inja"]
 	path = thirdparty/inja
 	url = https://github.com/pantor/inja.git
+[submodule "themes/ezhil-ling"]
+	path = themes/ezhil-ling
+	url = https://github.com/kitelife/ezhil-ling.git
+[submodule "thirdparty/toml11"]
+	path = thirdparty/toml11
+	url = https://github.com/ToruNiina/toml11.git

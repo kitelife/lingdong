@@ -1,0 +1,7 @@
+# https://toml.io/en/
+
+site_name = "灵动"
+theme = "ezhil-ling"
+markup_lang = "markdown"
+
+plugins = ["plantuml", "excalidraw", "drawio", "grapviz"]
