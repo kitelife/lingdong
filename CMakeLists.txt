@@ -34,7 +34,13 @@ FetchContent_Declare(
         GIT_TAG 1.9.6
 )
 
-FetchContent_MakeAvailable(yaml-cpp leveldb gflags jsoncpp)
+FetchContent_Declare(
+        cpr
+        GIT_REPOSITORY https://github.com/libcpr/cpr.git
+        GIT_TAG 1.11.2
+)
+
+FetchContent_MakeAvailable(yaml-cpp leveldb gflags jsoncpp cpr)
 
 add_subdirectory(thirdparty/fmt)
 add_subdirectory(thirdparty/abseil)
@@ -47,6 +53,7 @@ add_executable(lingdong src/main.cpp
         src/parser/markdown.h
 
         src/plugin/plugin.h
+        src/plugin/plantuml.cpp
         src/plugin/plantuml.h
 
         src/utils/taoli.hpp
@@ -61,3 +68,4 @@ target_link_libraries(lingdong leveldb)
 target_link_libraries(lingdong gflags)
 target_link_libraries(lingdong jsoncpp_static)
 target_link_libraries(lingdong toml11::toml11)
+target_link_libraries(lingdong cpr::cpr)

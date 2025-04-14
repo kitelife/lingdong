@@ -207,6 +207,10 @@ public:
   std::string to_html() override;
   void clear();
 
+  std::vector<std::shared_ptr<Element>> elements() {
+    return elements_;
+  };
+
 private:
   bool parse();
   ParseResult parse_heading();
@@ -243,5 +247,7 @@ private:
   //
   std::vector<std::shared_ptr<Element>> elements_;
 };
+
+using MarkdownPtr = std::shared_ptr<Markdown>;
 
 }  // namespace ling

@@ -8,6 +8,7 @@
 #include <inja/inja.hpp>
 
 #include "parser/markdown.h"
+#include "plugin/plantuml.h"
 
 class Config {
 public:
@@ -67,12 +68,14 @@ int main() {
   std::cout << inja::render("Hello {{ name }}, inja!", data) << std::endl; // Returns std::string "Hello world!"
   inja::render_to(std::cout, "Hello {{ name }}, inja V5!\n", data); // Writes "Hello world!" to stream
   //
-  ling::Markdown md;
+  ling::MarkdownPtr md = std::make_shared<ling::Markdown>();
   // std::cout << "parse md str: " << md.parse_str("# 你好   \n## 世界\t") << std::endl;
   // std::cout << "parse to html: " << md.to_html() << std::endl;
   // md.clear();
-  std::cout << "parse md file: " << md.parse_file("../demo/demo.md") << std::endl;
-  std::cout << "parse to html: " << md.to_html() << std::endl;
+  std::cout << "parse md file: " << md->parse_file("../demo/demo.md") << std::endl;
+  ling::plugin::PlantUML plantuml;
+  plantuml.run(md, "markdown");
+  std::cout << "parse to html: " << md->to_html() << std::endl;
   //
   YAML::Node config = YAML::LoadFile("../demo/blog/config.yaml");
   if (config["name"]) {

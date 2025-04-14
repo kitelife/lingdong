@@ -5,11 +5,18 @@
 
 #include "plugin.h"
 
+#include <iostream>
+
 namespace ling::plugin {
 
-class PlantUML: public Plugin {
+class PlantUML final : public Plugin {
 public:
-  bool run() override;
+  PlantUML() = default;
+  bool run(ParserPtr parser_ptr, const std::string& markup_lang) override;
+
+private:
+  std::pair<bool, std::string> code2pic(std::vector<std::string>& lines);
+  std::string encode(const std::string& plantuml_code);
 };
 
 }

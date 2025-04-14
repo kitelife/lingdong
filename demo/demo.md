@@ -26,3 +26,7 @@ $$P(w_{1:N})=\prod_{i=1}^{N-1} P(w_{i+1}|w_{1:i})=\prod_{i=1}^{N} o_{i}[w_{i+1}]
    - 无序列表项1
    - 无序列表项2
 3. 有序列表项3
+
+```plantuml-svg
+Bob -> Alice : hello
+```
