@@ -1,7 +1,15 @@
 # https://toml.io/en/
-
 site_name = "灵动"
-theme = "ezhil-ling"
-markup_lang = "markdown"
+site_desc = ""
 
-plugins = ["plantuml", "excalidraw", "drawio", "grapviz"]
+theme_dir = "../../themes"
+theme_name = "default"
+
+navigation = {"关于我" = "about", "作品" = "works"}
+
+plugins = ["plantuml", "mermaid"]
+
+[plantuml]
+server = "www.plantuml.com"
+header = "skinparam defaultFontName \"Albert Sans\"\nskinparam defaultFontSize 15\nscale max 1600 width"
+jar_path = "/Users/xiayf/software/plantuml-mit-1.2025.1.jar"

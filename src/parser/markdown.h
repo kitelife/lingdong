@@ -11,8 +11,8 @@
  */
 
 #include <absl/strings/str_join.h>
-#include <absl/strings/strip.h>
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -23,7 +23,7 @@ namespace ling {
 class ParseResult {
 public:
   ParseResult() = default;
-  int8_t status = 0;
+  int8_t status = 0; // 0 - ok, 1 - not, 2 - illegal
   size_t next_line_idx = -1;
 
   static ParseResult make(int8_t status, size_t next_line_idx) {
@@ -207,12 +207,17 @@ public:
   std::string to_html() override;
   void clear();
 
-  std::vector<std::shared_ptr<Element>> elements() {
+  std::vector<std::shared_ptr<Element>>& elements() {
     return elements_;
-  };
+  }
+
+  PostMetadata& metadata() {
+    return metadata_;
+  }
 
 private:
   bool parse();
+  ParseResult parse_metadata();
   ParseResult parse_heading();
   ParseResult parse_blockquote();
   ParseResult parse_codeblock();
@@ -245,6 +250,7 @@ private:
   std::vector<std::string> lines;
   size_t last_line_idx = 0;
   //
+  PostMetadata metadata_;
   std::vector<std::shared_ptr<Element>> elements_;
 };
 

@@ -4,11 +4,12 @@
 
 #include "markdown.h"
 
-#include <fmt/core.h>
-
 #include <fstream>
 #include <iostream>
 #include <sstream>
+
+#include <fmt/core.h>
+#include <absl/strings/str_split.h>
 
 #include "../utils/strings.hpp"
 
@@ -33,7 +34,12 @@ bool Markdown::parse() {
   while (std::getline(*stream_ptr_, line, '\n')) {
     lines.emplace_back(line);
   }
-  ParseResult pr;
+  ParseResult pr = parse_metadata();
+  if (pr.status == 2) {
+    return false;
+  }
+  last_line_idx = pr.next_line_idx;
+  //
   while (last_line_idx < lines.size()) {
     switch (lines.at(last_line_idx)[0]) {
       case '#':  // Heading
@@ -66,7 +72,63 @@ bool Markdown::parse() {
     last_line_idx = pr.next_line_idx;
   }
   return pr.status == 0;
-};
+}
+
+/*
+元信息部分的格式：
+
+---
+id: example-post
+author: xiayf
+date: 2024-04-15
+tags: 示例, markdown, C++
+---
+
+*/
+ParseResult Markdown::parse_metadata() {
+  absl::string_view line_view;
+  while (true) {
+    line_view = utils::view_strip_empty(lines.at(last_line_idx));
+    if (!line_view.empty()) {
+      break;
+    }
+    last_line_idx++;
+  }
+  if (line_view != "---") {
+    return ParseResult::make(1, last_line_idx);
+  }
+  do {
+    last_line_idx++;
+    line_view = utils::view_strip_empty(lines.at(last_line_idx));
+    if (line_view == "---") {
+      break;
+    }
+    size_t colon_pos = line_view.find(':');
+    if (colon_pos == std::string::npos) {
+      continue;
+    }
+    const auto k = utils::view_strip_empty(line_view.substr(0, colon_pos));
+    const auto v = utils::view_strip_empty(line_view.substr(colon_pos + 1));
+    if (k == "id") {
+      metadata_.post_id = v;
+    } else if (k == "author") {
+      metadata_.author = v;
+    } else if (k == "date") {
+      metadata_.publish_date = v;
+    } else if (k == "tags") {
+      auto tags = absl::StrSplit(v, ',', absl::SkipWhitespace());
+      for (const auto& tag : tags) {
+        metadata_.tags.emplace_back(utils::view_strip_empty(tag));
+      }
+    } else {
+      std::cerr << "Illegal metadata, k=" << k << ", v=" << v << std::endl;
+    }
+  } while (true);
+  if (line_view != "---") {
+    return ParseResult::make(2, 0);
+  }
+  return ParseResult::make(0, last_line_idx+1);
+}
 
 ParseResult Markdown::parse_default() {
   const auto& last_line = lines.at(last_line_idx);
@@ -539,7 +601,7 @@ void Markdown::clear() {
 std::string Markdown::to_html() {
   std::vector<std::string> lines;
   lines.reserve(elements_.size());
-  for (const auto ele : elements_) {
+  for (const auto& ele : elements_) {
     lines.push_back(ele->to_html());
   }
   return absl::StrJoin(lines, "\n");
@@ -602,13 +664,17 @@ std::string ItemList::to_html() {
   for (auto& item : items) {
     lines.push_back(item.to_html());
   }
-  const std::string t = is_ordered ? "<ol>{}</ol>" : "<ul>{}</ul>";
-  return fmt::format(t, absl::StrJoin(lines, "\n"));
+  auto item_list = absl::StrJoin(lines, "\n");
+  if (is_ordered) {
+    return fmt::format("<ol>{}</ol>", item_list);
+  }
+  return fmt::format("<ul>{0}</ul>", item_list);
 }
 
 std::string CodeBlock::to_html() {
   std::string class_name = fmt::format("language-{}", absl::AsciiStrToLower(lang_name));
-  return fmt::format(R"(<pre class="{0} {1}"><code>{2}</code></pre>)", class_name, "line-numbers", absl::StrJoin(lines, "\n"));
+  return fmt::format(R"(<pre class="{0} {1}"><code>{2}</code></pre>)",
+    class_name, "line-numbers", absl::StrJoin(lines, "\n"));
 }
 
 std::string LatexBlock::to_html() {

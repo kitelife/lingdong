@@ -4,6 +4,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 namespace ling {
 
@@ -16,4 +17,11 @@ public:
 };
 
 using ParserPtr = std::shared_ptr<Parser>;
+
+class PostMetadata final {
+public:
+  std::string publish_date;
+  std::string post_id;
+  std::vector<std::string> tags;
+};
 }

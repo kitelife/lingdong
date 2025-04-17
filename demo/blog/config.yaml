@@ -1,5 +1,0 @@
---- # yaml 教程：https://www.ruanyifeng.com/blog/2016/07/yaml.html
-site_name: '灵动'
-theme: ''
-markup_lang: 'markdown'
-plugins: ['plantuml', 'excalidraw', 'drawio', 'grapviz']

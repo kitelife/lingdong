@@ -10,7 +10,7 @@ namespace ling::plugin {
 class Plugin {
 public:
   virtual ~Plugin() = default;
-  virtual bool run(ParserPtr parser_ptr, const std::string& markup_lang) = 0;
+  virtual bool run(const ParserPtr& parser_ptr) = 0;
 };
 
 } // namespace ling::plugin

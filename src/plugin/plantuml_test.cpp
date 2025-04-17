@@ -1,0 +1,31 @@
+//
+// Created by xiayf on 2025/4/15.
+//
+#include "plantuml.hpp"
+
+#include <absl/strings/escaping.h>
+#include <gtest/gtest.h>
+
+#include <string>
+
+using namespace std::string_literals; // enables s-suffix for std::string literals
+using namespace ::ling::plugin;
+
+TEST(PluginPlantUMLTest, Encode) {
+  const std::string diagram_desc = R"("@startuml
+Alice -> Bob: Authentication Response
+Bob --> Alice: Authentication Response
+@enduml")";
+  const std::string diagram_desc_encoded = "~h22407374617274756d6c0a416c696365202d3e20426f623a2041757468656e7469636174696f6e20526573706f6e73650a426f62202d2d3e20416c6963653a2041757468656e7469636174696f6e20526573706f6e73650a40656e64756d6c22";
+  // Expect equality.
+  EXPECT_EQ(PlantUML::hex_encode(diagram_desc), diagram_desc_encoded);
+}
+
+TEST(PluginPlantUMLTest, ZlibDeflate) {
+  static std::string input = "hello";
+  std::string compress_output = zlib_deflate_compress(input);
+  std::string decompress_output = zlib_deflate_decompress(compress_output);
+  std::cout << "decompress_output: " << decompress_output << std::endl;
+  EXPECT_EQ(input, decompress_output);
+  EXPECT_EQ(absl::WebSafeBase64Escape(compress_output), "eNrLSM3JyQcABiwCFQ");
+}

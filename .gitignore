@@ -1,4 +1,5 @@
 cmake-build-debug/
-thirdparty/
 .idea/
 build/
+node_modules/
+dist/

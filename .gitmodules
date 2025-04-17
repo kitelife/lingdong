@@ -1,15 +1,12 @@
-[submodule "thirdparty/fmt"]
-	path = thirdparty/fmt
+[submodule "third_party/fmt"]
+	path = third_party/fmt
 	url = https://github.com/fmtlib/fmt.git
-[submodule "thirdparty/abseil"]
-	path = thirdparty/abseil
+[submodule "third_party/abseil"]
+	path = third_party/abseil
 	url = https://github.com/abseil/abseil-cpp.git
-[submodule "thirdparty/inja"]
-	path = thirdparty/inja
+[submodule "third_party/inja"]
+	path = third_party/inja
 	url = https://github.com/pantor/inja.git
-[submodule "themes/ezhil-ling"]
-	path = themes/ezhil-ling
-	url = https://github.com/kitelife/ezhil-ling.git
-[submodule "thirdparty/toml11"]
-	path = thirdparty/toml11
+[submodule "third_party/toml11"]
+	path = third_party/toml11
 	url = https://github.com/ToruNiina/toml11.git
