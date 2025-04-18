@@ -2,6 +2,7 @@
 #include <filesystem>
 
 #include <gflags/gflags.h>
+#include <spdlog/spdlog.h>
 
 #include "config.hpp"
 #include "maker.hpp"
@@ -20,15 +21,15 @@ ConfigPtr load_conf(const std::string& conf_file_path = "config.toml") {
 int main() {
   const auto origin_wd = std::filesystem::current_path();
   current_path(std::filesystem::absolute(FLAGS_dir));
-  std::cout << "Change working dir from " << origin_wd << " to " << std::filesystem::current_path() << std::endl;
+  spdlog::info("change working dir from {} to {}", origin_wd, std::filesystem::current_path());
   //
   ConfigPtr config = load_conf();
   const auto maker = std::make_shared<ling::Maker>(config);
   if (!maker->make()) {
-    std::cerr << "Failed to make!" << std::endl;
+    spdlog::error("Failed to make!");
     return -1;
   }
-  std::cout << "success to make!" << std::endl;
+  spdlog::info("success to make!");
   if (FLAGS_enable_serve) {
     std::cout << "try to serve this static site" << std::endl;
     const auto server = std::make_shared<ling::Server>(config);

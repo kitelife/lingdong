@@ -3,14 +3,14 @@
 //
 #pragma once
 
-#include <cpr/cpr.h>
-#include <fmt/core.h>
-#include <absl/hash/hash.h>
-#include <zlib.h>
-
 #include <filesystem>
 #include <iostream>
 #include <utility>
+
+#include <cpr/cpr.h>
+#include <absl/hash/hash.h>
+#include <zlib.h>
+#include <spdlog/spdlog.h>
 
 #include "../config.hpp"
 #include "../parser/markdown.h"
@@ -23,7 +23,7 @@ static std::string zlib_deflate_compress(const std::string input) {
   //
   z_stream zs = {};
   if (deflateInit(&zs, Z_BEST_COMPRESSION) != Z_OK) {
-    std::cerr << "deflateInit failed" << std::endl;
+    spdlog::error("deflateInit failed");
     return "";
   }
   zs.avail_in = input.size();
@@ -44,7 +44,7 @@ static std::string zlib_deflate_compress(const std::string input) {
   deflateEnd(&zs);
   if (ret != Z_STREAM_END) {
     // an error occurred that was not EOF
-    std::cerr << "Exception during zlib compression: (" << ret << ") " << zs.msg << std::endl;
+    spdlog::error("Exception during zlib compression: {}, {}", ret, zs.msg);
   }
   return output;
 }
@@ -52,7 +52,7 @@ static std::string zlib_deflate_compress(const std::string input) {
 static std::string zlib_deflate_decompress(const std::string& input) {
   z_stream zs = {};
   if (inflateInit(&zs) != Z_OK) {
-    std::cerr << "inflateInit failed" << std::endl;
+    spdlog::error("inflateInit failed");
     return "";
   }
   zs.next_in = (Bytef*)input.data();
@@ -72,7 +72,7 @@ static std::string zlib_deflate_decompress(const std::string& input) {
   inflateEnd(&zs);
   if (ret != Z_STREAM_END) {
     // an error occurred that was not EOF
-    std::cerr << "Exception during zlib decompression: (" << ret << ") " << zs.msg << std::endl;
+    spdlog::error("Exception during zlib decompression: {}, {}", ret, zs.msg);
   }
   return output;
 }
@@ -116,13 +116,13 @@ inline std::pair<bool, std::string> PlantUML::diagram_desc2pic(std::vector<std::
   std::string plantuml_diagram = ss.str();
   auto encoded = hex_encode(plantuml_diagram);
   static std::string target_url = fmt::format("http://{0}/plantuml/svg/{1}", plantuml_server_, encoded);
-  std::cout << target_url << std::endl;
+  // std::cout << target_url << std::endl;
   cpr::Response r = cpr::Get(cpr::Url{target_url});
   if (r.status_code != 200) {
-    std::cerr << "Failed to call plantuml, status_code: " << r.status_code << ", response: " << r.text << std::endl;
+    spdlog::error("Failed to call plantuml, status_code: {}, response: {}", r.status_code, r.text);
     return std::make_pair(false, "");
   }
-  std::cout << r.text << std::endl;
+  // std::cout << r.text << std::endl;
   return std::make_pair(true, r.text);
 }
 
@@ -156,7 +156,7 @@ inline bool PlantUML::run(const ParserPtr& parser_ptr) {
     std::fstream svg_file_stream;
     svg_file_stream.open(svg_file_path, std::ios::out | std::ios::trunc);
     if (!svg_file_stream.is_open()) {
-      std::cerr << "Failed to open plantuml svg file" << std::endl;
+      spdlog::error("Failed to open plantuml svg file");
       continue;
     }
     svg_file_stream << snd;

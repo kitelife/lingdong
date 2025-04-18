@@ -7,6 +7,10 @@ set(ENV{HTTP_PROXY}  "127.0.0.1:7890")
 set(ENV{HTTPS_PROXY}  "127.0.0.1:7890")
 
 find_package(gflags REQUIRED)
+if(NOT TARGET spdlog)
+    # Stand-alone build
+    find_package(spdlog REQUIRED)
+endif()
 
 include(FetchContent)
 
@@ -31,7 +35,6 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(jsoncpp cpr googletest)
 
-add_subdirectory(third_party/fmt)
 add_subdirectory(third_party/abseil)
 add_subdirectory(third_party/inja)
 add_subdirectory(third_party/toml11)
@@ -57,13 +60,13 @@ target_link_libraries(
         absl::strings
         absl::hash
         absl::time
-        fmt::fmt
         inja
         jsoncpp_static
         toml11::toml11
         cpr::cpr
         zlib
         gflags
+        spdlog::spdlog_header_only
 )
 
 # for testing

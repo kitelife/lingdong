@@ -6,6 +6,7 @@
 
 #include <absl/strings/str_split.h>
 #include <fmt/core.h>
+#include <spdlog//spdlog.h>
 
 #include <fstream>
 #include <iostream>
@@ -122,7 +123,7 @@ ParseResult Markdown::parse_metadata() {
         metadata_.tags.emplace_back(utils::view_strip_empty(tag));
       }
     } else {
-      std::cerr << "Illegal metadata, k=" << k << ", v=" << v << std::endl;
+      spdlog::error("Illegal metadata, k: {}, v: {}", k, v);
     }
   } while (true);
   if (line_view != "---") {

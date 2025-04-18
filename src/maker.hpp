@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <inja/inja.hpp>
 #include <nlohmann/json.hpp>
+#include <spdlog/spdlog.h>
 
 #include "absl/time/clock.h"
 #include "config.hpp"
@@ -198,7 +199,9 @@ using MakerPtr = std::shared_ptr<Maker>;
 inline void Maker::init() {
   dist_path_ = conf_->dist_dir;
   if (exists(dist_path_)) {
-    remove_all(dist_path_);
+    for (const auto& entry : directory_iterator(dist_path_)) {
+      remove_all(entry);
+    }
   }
   create_directory(dist_path_);
   //
@@ -242,21 +245,22 @@ inline bool Maker::parse() {
   plugin::PlantUML plugin_plantuml {conf_};
   plugin::Mermaid plugin_mermaid {conf_};
   for (const auto& post : posts_) {
-    std::cout << "try to parse post: " << post->file_path() << std::endl;
+    spdlog::debug("try to parse post: {}", post->file_path());
     if (!post->parse()) {
+      spdlog::error("failed to parse post: {}", post->file_path());
       return false;
     }
-    std::cout << "success to parse post: " << post->file_path() << std::endl;
+    spdlog::debug("success to parse post: {}", post->file_path());
     plugin_plantuml.run(post->parser());
     plugin_mermaid.run(post->parser());
   }
   return std::all_of(pages_.begin(), pages_.end(), [](auto& page) {
-    std::cout << "try to parse page: " << page->file_path() << std::endl;
+    spdlog::debug("try to pase page: {}", page->file_path());
     if (!page->parse()) {
-      std::cout << "failed to parse page: " << page->file_path() << std::endl;
+      spdlog::error("failed to parse page: {}", page->file_path());
       return false;
     }
-    std::cout << "success to parse page: " << page->file_path() << std::endl;
+    spdlog::debug("success to parse page: {}", page->file_path());
     return true;
   });
 }
@@ -291,7 +295,7 @@ inline bool Maker::generate() {
     path post_file_path = base_path / post->html_file_name();
     std::fstream post_file_stream {post_file_path, std::ios::out | std::ios::trunc};
     if (!post_file_stream.is_open()) {
-      std::cerr << "Could not open post file " << post_file_path.string() << std::endl;
+      spdlog::error("could not open post file: {}", post_file_path);
       return;
     }
     env.render_to(post_file_stream, post_template, post_payload);
@@ -330,7 +334,7 @@ inline void Maker::make_posts(Environment& env, Theme& theme) {
   }
   std::fstream posts_file_stream {dist_path_ / "posts.html", std::ios::out | std::ios::trunc};
   if (!posts_file_stream.is_open()) {
-    std::cerr << "Could not open posts file " << dist_path_ / "posts.html" << std::endl;
+    spdlog::error("could not open posts file: {}", dist_path_ / "posts.html");
     return;
   }
   Template posts_template = env.parse_template(theme.template_posts);
@@ -354,7 +358,7 @@ inline void Maker::make_index(Environment& env, Theme& theme) const {
   }
   std::fstream index_file_stream {dist_path_ / "index.html", std::ios::out | std::ios::trunc};
   if (!index_file_stream.is_open()) {
-    std::cerr << "Could not open index file " << dist_path_ / "index.html" << std::endl;
+    spdlog::error("could not open index file: {}", dist_path_ / "index.html");
     return;
   }
   Template index_template = env.parse_template(theme.template_index);
@@ -380,7 +384,7 @@ inline void Maker::make_rss(Environment& env, Theme& theme) const {
   //
   std::fstream rss_file_stream {dist_path_ / "rss.xml", std::ios::out | std::ios::trunc};
   if (!rss_file_stream.is_open()) {
-    std::cerr << "Could not open rss file " << dist_path_ / "rss.xml" << std::endl;
+    spdlog::error("could not open rss file: {}", dist_path_ / "rss.xml");
     return;
   }
   Template rss_template = env.parse_template(theme.template_rss);
@@ -395,11 +399,11 @@ inline bool Maker::make() {
   if (!load()) {
     return false;
   }
-  std::cout << "success to load post: " << posts_.size() + pages_.size() << std::endl;
+  spdlog::info("successfully loaded posts: {}", posts_.size() + pages_.size());
   if (!parse()) {
     return false;
   }
-  std::cout << "success to parse!" << std::endl;
+  spdlog::debug("success to parse!");
   return generate();
 }
 

@@ -4,6 +4,8 @@
 #include <iostream>
 #include <thread>
 
+#include <spdlog/spdlog.h>
+
 #include "config.hpp"
 #include "server.hpp"
 
@@ -30,7 +32,7 @@ inline bool Server::start() {
   //
   while (g_signal_status == 0) {
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-    std::cout << "server running!" << std::endl;
+    spdlog::info("server running!");
   }
   return true;
 }

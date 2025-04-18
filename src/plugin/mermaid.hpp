@@ -1,7 +1,6 @@
 #pragma once
 
 #include <iostream>
-#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <utility>
@@ -9,6 +8,7 @@
 #include <fmt/core.h>
 #include <absl/hash/hash.h>
 #include <absl/strings/str_join.h>
+#include <spdlog//spdlog.h>
 
 #include "plugin.h"
 #include "../parser/markdown.h"
@@ -55,7 +55,7 @@ inline bool Mermaid::run(const ParserPtr& parser_ptr) {
     return false;
   }
   if (!is_npm_exist() || !is_jq_exist()) {
-    std::cerr << "npm or jq not exists" << std::endl;
+    spdlog::error("npm or jq not exists!");
     return false;
   }
   if (!is_mermaid_cli_installed()) {
@@ -89,7 +89,7 @@ inline bool Mermaid::run(const ParserPtr& parser_ptr) {
     auto mmd_file_path = temp_dir / fmt::format("{0}.mmd", hash_value);
     std::fstream mmd_file_stream(mmd_file_path, std::ios::out | std::ios::trunc);
     if (!mmd_file_stream.is_open()) {
-      std::cerr << "Failed to open file " << mmd_file_path << std::endl;
+      spdlog::error("Failed to open file {}", mmd_file_path);
       continue;
     }
     mmd_file_stream << mmd_diagram;
@@ -101,7 +101,7 @@ inline bool Mermaid::run(const ParserPtr& parser_ptr) {
     auto svg_file_name = fmt::format("{}.svg", hash_value);
     auto svg_path = dist_img_dir/ svg_file_name;
     if (!mmd2svg(mmd_file_path, svg_path)) {
-      std::cerr << "Failed to export mmd to svg!" << std::endl;
+      spdlog::error("Failed to export mmd to svg!");
       continue;
     }
     // 替换
