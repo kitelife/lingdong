@@ -178,9 +178,9 @@ private:
   void init();
   bool load();
   bool parse();
-  bool generate();
+  bool generate() const;
   void prefill_payload(inja::json& payload) const;
-  void make_posts(Environment& env, Theme& theme);
+  void make_posts(Environment& env, Theme& theme) const;
   void make_index(Environment& env, Theme& theme) const;
   void make_rss(Environment& env, Theme& theme) const;
 
@@ -254,14 +254,18 @@ inline bool Maker::parse() {
     plugin_plantuml.run(post->parser());
     plugin_mermaid.run(post->parser());
   }
-  return std::all_of(pages_.begin(), pages_.end(), [](auto& page) {
+  // 按时间从大到小排序
+  std::sort(posts_.begin(), posts_.end(), [](const PostPtr& p1, const PostPtr& p2) {
+    return p1->updated_at() > p2->updated_at();
+  });
+  //
+  std::for_each(pages_.begin(), pages_.end(), [](auto& page) {
     spdlog::debug("try to pase page: {}", page->file_path());
     if (!page->parse()) {
       spdlog::error("failed to parse page: {}", page->file_path());
-      return false;
+      return;
     }
     spdlog::debug("success to parse page: {}", page->file_path());
-    return true;
   });
 }
 
@@ -279,7 +283,7 @@ inline void Maker::prefill_payload(nlohmann::json& payload) const {
 
 // https://docs.getpelican.com/en/latest/themes.html
 // https://github.com/pantor/inja
-inline bool Maker::generate() {
+inline bool Maker::generate() const {
   Theme theme {conf_->theme};
   Environment env {absolute(theme.template_path_).string()};
   // post & page
@@ -319,7 +323,7 @@ inline bool Maker::generate() {
   return true;
 }
 
-inline void Maker::make_posts(Environment& env, Theme& theme) {
+inline void Maker::make_posts(Environment& env, Theme& theme) const {
   inja::json posts_json;
   prefill_payload(posts_json);
   //
@@ -400,9 +404,7 @@ inline bool Maker::make() {
     return false;
   }
   spdlog::info("successfully loaded posts: {}", posts_.size() + pages_.size());
-  if (!parse()) {
-    return false;
-  }
+  parse();
   spdlog::debug("success to parse!");
   return generate();
 }
