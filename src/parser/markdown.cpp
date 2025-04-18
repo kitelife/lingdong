@@ -80,7 +80,7 @@ bool Markdown::parse() {
 
 ---
 id: example-post
-author: xiayf
+title: 示例文章
 date: 2024-04-15
 tags: 示例, markdown, C++
 ---
