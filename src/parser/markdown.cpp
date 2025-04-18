@@ -254,15 +254,17 @@ ParseResult Markdown::parse_itemlist(int8_t level, size_t blank_prefix_length, c
   bool ret_status = true;
   do {
     auto& last_line = lines.at(line_idx);
-    if (last_line.size() > pos) {
-      item_list->is_ordered = false;
-      item_list->items.emplace_back();
-      if (const auto status = parse_paragraph(last_line.substr(pos + 1, last_line.size() - 1 - pos),
-                                              item_list->items.back().paragraph_ptr);
-          !status) {
-        ret_status = status;
-        break;
-      }
+    if (last_line.empty() || last_line.size() <= pos) {
+      break;
+    }
+
+    item_list->is_ordered = false;
+    item_list->items.emplace_back();
+    if (const auto status = parse_paragraph(last_line.substr(pos + 1, last_line.size() - 1 - pos),
+                                            item_list->items.back().paragraph_ptr);
+        !status) {
+      ret_status = status;
+      break;
     }
     // 当前行处理 ok，则看下一行
     line_idx++;

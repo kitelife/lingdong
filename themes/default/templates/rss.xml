@@ -1,0 +1,17 @@
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+        <title>{{ SITE_TITLE }}</title>
+        <description>{{ SITE_DESC }}</description>
+        <link>{{ SITE_URL }}</link>
+        <atom:link href="{{SITE_URL}}rss.xml" rel="self" type="application/rss+xml"/>
+        <pubDate>{{ pub_date }}</pubDate>
+        <lastBuildDate>{{ pub_date }}</lastBuildDate>
+        <generator>LingDong</generator>
+        {% for post in posts %}
+        <item>
+            <title>{{ post.title }}</title>
+            <description>{{ post.desc }}</description>
+        </item>
+        {% endfor %}
+    </channel>
+</rss>

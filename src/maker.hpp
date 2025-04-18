@@ -1,15 +1,16 @@
 #pragma once
 
-#include <filesystem>
-
 #include <absl/strings/ascii.h>
+
+#include <filesystem>
 #include <inja/inja.hpp>
 #include <nlohmann/json.hpp>
 
+#include "absl/time/clock.h"
 #include "config.hpp"
 #include "parser/markdown.h"
-#include "plugin/plantuml.hpp"
 #include "plugin/mermaid.hpp"
+#include "plugin/plantuml.hpp"
 #include "utils/time.hpp"
 
 namespace ling {
@@ -157,6 +158,7 @@ public:
   path static_path_;
   path template_path_;
   //
+  path template_index {"index.html"};
   path template_post {"post.html"};
   path template_posts {"posts.html"};
   path template_rss {"rss.xml"};
@@ -178,8 +180,8 @@ private:
   bool generate();
   void prefill_payload(inja::json& payload) const;
   void make_posts(Environment& env, Theme& theme);
-  void make_index(Environment& env, Theme& theme);
-  void make_rss(Environment& env, Theme& theme);
+  void make_index(Environment& env, Theme& theme) const;
+  void make_rss(Environment& env, Theme& theme) const;
 
 private:
   ConfigPtr conf_;
@@ -328,7 +330,7 @@ inline void Maker::make_posts(Environment& env, Theme& theme) {
   }
   std::fstream posts_file_stream {dist_path_ / "posts.html", std::ios::out | std::ios::trunc};
   if (!posts_file_stream.is_open()) {
-    std::cerr << "Could not open posts file " << dist_path_.string() << std::endl;
+    std::cerr << "Could not open posts file " << dist_path_ / "posts.html" << std::endl;
     return;
   }
   Template posts_template = env.parse_template(theme.template_posts);
@@ -337,12 +339,54 @@ inline void Maker::make_posts(Environment& env, Theme& theme) {
   posts_file_stream.close();
 }
 
-inline void Maker::make_index(Environment& env, Theme& theme) {
-  copy(dist_path_ / "posts.html", dist_path_ / "index.html");
+inline void Maker::make_index(Environment& env, Theme& theme) const {
+  inja::json index_json;
+  prefill_payload(index_json);
+  //
+  size_t post_idx = 0;
+  for (const auto& post : posts_) {
+    index_json["posts"][post_idx] = {
+      {"title", post->title()},
+      {"updated_at", post->updated_at()},
+      {"url", fmt::format("/{0}/{1}", post_dir_.string(), post->html_file_name())},
+    };
+    post_idx++;
+  }
+  std::fstream index_file_stream {dist_path_ / "index.html", std::ios::out | std::ios::trunc};
+  if (!index_file_stream.is_open()) {
+    std::cerr << "Could not open index file " << dist_path_ / "index.html" << std::endl;
+    return;
+  }
+  Template index_template = env.parse_template(theme.template_index);
+  env.render_to(index_file_stream, index_template, index_json);
+  index_file_stream.flush();
+  index_file_stream.close();
 }
 
-inline void Maker::make_rss(Environment& env, Theme& theme) {
-  return;
+inline void Maker::make_rss(Environment& env, Theme& theme) const {
+  inja::json rss_json;
+  prefill_payload(rss_json);
+  //
+  rss_json["pub_date"] = absl::FormatTime(absl::Now());
+  //
+  size_t post_idx = 0;
+  for (const auto& post : posts_) {
+    rss_json["posts"][post_idx] = {
+      {"title", post->title()},
+      {"desc", inja::htmlescape(post->html())},
+    };
+    post_idx++;
+  }
+  //
+  std::fstream rss_file_stream {dist_path_ / "rss.xml", std::ios::out | std::ios::trunc};
+  if (!rss_file_stream.is_open()) {
+    std::cerr << "Could not open rss file " << dist_path_ / "rss.xml" << std::endl;
+    return;
+  }
+  Template rss_template = env.parse_template(theme.template_rss);
+  env.render_to(rss_file_stream, rss_template, rss_json);
+  rss_file_stream.flush();
+  rss_file_stream.close();
 }
 
 
