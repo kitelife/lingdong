@@ -4,12 +4,12 @@
 
 #include "markdown.h"
 
+#include <absl/strings/str_split.h>
+#include <fmt/core.h>
+
 #include <fstream>
 #include <iostream>
 #include <sstream>
-
-#include <fmt/core.h>
-#include <absl/strings/str_split.h>
 
 #include "../utils/strings.hpp"
 #include "../utils/time.hpp"
@@ -61,7 +61,7 @@ bool Markdown::parse() {
       case '!':  // 可能是图片
         pr = parse_image();
         break;
-      case '$': // 可能是独立成行的 latex 公式
+      case '$':  // 可能是独立成行的 latex 公式
         pr = parse_latex();
         break;
       default:
@@ -128,7 +128,7 @@ ParseResult Markdown::parse_metadata() {
   if (line_view != "---") {
     return ParseResult::make(2, 0);
   }
-  return ParseResult::make(0, last_line_idx+1);
+  return ParseResult::make(0, last_line_idx + 1);
 }
 
 ParseResult Markdown::parse_default() {
@@ -225,9 +225,9 @@ ParseResult Markdown::parse_latex() {
     return parse_default();
   }
   size_t view_len = line_view.size();
-  if (line_view[0] == '$' && line_view[1] == '$' && line_view[view_len-1] == '$' && line_view[view_len-2] == '$') {
+  if (line_view[0] == '$' && line_view[1] == '$' && line_view[view_len - 1] == '$' && line_view[view_len - 2] == '$') {
     const auto latex_block_ptr = std::make_shared<LatexBlock>();
-    latex_block_ptr->content = std::string(line_view.substr(2, view_len-4));
+    latex_block_ptr->content = std::string(line_view.substr(2, view_len - 4));
     elements_.push_back(latex_block_ptr);
     return ParseResult::make(0, line_idx + 1);
   }
@@ -254,13 +254,15 @@ ParseResult Markdown::parse_itemlist(int8_t level, size_t blank_prefix_length, c
   bool ret_status = true;
   do {
     auto& last_line = lines.at(line_idx);
-    item_list->is_ordered = false;
-    item_list->items.emplace_back();
-    if (const auto status = parse_paragraph(last_line.substr(pos + 1, last_line.size() - 1 - pos),
-                                            item_list->items.back().paragraph_ptr);
-        !status) {
-      ret_status = status;
-      break;
+    if (last_line.size() > pos) {
+      item_list->is_ordered = false;
+      item_list->items.emplace_back();
+      if (const auto status = parse_paragraph(last_line.substr(pos + 1, last_line.size() - 1 - pos),
+                                              item_list->items.back().paragraph_ptr);
+          !status) {
+        ret_status = status;
+        break;
+      }
     }
     // 当前行处理 ok，则看下一行
     line_idx++;
@@ -315,7 +317,9 @@ ParseResult Markdown::parse_ordered_itemlist(int8_t level, size_t blank_prefix_l
     auto& last_line = lines.at(line_idx);
     item_list->is_ordered = true;
     item_list->items.emplace_back();
-    if (const auto status = parse_paragraph(last_line.substr(pos + 2, last_line.size() - 2 - pos), item_list->items.back().paragraph_ptr); !status) {
+    if (const auto status = parse_paragraph(last_line.substr(pos + 2, last_line.size() - 2 - pos),
+                                            item_list->items.back().paragraph_ptr);
+        !status) {
       ret_status = status;
       break;
     }
@@ -334,18 +338,20 @@ ParseResult Markdown::parse_ordered_itemlist(int8_t level, size_t blank_prefix_l
       new_pos_start++;
     }
     //
-    if (new_pos_start == blank_prefix_length) {  // 可能同层级
-      if (!Item::is_ordered_item(absl::string_view(last_line).substr(new_pos_start))) { // 非有序列表项
+    if (new_pos_start == blank_prefix_length) {                                          // 可能同层级
+      if (!Item::is_ordered_item(absl::string_view(last_line).substr(new_pos_start))) {  // 非有序列表项
         break;
       }
-    } else if (new_pos_start > blank_prefix_length) { // 可能是子层级
+    } else if (new_pos_start > blank_prefix_length) {  // 可能是子层级
       auto is_ordered_item = Item::is_ordered_item(absl::string_view(last_line).substr(new_pos_start));
-      if (is_ordered_item || last_line[new_pos_start] == '-') { // 有序或无序的列表项
+      if (is_ordered_item || last_line[new_pos_start] == '-') {  // 有序或无序的列表项
         auto child_item_list = std::make_shared<ItemList>();
         child_item_list->is_ordered = is_ordered_item;
         item_list->items.back().child = child_item_list;
         last_line_idx = line_idx;
-        auto [status, next_line_idx] = is_ordered_item ? parse_ordered_itemlist(level + 1, new_pos_start, child_item_list) : parse_itemlist(level + 1, new_pos_start, child_item_list);  // 子列表
+        auto [status, next_line_idx] = is_ordered_item
+                                           ? parse_ordered_itemlist(level + 1, new_pos_start, child_item_list)
+                                           : parse_itemlist(level + 1, new_pos_start, child_item_list);  // 子列表
         line_idx = next_line_idx;
       } else {  // 非列表
         break;
@@ -461,8 +467,8 @@ LineParseResult Markdown::try_parse_code(const absl::string_view& line,
 }
 
 LineParseResult Markdown::try_parse_inline_latex(const absl::string_view& line,
-                                          size_t start,
-                                          const ParagraphPtr& paragraph_ptr) {
+                                                 size_t start,
+                                                 const ParagraphPtr& paragraph_ptr) {
   size_t idx = start + 1;
   while (idx < line.size()) {
     if (line[idx] == '$') {
@@ -504,7 +510,7 @@ LineParseResult Markdown::try_parse_link(const absl::string_view& line,
   if (idx == line.size() - 1 && line[idx] != ')') {
     return try_parse_text(line, start, paragraph_ptr);
   }
-  const absl::string_view link_uri = line.substr(link_url_start+1, idx - link_url_start-1);
+  const absl::string_view link_uri = line.substr(link_url_start + 1, idx - link_url_start - 1);
   paragraph_ptr->blocks.push_back(std::make_shared<InlineLink>(std::string(link_text), std::string(link_uri)));
   LineParseResult pr;
   pr.next_pos = idx + 1;
@@ -537,7 +543,7 @@ LineParseResult Markdown::try_parse_text(const absl::string_view& line,
     if (substr_view[sv_idx] != '*' && substr_view[sv_idx] != '~') {
       ss << substr_view[sv_idx];
     } else if (substr_view[sv_idx] == '~') {
-      if (sv_idx+1 < vs && substr_view[sv_idx+1] == '~') {
+      if (sv_idx + 1 < vs && substr_view[sv_idx + 1] == '~') {
         if (mark_states.empty() || mark_states.top() != 3) {
           mark_states.push(3);
           ss << "<strike>";
@@ -550,7 +556,7 @@ LineParseResult Markdown::try_parse_text(const absl::string_view& line,
         ss << substr_view[sv_idx];
       }
     } else {
-      if (sv_idx+1 < vs && substr_view[sv_idx+1] == '*') {
+      if (sv_idx + 1 < vs && substr_view[sv_idx + 1] == '*') {
         if (mark_states.empty() || mark_states.top() != 1) {
           mark_states.push(1);
           ss << "<strong>";
@@ -674,8 +680,8 @@ std::string ItemList::to_html() {
 
 std::string CodeBlock::to_html() {
   std::string class_name = fmt::format("language-{}", absl::AsciiStrToLower(lang_name));
-  return fmt::format(R"(<pre class="{0} {1}"><code>{2}</code></pre>)",
-    class_name, "line-numbers", absl::StrJoin(lines, "\n"));
+  return fmt::format(R"(<pre class="{0} {1}"><code>{2}</code></pre>)", class_name, "line-numbers",
+                     absl::StrJoin(lines, "\n"));
 }
 
 std::string LatexBlock::to_html() {

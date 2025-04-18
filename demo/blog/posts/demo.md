@@ -1,10 +1,10 @@
 ---
 id: example-post
+title: 示例文章
 date: 2024-04-15
 tags: 示例, markdown, C++
 ---
 
-# 示例文章
 ## 测试标题
 
 >haha

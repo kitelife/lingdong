@@ -6,7 +6,7 @@ site_desc = "精进，求诸己身"
 theme_dir = "../../themes"
 theme_name = "default"
 
-navigation = [["关于我", "/about.html"], ["作品", "/works.html"], ["RSS", "/rss.xml"]]
+navigation = [["关于我", "/pages/about.html"], ["作品", "/pages/works.html"], ["RSS", "/rss.xml"]]
 
 plugins = ["plantuml", "mermaid"]
 
