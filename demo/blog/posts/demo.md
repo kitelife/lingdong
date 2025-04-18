@@ -1,6 +1,5 @@
 ---
 id: example-post
-author: xiayf
 date: 2024-04-15
 tags: 示例, markdown, C++
 ---

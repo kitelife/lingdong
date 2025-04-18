@@ -56,6 +56,7 @@ target_link_libraries(
         lingdong
         absl::strings
         absl::hash
+        absl::time
         fmt::fmt
         inja
         jsoncpp_static
@@ -71,6 +72,7 @@ add_executable(
         test_lingdong
         src/plugin/plantuml_test.cpp
         src/utils/strings_test.cpp
+        src/utils/time_test.cpp
         src/config.hpp
         src/plugin/plantuml.hpp
         src/plugin/mermaid.hpp
@@ -80,6 +82,7 @@ add_executable(
         src/parser/markdown.cpp
 
         src/utils/strings.hpp
+        src/utils/time.hpp
 )
 target_link_libraries(
         test_lingdong
@@ -88,6 +91,7 @@ target_link_libraries(
         fmt::fmt
         absl::strings
         absl::hash
+        absl::time
         zlib
         toml11::toml11
 )

@@ -131,7 +131,7 @@ inline bool PlantUML::run(const ParserPtr& parser_ptr) {
     return false;
   }
   auto* md = dynamic_cast<Markdown*>(parser_ptr.get());
-  auto dist_img_dir = std::filesystem::current_path() / config_->dist_dir / "images";
+  auto dist_img_dir = std::filesystem::path(config_->dist_dir) / "images";
   if (!exists(dist_img_dir)) {
     create_directories(dist_img_dir);
   }
@@ -165,7 +165,7 @@ inline bool PlantUML::run(const ParserPtr& parser_ptr) {
     // 替换
     auto* image_ptr = new Image();
     image_ptr->alt_text = svg_file_path.filename();
-    image_ptr->uri = absolute(svg_file_path).string();
+    image_ptr->uri = "/images/" + svg_file_path.filename().string();
     ele.reset(image_ptr);
   }
   return true;

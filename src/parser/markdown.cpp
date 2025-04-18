@@ -12,6 +12,7 @@
 #include <absl/strings/str_split.h>
 
 #include "../utils/strings.hpp"
+#include "../utils/time.hpp"
 
 namespace ling {
 
@@ -110,11 +111,11 @@ ParseResult Markdown::parse_metadata() {
     const auto k = utils::view_strip_empty(line_view.substr(0, colon_pos));
     const auto v = utils::view_strip_empty(line_view.substr(colon_pos + 1));
     if (k == "id") {
-      metadata_.post_id = v;
-    } else if (k == "author") {
-      metadata_.author = v;
+      metadata_.id = v;
+    } else if (k == "title") {
+      metadata_.title = v;
     } else if (k == "date") {
-      metadata_.publish_date = v;
+      metadata_.publish_date = utils::date_format_convert(v.data());
     } else if (k == "tags") {
       auto tags = absl::StrSplit(v, ',', absl::SkipWhitespace());
       for (const auto& tag : tags) {

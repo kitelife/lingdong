@@ -65,7 +65,7 @@ inline bool Mermaid::run(const ParserPtr& parser_ptr) {
   }
   auto* md = dynamic_cast<Markdown*>(parser_ptr.get());
   auto temp_dir = std::filesystem::current_path() / "temp";
-  auto dist_img_dir = std::filesystem::current_path() / config_->dist_dir / "images";
+  auto dist_img_dir = std::filesystem::path(config_->dist_dir) / "images";
   if (!exists(temp_dir)) {
     create_directory(temp_dir);
   }
@@ -98,7 +98,8 @@ inline bool Mermaid::run(const ParserPtr& parser_ptr) {
     permissions(mmd_file_path, std::filesystem::perms::owner_all | std::filesystem::perms::group_all,
                 std::filesystem::perm_options::add);
     //
-    auto svg_path = dist_img_dir/ fmt::format("{}.svg", hash_value);
+    auto svg_file_name = fmt::format("{}.svg", hash_value);
+    auto svg_path = dist_img_dir/ svg_file_name;
     if (!mmd2svg(mmd_file_path, svg_path)) {
       std::cerr << "Failed to export mmd to svg!" << std::endl;
       continue;
@@ -106,7 +107,7 @@ inline bool Mermaid::run(const ParserPtr& parser_ptr) {
     // 替换
     auto* image_ptr = new Image();
     image_ptr->alt_text = mmd_file_path.filename();
-    image_ptr->uri = absolute(mmd_file_path).string();
+    image_ptr->uri = "/images/" + svg_file_name;
     ele.reset(image_ptr);
   }
   remove_all(temp_dir);

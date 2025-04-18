@@ -1,8 +1,8 @@
 #pragma once
 
-#include <absl/strings/ascii.h>
-
 #include <filesystem>
+
+#include <absl/strings/ascii.h>
 #include <inja/inja.hpp>
 #include <nlohmann/json.hpp>
 
@@ -10,6 +10,7 @@
 #include "parser/markdown.h"
 #include "plugin/plantuml.hpp"
 #include "plugin/mermaid.hpp"
+#include "utils/time.hpp"
 
 namespace ling {
 
@@ -22,37 +23,123 @@ using std::filesystem::file_time_type;
 class Post final {
 public:
   explicit Post(const path& file_path);
-  bool parse();
+  bool parse() const;
   ~Post() = default;
   ParserPtr parser() {
     return parser_;
   }
+  [[nodiscard]] std::string title();
+  [[nodiscard]] std::string updated_at();
+  [[nodiscard]] std::string id();
+  [[nodiscard]] std::string html();
+  [[nodiscard]] std::string html_file_name();
 
 private:
   path file_path_;
   ParserPtr parser_;
   //
-  file_time_type last_write_;
+  file_time_type last_write_time_;
+  std::string post_updated_;
   std::string file_name_;
+  //
+  std::string id_;
+  std::string title_;
+  std::string updated_at_;
+  std::string html_;
 };
 
 using PostPtr = std::shared_ptr<Post>;
 
 inline Post::Post(const path& file_path) {
   file_path_ = file_path;
-  last_write_ = last_write_time(file_path_);
+  last_write_time_ = last_write_time(file_path_);
+  post_updated_ = utils::convert(last_write_time_);
   file_name_ = file_path_.filename().string();
   parser_ = std::make_shared<Markdown>();
 }
 
-inline bool Post::parse() {
+inline bool Post::parse() const {
   if (parser_ == nullptr) {
     return false;
   }
   return parser_->parse_file(file_path_);
 }
 
-// https://pelicanthemes.com/
+inline std::string Post::title() {
+  if (!title_.empty()) {
+    return title_;
+  }
+  if (parser_ != nullptr) {
+    auto* md_ = dynamic_cast<Markdown*>(parser_.get());
+    if (md_ != nullptr) {
+      auto title = md_->metadata().title;
+      if (title.empty()) {
+        for (const auto& ele : md_->elements()) {
+          auto* h1 = dynamic_cast<Heading*>(ele.get());
+          if (h1 != nullptr) {
+            if (h1->level_ == 1) {
+              title_ = h1->title_;
+              break;
+            }
+          }
+        }
+      } else {
+        title_ = title;
+      }
+    }
+  }
+  return title_;
+}
+
+inline std::string Post::updated_at() {
+  if (!updated_at_.empty()) {
+    return updated_at_;
+  }
+  if (parser_ != nullptr) {
+    auto* md_ = dynamic_cast<Markdown*>(parser_.get());
+    if (md_ != nullptr) {
+      auto publish_date = md_->metadata().publish_date;
+      if (!publish_date.empty()) {
+        updated_at_ = publish_date;
+      }
+    }
+  }
+  if (updated_at_.empty()) {
+    updated_at_ = post_updated_;
+  }
+  return updated_at_;
+}
+
+inline std::string Post::id() {
+  if (!id_.empty()) {
+    return id_;
+  }
+  if (parser_ != nullptr) {
+    auto* md_ = dynamic_cast<Markdown*>(parser_.get());
+    if (md_ != nullptr) {
+      id_ = md_->metadata().id;
+    }
+  }
+  if (id_.empty()) {
+    id_ = file_name_;
+  }
+  return id_;
+}
+
+inline std::string Post::html() {
+  if (!html_.empty()) {
+    return html_;
+  }
+  if (parser_ != nullptr) {
+    html_ = parser_->to_html();
+  }
+  return html_;
+}
+
+inline std::string Post::html_file_name() {
+  return fmt::format("{}.html", id());
+}
+
 class Theme final {
 public:
   explicit Theme(path theme_path): base_path_(std::move(theme_path)) {
@@ -64,8 +151,9 @@ public:
   path static_path_;
   path template_path_;
   //
-  path template_index {"/index.html"};
-  path template_archives {"/archives.html"};
+  path template_post {"post.html"};
+  path template_posts {"posts.html"};
+  path template_rss {"rss.xml"};
 
 private:
   path base_path_;
@@ -78,25 +166,35 @@ public:
   bool make();
 
 private:
-  void init() const;
+  void init();
   bool load();
   bool parse();
   bool generate();
+  void prefill_payload(nlohmann::json& payload) const;
 
 private:
   ConfigPtr conf_;
   std::vector<PostPtr> posts_;
   std::vector<PostPtr> pages_;
+  //
+  path dist_path_;
+  path post_dir_;
+  path page_dir_;
 };
 
 using MakerPtr = std::shared_ptr<Maker>;
 
-inline void Maker::init() const {
-  static path dist_path {conf_->dist_dir};
-  if (exists(dist_path)) {
-    remove_all(dist_path);
+inline void Maker::init() {
+  dist_path_ = conf_->dist_dir;
+  if (exists(dist_path_)) {
+    remove_all(dist_path_);
   }
-  create_directory(dist_path);
+  create_directory(dist_path_);
+  //
+  post_dir_ = "posts";
+  create_directory(dist_path_ / post_dir_);
+  page_dir_ = "pages";
+  create_directory(dist_path_ / page_dir_);
 }
 
 inline bool Maker::load() {
@@ -144,23 +242,76 @@ inline bool Maker::parse() {
   });
 }
 
+inline void Maker::prefill_payload(nlohmann::json& payload) const {
+  payload["SITE_TITLE"] = conf_->site_title;
+  payload["SITE_URL"] = conf_->site_url;
+  payload["SITE_DESC"] = conf_->site_desc;
+  //
+  size_t idx = 0;
+  for (const auto& [fst, snd] : conf_->navigation) {
+    payload["navigation"][idx] = {{"url", snd}, {"name", fst}};
+    idx++;
+  }
+}
+
 // https://docs.getpelican.com/en/latest/themes.html
 // https://github.com/pantor/inja
 inline bool Maker::generate() {
-  //
   Theme theme {conf_->theme};
   inja::Environment env {absolute(theme.template_path_).string()};
-  // page
-  // posts
-  // index
-  nlohmann::json index_data;
-  index_data["SITENAME"] = conf_->site_name;
-  // env.render_file(theme.template_index, index_data);
-  // archives
-  nlohmann::json archives_data;
-  //env.render_file(theme.template_archives, archives_data);
+  // post
+  inja::json post_payload;
+  prefill_payload(post_payload);
+  //
+  inja::Template post_template = env.parse_template(theme.template_post);
+  auto render_post = [&](const PostPtr& post, bool is_page) {
+    post_payload["title"] = post->title();
+    post_payload["updated_at"] = post->updated_at();
+    post_payload["post_content"] = post->parser()->to_html();
+    //
+    path base_path = dist_path_ / (is_page ? page_dir_ : post_dir_);;
+    path post_file_path = base_path / post->html_file_name();
+    std::fstream post_file_stream {post_file_path, std::ios::out | std::ios::trunc};
+    if (!post_file_stream.is_open()) {
+      std::cerr << "Could not open post file " << post_file_path.string() << std::endl;
+      return;
+    }
+    env.render_to(post_file_stream, post_template, post_payload);
+    post_file_stream.flush();
+    post_file_stream.close();
+    //
+  };
+  for (const auto& post : posts_) {
+    render_post(post, false);
+  }
+  for (const auto& post : pages_) {
+    render_post(post, true);
+  }
+  // posts, also is index
+  inja::json posts_json;
+  prefill_payload(posts_json);
+  //
+  size_t post_idx = 0;
+  for (const auto& post : posts_) {
+    posts_json["posts"][post_idx] = {
+      {"title", post->title()},
+      {"updated_at", post->updated_at()},
+      {"url", fmt::format("/{0}/{1}", post_dir_.string(), post->html_file_name())},
+    };
+    post_idx++;
+  }
+  std::fstream posts_file_stream {dist_path_ / "index.html", std::ios::out | std::ios::trunc};
+  if (!posts_file_stream.is_open()) {
+    std::cerr << "Could not open posts file " << dist_path_.string() << std::endl;
+    return false;
+  }
+  inja::Template posts_template = env.parse_template(theme.template_posts);
+  env.render_to(posts_file_stream, posts_template, posts_json);
+  posts_file_stream.flush();
+  posts_file_stream.close();
   // rss
   // copy static
+  copy(theme.static_path_, dist_path_ / "static");
   return true;
 }
 

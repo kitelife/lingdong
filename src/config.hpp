@@ -2,7 +2,10 @@
 
 #include <string>
 #include <vector>
+#include <filesystem>
+
 #include <toml.hpp>
+#include "fmt/std.h"
 
 class Config {
 public:
@@ -10,7 +13,11 @@ public:
   void parse();
 
 public:
-  std::string site_name;
+  std::string site_title;
+  std::string site_url;
+  std::string site_desc;
+  std::vector<std::pair<std::string, std::string>> navigation;
+  //
   std::string theme;
   std::vector<std::string> plugins;
   std::string dist_dir;
@@ -19,8 +26,23 @@ public:
 };
 
 inline void Config::parse() {
-  site_name = toml::find_or_default<std::string>(raw_toml_, "site_name");
-  theme = toml::find_or_default<std::string>(raw_toml_, "theme");
+  site_title = toml::find_or_default<std::string>(raw_toml_, "site_title");
+  site_url = toml::find_or_default<std::string>(raw_toml_, "site_url");
+  site_desc = toml::find_or_default<std::string>(raw_toml_, "site_desc");
+  //
+  auto vv_navigation = toml::find_or_default<std::vector<std::vector<std::string>>>(raw_toml_, "navigation");
+  navigation.reserve(vv_navigation.size());
+  for (const auto& pair : vv_navigation) {
+    if (pair.size() != 2) {
+      continue;
+    }
+    navigation.emplace_back(pair[0], pair[1]);
+  }
+  //
+  const std::string theme_dir = toml::find_or_default<std::string>(raw_toml_, "theme_dir");
+  const std::string theme_name = toml::find_or_default<std::string>(raw_toml_, "theme_name");
+  theme = (std::filesystem::path(theme_dir) / std::filesystem::path(theme_name)).string();
+  //
   toml::find_or_default<std::vector<std::string>>(raw_toml_, "plugins");
   dist_dir = toml::find_or<std::string>(raw_toml_, "dist_dir", "dist");
 }
