@@ -1,17 +1,18 @@
 #pragma once
 
-#include <iostream>
-#include <filesystem>
-#include <fstream>
-#include <utility>
-
-#include <fmt/core.h>
 #include <absl/hash/hash.h>
 #include <absl/strings/str_join.h>
-#include <spdlog//spdlog.h>
+#include <fmt/core.h>
+#include <spdlog/spdlog.h>
 
-#include "plugin.h"
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <utility>
+
 #include "../parser/markdown.h"
+#include "absl/strings/strip.h"
+#include "plugin.h"
 
 namespace ling::plugin {
 
@@ -59,9 +60,13 @@ inline bool Mermaid::run(const ParserPtr& parser_ptr) {
     return false;
   }
   if (!is_mermaid_cli_installed()) {
+    spdlog::warn("mermaid cli not installed!");
     if (!install_mermaid_cli()) {
+      spdlog::error("failed to install mermaid cli!");
       return false;
     }
+  } else {
+    spdlog::debug("mermaid cli has installed!");
   }
   auto* md = dynamic_cast<Markdown*>(parser_ptr.get());
   auto temp_dir = std::filesystem::current_path() / "temp";
@@ -129,7 +134,8 @@ inline bool Mermaid::is_jq_exist() {
 }
 
 inline bool Mermaid::is_mermaid_cli_installed() {
-  return get_cmd_stdout("npm query '#@mermaid-js/mermaid-cli' | jq '.[] | select(.name  | type == \"string\") | .name'") == "@mermaid-js/mermaid-cli";
+  const auto query_result = get_cmd_stdout("npm query '#@mermaid-js/mermaid-cli' | jq '.[] | select(.name  | type == \"string\") | .name'");
+  return query_result == "\"@mermaid-js/mermaid-cli\"\n";
 }
 
 inline bool Mermaid::install_mermaid_cli() {
