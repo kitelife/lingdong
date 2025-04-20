@@ -401,10 +401,17 @@ inline void Maker::make_rss(Environment& env, Theme& theme) const {
   rss_json["pub_date"] = absl::FormatTime(absl::Now());
   //
   size_t post_idx = 0;
+  std::string site_url = conf_->site_url;
+  if (site_url[site_url.size()-1] == '/') {
+    site_url = site_url.substr(0, site_url.size()-1);
+  }
+  std::string post_dir = post_dir_.string();
   for (const auto& post : posts_) {
     rss_json["posts"][post_idx] = {
       {"title", post->title()},
       {"desc", inja::htmlescape(post->html())},
+      {"pub_date", post->updated_at()},
+      {"link", fmt::format("{0}/{1}/{2}", site_url, post_dir, post->html_file_name())},
     };
     post_idx++;
   }

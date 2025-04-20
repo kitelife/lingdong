@@ -11,6 +11,9 @@
         <item>
             <title>{{ post.title }}</title>
             <description>{{ post.desc }}</description>
+            <pubDate>{{ post.pub_date }}</pubDate>
+            <link>{{ post.link }}</link>
+            <guid isPermaLink="true">{{ post.link }}</guid>
         </item>
         {% endfor %}
     </channel>
