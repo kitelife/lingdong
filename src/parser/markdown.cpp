@@ -7,6 +7,7 @@
 #include <absl/strings/str_split.h>
 #include <fmt/core.h>
 #include <spdlog/spdlog.h>
+#include <inja/inja.hpp>
 
 #include <fstream>
 #include <iostream>
@@ -69,6 +70,7 @@ bool Markdown::parse() {
         pr = parse_default();
     }
     if (pr.status != 0) {
+      spdlog::warn("Markdown parse error: {}, next line: {}", pr.status, pr.next_line_idx);
       break;
     }
     last_line_idx = pr.next_line_idx;
@@ -157,7 +159,12 @@ ParseResult Markdown::parse_heading() {
   while (title_end > title_start && (last_line[title_end] == ' ' || last_line[title_end] == '\t')) {
     title_end--;
   }
-  const auto heading = std::make_shared<Heading>(level, last_line.substr(title_start, title_end - title_start + 1));
+  std::string heading_title = last_line.substr(title_start, title_end - title_start + 1);
+  auto pp = std::make_shared<Paragraph>(true);
+  if (parse_paragraph(last_line.substr(title_start, title_end - title_start + 1), pp)) {
+    heading_title = pp->to_html();
+  }
+  const auto heading = std::make_shared<Heading>(level, heading_title);
   elements_.push_back(heading);
   return ParseResult::make(0, last_line_idx + 1);
 }
@@ -722,8 +729,15 @@ std::string ItemList::to_html() {
 }
 
 std::string CodeBlock::to_html() {
-  std::string class_name = fmt::format("language-{}", absl::AsciiStrToLower(lang_name));
-  return fmt::format(R"(<pre class="{0} {1}"><code>{2}</code></pre>)", class_name, "line-numbers",
+  const auto& ln = absl::AsciiStrToLower(lang_name);
+  // 有点 trick，不优雅
+  // 应该放在 inja 模板渲染时解决？
+  // 不用检测是什么语言的代码，无脑转义？
+  for (auto& line : lines) {
+    line = inja::htmlescape(line);
+  }
+  std::string class_name = fmt::format("language-{}", ln);
+  return fmt::format(R"(<pre class="{0}"><code>{1}</code></pre>)", class_name,
                      absl::StrJoin(lines, "\n"));
 }
 

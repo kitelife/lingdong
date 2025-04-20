@@ -1,6 +1,6 @@
 ---
 id: product-quantizer-tutorial-part-2
-title: 【译文】k-NN 乘积量化器教程-第2部分
+title: k-NN 乘积量化器教程-第2部分（译）
 date: 2025-01-10
 ---
 

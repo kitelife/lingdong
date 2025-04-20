@@ -333,7 +333,7 @@ inline bool Maker::generate() const {
   // index
   make_index(env, theme);
   // copy static
-  copy(theme.static_path_, dist_path_ / "static");
+  copy(theme.static_path_, dist_path_ / "static", copy_options::recursive);
   // copy other directories
   std::for_each(subdirs_.begin(), subdirs_.end(), [&](const path& subdir) {
     std::string dir_name = subdir.stem().string();
@@ -341,7 +341,7 @@ inline bool Maker::generate() const {
     if (dir_name == "posts" || dir_name == "pages") {
       return;
     }
-    copy(subdir, dist_path_ / dir_name);
+    copy(subdir, dist_path_ / dir_name, copy_options::recursive);
   });
   return true;
 }

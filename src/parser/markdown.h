@@ -16,6 +16,7 @@
 #include <string>
 #include <vector>
 
+#include "inja/renderer.hpp"
 #include "parser.h"
 
 namespace ling {
@@ -80,7 +81,9 @@ public:
 
 class InlineCode final : public InlineFragment {
 public:
-  explicit InlineCode(std::string code = "") : InlineFragment(FragmentType::INLINE_CODE), code_(std::move(code)) {}
+  explicit InlineCode(std::string code = "") : InlineFragment(FragmentType::INLINE_CODE), code_(std::move(code)) {
+    code_ = inja::htmlescape(code_);
+  }
   std::string to_html() override;
 
   void set_code(std::string code) {
