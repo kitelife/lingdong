@@ -122,11 +122,11 @@ private:
 
 class Paragraph final : public Element {
 public:
-  explicit Paragraph(const bool is_list_item = false): is_list_item_(is_list_item) {}
+  explicit Paragraph(const bool unwrap_html = false): unwrap_html_(unwrap_html) {}
   [[nodiscard]] std::string to_text() const;
   std::string to_html() override;
 
-  bool is_list_item_;
+  bool unwrap_html_;
   std::vector<std::shared_ptr<InlineFragment>> blocks;
 };
 

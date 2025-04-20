@@ -668,7 +668,7 @@ std::string Paragraph::to_text() const {
 }
 
 std::string Paragraph::to_html() {
-  if (is_list_item_) {
+  if (unwrap_html_) {
     return to_text();
   }
   return fmt::format("<p>{}</p>", to_text());
