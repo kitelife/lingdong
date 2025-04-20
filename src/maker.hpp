@@ -16,10 +16,7 @@
 
 namespace ling {
 
-using std::filesystem::path;
-using std::filesystem::directory_entry;
-using std::filesystem::directory_iterator;
-using std::filesystem::file_time_type;
+using namespace std::filesystem;
 
 using inja::Environment;
 using inja::Template;
@@ -186,6 +183,8 @@ private:
 
 private:
   ConfigPtr conf_;
+  //
+  std::vector<path> subdirs_;
   std::vector<PostPtr> posts_;
   std::vector<PostPtr> pages_;
   //
@@ -197,6 +196,12 @@ private:
 using MakerPtr = std::shared_ptr<Maker>;
 
 inline void Maker::init() {
+  //
+  const auto& dir_iter = directory_iterator{current_path()};
+  std::for_each(begin(dir_iter), end(dir_iter), [this](const auto& entry) {
+    subdirs_.emplace_back(entry.path());
+  });
+  //
   dist_path_ = conf_->dist_dir;
   if (exists(dist_path_)) {
     for (const auto& entry : directory_iterator(dist_path_)) {
@@ -315,12 +320,23 @@ inline bool Maker::generate() const {
   }
   // posts
   make_posts(env, theme);
-  //
-  make_rss(env, theme);
+  // rss
+  if (exists(theme.template_path_ / "rss.xml")) {
+    make_rss(env, theme);
+  }
   // index
   make_index(env, theme);
   // copy static
   copy(theme.static_path_, dist_path_ / "static");
+  // copy other directories
+  std::for_each(subdirs_.begin(), subdirs_.end(), [&](const path& subdir) {
+    std::string dir_name = subdir.stem().string();
+    spdlog::debug("subdir: {}, dir_name: {}", subdir, dir_name);
+    if (dir_name == "posts" || dir_name == "pages") {
+      return;
+    }
+    copy(subdir, dist_path_ / dir_name);
+  });
   return true;
 }
 

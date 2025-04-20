@@ -405,6 +405,7 @@ ParseResult Markdown::parse_image() {
   size_t idx = 2;
   // find alt text
   std::string alt_text;
+  std::string img_width;
   while (idx < last_line.size()) {
     if (last_line[idx] == ']') {
       alt_text = last_line.substr(2, idx - 2);
@@ -412,6 +413,15 @@ ParseResult Markdown::parse_image() {
     }
     idx++;
   }
+  //
+  do {
+    std::vector<absl::string_view> alt_parts = absl::StrSplit(alt_text, '|');
+    if (alt_parts.size() == 2) {
+      alt_text = alt_parts[0];
+      img_width = alt_parts[1];
+    }
+  } while (false);
+  //
   if (idx >= last_line.size() - 3 || last_line[idx + 1] != '(' || last_line[last_line.size() - 1] != ')') {
     return ParseResult::make(2, last_line_idx);
   }
@@ -421,6 +431,9 @@ ParseResult Markdown::parse_image() {
   const auto image = std::make_shared<Image>();
   image->alt_text = alt_text;
   image->uri = uri;
+  if (!img_width.empty()) {
+    image->width = img_width;
+  }
   elements_.push_back(image);
   //
   return ParseResult::make(0, last_line_idx + 1);

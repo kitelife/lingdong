@@ -11,6 +11,6 @@ navigation = [["关于我", "/pages/about.html"], ["作品", "/pages/works.html"
 plugins = ["plantuml", "mermaid"]
 
 [plantuml]
-server = "www.plantuml.com"
+server = "127.0.0.1:8000"
 header = "skinparam defaultFontName \"Albert Sans\"\nskinparam defaultFontSize 15\nscale max 1600 width"
 jar_path = "/Users/xiayf/software/plantuml-mit-1.2025.1.jar"
