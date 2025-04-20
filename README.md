@@ -22,6 +22,7 @@
     - [x] plantuml
     - [x] mermaid
     - [ ] 图片压缩
+    - [ ] smms 图床
   - [x] 默认主题
     - [ ] 待细节调整优化
     - [ ] 评论插件（GitTalk/...）
