@@ -125,7 +125,6 @@ target_link_libraries(
         zlib
         toml11::toml11
         #
-        #
         SQLiteCpp
         sqlite3
         pthread

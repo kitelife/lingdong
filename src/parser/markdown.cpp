@@ -6,7 +6,7 @@
 
 #include <absl/strings/str_split.h>
 #include <fmt/core.h>
-#include <spdlog//spdlog.h>
+#include <spdlog/spdlog.h>
 
 #include <fstream>
 #include <iostream>
@@ -194,8 +194,29 @@ ParseResult Markdown::parse_codeblock() {
     return parse_paragraph();
   }
   //
-  std::string lang_name = last_line.substr(3, last_line.size() - 3);
-  lang_name = absl::StripSuffix(lang_name, " ");
+  const std::string codeblock_meta = last_line.substr(3, last_line.size() - 3);
+  std::vector<absl::string_view> meta_parts = absl::StrSplit(codeblock_meta, ' ', absl::SkipWhitespace());
+  //
+  std::string lang_name;
+  std::vector<StrPair> attrs;
+  do {
+    if (meta_parts.empty()) {
+      lang_name = "text";
+      break;
+    }
+    lang_name = meta_parts[0];
+    if (meta_parts.size() < 2) {
+      break;
+    }
+    for (size_t i = 1; i < meta_parts.size(); i++) {
+      std::vector<std::string> attr_parts = absl::StrSplit(meta_parts[i], ':', absl::SkipWhitespace());
+      if (attr_parts.size() < 2) {
+        spdlog::warn("Illegal attr: {}", meta_parts[i]);
+        continue;
+      }
+      attrs.emplace_back(attr_parts[0], attr_parts[1]);
+    }
+  } while (false);
   //
   std::vector<std::string> code_lines;
   bool valid_code_block = false;
@@ -214,6 +235,7 @@ ParseResult Markdown::parse_codeblock() {
   }
   const auto codeblock_ptr = std::make_shared<CodeBlock>();
   codeblock_ptr->lang_name = lang_name;
+  codeblock_ptr->attrs = attrs;
   codeblock_ptr->lines = code_lines;
   elements_.push_back(codeblock_ptr);
   return ParseResult::make(0, line_idx + 1);
@@ -708,7 +730,8 @@ std::string Text::to_html() {
 }
 
 std::string Image::to_html() {
-  return fmt::format("<img src='{0}' title='{1}' alt='{1}' sizes='100%'>", uri, alt_text);
+  return fmt::format("<img src='{0}' title='{1}' alt='{1}' width='{2}'>",
+    uri, alt_text, width);
 }
 
 std::string HorizontalRule::to_html() {

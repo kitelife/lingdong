@@ -111,8 +111,16 @@ inline bool Mermaid::run(const ParserPtr& parser_ptr) {
     }
     // 替换
     auto* image_ptr = new Image();
-    image_ptr->alt_text = mmd_file_path.filename();
+    image_ptr->alt_text = mmd_file_path.stem();
     image_ptr->uri = "/images/" + svg_file_name;
+    //
+    for (const auto& [fst, snd] : codeblock->attrs) {
+      if (fst == "width") {
+        image_ptr->width = snd;
+      } else if (fst == "alt") {
+        image_ptr->alt_text = snd;
+      }
+    }
     ele.reset(image_ptr);
   }
   remove_all(temp_dir);

@@ -34,7 +34,7 @@ $$P(w_{1:N})=\prod_{i=1}^{N-1} P(w_{i+1}|w_{1:i})=\prod_{i=1}^{N} o_{i}[w_{i+1}]
    - 无序列表项2
 3. 有序列表项3
 
-```plantuml-svg
+```plantuml-svg alt:DuckDB类继承
 class SQLStatement {
 + StatementType type
 + idx_t stmt_location
@@ -115,7 +115,7 @@ QueryNode <|.. CTENode
 QueryNode <|.. BoundSubqueryNode
 ```
 
-```mermaid
+```mermaid width:500 alt:mermaid流程图
 flowchart TD
     A[Christmas] -->|Get money| B(Go shopping)
     B --> C{Let me think}

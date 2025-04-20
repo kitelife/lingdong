@@ -20,6 +20,8 @@
 
 namespace ling {
 
+using StrPair = std::pair<std::string, std::string>;
+
 class ParseResult {
 public:
   ParseResult() = default;
@@ -156,6 +158,11 @@ public:
 class CodeBlock final : public Element {
 public:
   std::string lang_name;
+  /*
+   * 属性键值对
+   * 属性之间以空格分隔，键值以冒号分隔
+   */
+  std::vector<StrPair> attrs;
   std::vector<std::string> lines;
 
 public:
@@ -187,6 +194,8 @@ class Image final : public Element {  // 图片单独成行
 public:
   std::string alt_text;
   std::string uri;
+  //
+  std::string width = "100%";
 
   std::string to_html() override;
 };
@@ -239,10 +248,14 @@ private:
   //
   ParseResult parse_default();
 
-  static LineParseResult try_parse_code(const absl::string_view& line, size_t start, const ParagraphPtr& paragraph_ptr);
-  static LineParseResult try_parse_inline_latex(const absl::string_view& line, size_t start, const ParagraphPtr& paragraph_ptr);
-  static LineParseResult try_parse_link(const absl::string_view& line, size_t start, const ParagraphPtr& paragraph_ptr);
-  static LineParseResult try_parse_text(const absl::string_view& line, size_t start, const ParagraphPtr& paragraph_ptr);
+  static LineParseResult try_parse_code(const absl::string_view& line, size_t start,
+    const ParagraphPtr& paragraph_ptr);
+  static LineParseResult try_parse_inline_latex(const absl::string_view& line, size_t start,
+    const ParagraphPtr& paragraph_ptr);
+  static LineParseResult try_parse_link(const absl::string_view& line, size_t start,
+    const ParagraphPtr& paragraph_ptr);
+  static LineParseResult try_parse_text(const absl::string_view& line, size_t start,
+    const ParagraphPtr& paragraph_ptr);
 
 private:
   std::shared_ptr<std::istream> stream_ptr_;

@@ -3,14 +3,14 @@
 //
 #pragma once
 
+#include <absl/hash/hash.h>
+#include <cpr/cpr.h>
+#include <spdlog/spdlog.h>
+#include <zlib.h>
+
 #include <filesystem>
 #include <iostream>
 #include <utility>
-
-#include <cpr/cpr.h>
-#include <absl/hash/hash.h>
-#include <zlib.h>
-#include <spdlog/spdlog.h>
 
 #include "../config.hpp"
 #include "../parser/markdown.h"
@@ -164,8 +164,13 @@ inline bool PlantUML::run(const ParserPtr& parser_ptr) {
     svg_file_stream.close();
     // 替换
     auto* image_ptr = new Image();
-    image_ptr->alt_text = svg_file_path.filename();
+    image_ptr->alt_text = svg_file_path.stem();
     image_ptr->uri = "/images/" + svg_file_path.filename().string();
+    for (const auto& [fst, snd] : codeblock->attrs) {
+      if (fst == "alt") {
+        image_ptr->alt_text = snd;
+      }
+    }
     ele.reset(image_ptr);
   }
   return true;
