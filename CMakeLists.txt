@@ -86,9 +86,9 @@ target_link_libraries(
         dl
 )
 
-add_executable(test_sqlite src/test_sqlite.cpp)
+add_executable(tester src/tester.cpp)
 target_link_libraries(
-        test_sqlite
+        tester
         #
         SQLiteCpp
         sqlite3

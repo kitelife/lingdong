@@ -7,7 +7,7 @@
 #include <iostream>
 #include <cstdio>
 
-int main() {
+int test_sqlite() {
   std::cout << "SQlite3 version " << SQLite::VERSION << " (" << SQLite::getLibVersion() << ")" << std::endl;
   std::cout << "SQliteC++ version " << SQLITECPP_VERSION << std::endl;
   //
@@ -43,6 +43,9 @@ int main() {
     return EXIT_FAILURE;  // unexpected error : exit the example program
   }
   remove("test.db3");
+  return EXIT_SUCCESS;
+}
 
-  return 0;
+int main() {
+  return test_sqlite();
 }
