@@ -10,7 +10,7 @@ id: simplified-reactor-doc-zh
 
 ### 1.1 Reactor 简介
 
-Reactor 是为 JVM 准备的一个完全非阻塞的反应式编程基础组件，支持高效的需求管理（以管理“反压”的形式），直接与 Java 8 的函数式 API 集成，尤其是 `CompletableFuture`、`Stream` 以及 `Duration`，提供可组合的异步序列 API - `Flux`（适用于 N 个元素的序列）和 `Mono`（适用于 0 或 1个元素的序列）--- 并且全面地（extensively）实现了 [反应式流（Reative Streams）](https://www.reactive-streams.org/) 规范。
+Reactor 是为 JVM 准备的一个完全非阻塞的反应式编程基础组件，支持高效的需求管理（以管理“反压”的形式），直接与 Java 8 的函数式 API 集成，尤其是 `CompletableFuture`、`Stream` 以及 `Duration`，提供可组合的异步序列 API - `Flux`（适用于 N 个元素的序列）和 `Mono`（适用于 0 或 1个元素的序列）--- 并且全面地（extensively）实现了 [反应式流（Reative Streams）](https://www.reactive-streams.org/) 规范。
 
 借助 `reactor-netty` 项目，Reactor 也支持进程间的非阻塞通信，适用于微服务架构。`reactor-netty` 为 HTTP（包括 Websockets）、TCP 以及 UDP 提供支持反压的网络引擎，完全支持反应式编码解码。
 
@@ -362,7 +362,7 @@ Reactor 引入 2 个可组合的反应式类型（实现了 `Publisher` 接口�
 
 `Flux` 和 `Mono` 的类中包含大量的工厂方法，上手使用 Reactor 最简单的方式是从中选择一个用起来。
 
-例如，创建一个 `String` 序列，可以逐个列举出这些字符串，或者将这些字符串放到一个集合中，然后基于这个集合创建一个 Flux，如下所示：
+例如，创建一个 `String` 序列，可以逐个列举出这些字符串，或者将这些字符串放到一个集合中，然后基于这个集合创建一个 Flux，如下所示：
 
 ```java
 Flux<String> seq1 = Flux.just("foo", "bar", "foobar");
@@ -457,7 +457,7 @@ public class SampleSubscriber<T> extends BaseSubscriber<T> {
 - `block()`、`blockFirst()` 和 `blockLast()`
 - 调用 `toIterable()` 或 `toStream()` 进行遍历
 
-对首个请求进行定制的最简单方式是以一个 `BaseSubscriber` 派生类实例来 `subscribe`，派生类重写 `BaseSubscriber` 的 `hookOnSubscribe` 方法，如下所示：
+对首个请求进行定制的最简单方式是以一个 `BaseSubscriber` 派生类实例来 `subscribe`，派生类重写 `BaseSubscriber` 的 `hookOnSubscribe` 方法，如下所示：
 
 ```java
 Flux.range(1, 10)
@@ -488,7 +488,7 @@ Cancelling after having received 1
 
 谨记：订阅时指定的需求量，上游操作链中的每个算子都可以对其作出调整。一个典型案例是 `buffer(N)` 算子：如果它收到一个 `request(2)` 请求，它会理解为2个缓冲区的请求量。因为缓冲区需要 N 个元素才认为是满的，所以 `buffer` 算子将请求量调整成了 `2 x N`。
 
-你也许也注意到某些算子存在这样的变种 - 接受一个名为 `prefetch` 的 `int` 类型参数。这是另外一类修改下游请求量的算子。这类算子（比如 `flatMap`）通常是处理内部序列（inner sequences），从每个进入的元素派生出一个 `Publisher`。
+你也许也注意到某些算子存在这样的变种 - 接受一个名为 `prefetch` 的 `int` 类型参数。这是另外一类修改下游请求量的算子。这类算子（比如 `flatMap`）通常是处理内部序列（inner sequences），从每个进入的元素派生出一个 `Publisher`。
 
 `预取（prefetch）`是调整内部序列请求量的一个方式。如果未指定，多数这类算子会以 32 为初始需求量。
 
@@ -622,7 +622,7 @@ Flux<String> bridge = Flux.push(sink -> {
             
             public void onDataChunk(List<String> chunk) {
                 for (String s: chunk) {
-                    sink.next(s); // 2
+                    sink.next(s); // 2
                 }
             }
             
@@ -719,7 +719,7 @@ Reactor 中，运行模型以及实际的运行过程发生在什么地方由使
 
 此外，也可以使用 `Schedulers.fromExecutorService(ExecutorService)` 基于已有的 ExecutorService 创建一个 Scheduler。（也可以基于一个 Executor 来创建，但不建议这么干（译注：因为 Executor 不能销毁释放））
 
-也可以使用 **newXXX** 这类方法创建各种调度器（scheduler）类型的全新实例。例如，使用 `Schedulers.newElastic(yourScheduleName)` 创建一个名为 `yourScheduleName` 的全新的弹性调度器（elastic scheduler）。
+也可以使用 **newXXX** 这类方法创建各种调度器（scheduler）类型的全新实例。例如，使用 `Schedulers.newElastic(yourScheduleName)` 创建一个名为 `yourScheduleName` 的全新的弹性调度器（elastic scheduler）。
 
 > `elastic` 调度器用于兼容处理不可避免的历史遗留的阻塞性代码，但 `single` 和 `parallel` 调度器不行，因而，如果在 `single` 或 `parallel` 调度器上使用 Reactor 的阻塞性 API（`block()`、`blockFirst()`、`blockLast()`，或者进行 `toIterable()` 或 `toStream()` 迭代），会导致抛出 `IllegalStateException` 异常。
 >
@@ -733,7 +733,7 @@ Flux.interval(Duration.ofMillis(300), Schedulers.newSingle("test"));
 
 Reactor 提供了两种方式来切换反应式链中的执行上下文（或者说 `调度器`）：`publishOn` 和 `subscribeOn`。两者都是接受一个 `Scheduler` 类型参数并将执行上下文切换到这个调度器。不过，链中 `publishOn` 所处的位置很关键，而 `subscribeOn` 处于哪个位置都无所谓。要理解这个差别的原因，得先理解 [订阅之前实际什么都没有发生](https://projectreactor.io/docs/core/release/reference/#reactive.subscribe)。
 
-Reactor，串接算子，就是将很多 `Flux` 和 `Mono` 的实现一个套一个，逐层封装。一旦订阅，就创建了一个 `Subscriber` 对象链，沿链回溯即可找到第一个发布者。这些实现细节是隐藏在接口背后，开发者可见的是最外层的那个 `Flux`（或 `Mono`）以及 `Subscription`（译注：Reactor 中 Subscription 是一个接口类型，是 `Subscriber` 接口中 `onSubscribe` 方法参数的类型 - `public void onSubscribe(Subscription s)`，用于向生产者请求数据 或者 取消订阅），但这些算子特定的链中消费者是幕后功臣。
+Reactor，串接算子，就是将很多 `Flux` 和 `Mono` 的实现一个套一个，逐层封装。一旦订阅，就创建了一个 `Subscriber` 对象链，沿链回溯即可找到第一个发布者。这些实现细节是隐藏在接口背后，开发者可见的是最外层的那个 `Flux`（或 `Mono`）以及 `Subscription`（译注：Reactor 中 Subscription 是一个接口类型，是 `Subscriber` 接口中 `onSubscribe` 方法参数的类型 - `public void onSubscribe(Subscription s)`，用于向生产者请求数据 或者 取消订阅），但这些算子特定的链中消费者是幕后功臣。
 
 有了上面这些认知，现在我们可以进一步了解 `publishOn` 和 `subscribeOn` 这两个算子：
 
@@ -765,7 +765,7 @@ new Thread(() -> flux.subscribe(System.out::println));
 
 #### 3.5.2 subscribeOn 方法
 
-`subscribeOn` 在构造反向链时应用于订阅处理过程（译注：所谓构造反向链时，是指调用 subscribe 方法时）。因此，无论你将 `subscribeOn` 放在算子链的何处，**它始终会影响源头下发数据的执行上下文**。然而，这并不会影响 `publishOn` 之后算子调用的行为，它们仍然会切换到 `publishOn` 指定的执行上下文。
+`subscribeOn` 在构造反向链时应用于订阅处理过程（译注：所谓构造反向链时，是指调用 subscribe 方法时）。因此，无论你将 `subscribeOn` 放在算子链的何处，**它始终会影响源头下发数据的执行上下文**。然而，这并不会影响 `publishOn` 之后算子调用的行为，它们仍然会切换到 `publishOn` 指定的执行上下文。
 
 - 从订阅操作发生时整个算子链所在的线程切换到新的线程
 - 从指定 `Scheduler` 中选择一个线程
@@ -863,7 +863,7 @@ parallel-2 -> 10
 
 由此也要注意：`subscribe(Subscriber<T>)` 会合并所有数据“轨道”，而 `subscribe(Consumer<T>)` 是运行所有的数据“轨道”。如果以 lambda 表达式调用 `subscribe` 方法，那么每个 lambda 表达式都会被复制成多个实例（数量等于“轨道”数量）去执行[^3]。
 
-[^1]: 译注：这里的“轨道”其实不太直白。在实现上，`ParallelFlux` 会将最后 `subscribe` 的 onNext 回调按并行度（默认等于 CPU 核数 N）复制成 N 个，那么最终调用 ParallelFlux 的 N 个 Subscriber，从 ParallelFlux 实例到一个 Subscriber 的数据流路径可以理解为一个“轨道”，ParallelFlux 在接收到上游消息后按照 round-robin 方式选择一个 Subscriber 调用其 `onNext` 下发消息，但 `onNext` 是运行在什么线程上，是由 runOn 算子决定的，如果不使用 runOn 算子，那么所有 Subscriber 的 `onNext` 方法调用都是同步运行在主线程上的。
+[^1]: 译注：这里的“轨道”其实不太直白。在实现上，`ParallelFlux` 会将最后 `subscribe` 的 onNext 回调按并行度（默认等于 CPU 核数 N）复制成 N 个，那么最终调用 ParallelFlux 的 N 个 Subscriber，从 ParallelFlux 实例到一个 Subscriber 的数据流路径可以理解为一个“轨道”，ParallelFlux 在接收到上游消息后按照 round-robin 方式选择一个 Subscriber 调用其 `onNext` 下发消息，但 `onNext` 是运行在什么线程上，是由 runOn 算子决定的，如果不使用 runOn 算子，那么所有 Subscriber 的 `onNext` 方法调用都是同步运行在主线程上的。
 
 [^2]: 译注：原文中用了多个词来表达相近的意思：sequence（序列）、stream（流）、flow（流），阅读时可以相互替代理解。此外，还有 event（事件）、data（数据）、message（消息），在当前上下文中，可以看成是等价的。
 
