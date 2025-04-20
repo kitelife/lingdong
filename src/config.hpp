@@ -5,7 +5,6 @@
 #include <filesystem>
 
 #include <toml.hpp>
-#include "fmt/std.h"
 
 class Config {
 public:

@@ -2,6 +2,7 @@
 #include <filesystem>
 
 #include <gflags/gflags.h>
+#include <fmt/std.h>
 #include <spdlog/spdlog.h>
 
 #include "config.hpp"

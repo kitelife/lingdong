@@ -267,6 +267,7 @@ inline bool Maker::parse() {
     }
     spdlog::debug("success to parse page: {}", page->file_path());
   });
+  return true;
 }
 
 inline void Maker::prefill_payload(nlohmann::json& payload) const {
