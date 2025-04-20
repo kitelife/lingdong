@@ -196,9 +196,15 @@ private:
 using MakerPtr = std::shared_ptr<Maker>;
 
 inline void Maker::init() {
-  //
+  std::unordered_set<std::string> excluded_entries;
+  std::for_each(conf_->exclude_source_entries.begin(), conf_->exclude_source_entries.end(), [&excluded_entries](auto& entry) {
+    excluded_entries.emplace(entry);
+  });
   const auto& dir_iter = directory_iterator{current_path()};
-  std::for_each(begin(dir_iter), end(dir_iter), [this](const auto& entry) {
+  std::for_each(begin(dir_iter), end(dir_iter), [this, &excluded_entries](const directory_entry& entry) {
+    if (excluded_entries.count(entry.path().filename()) > 0) {
+      return;
+    }
     subdirs_.emplace_back(entry.path());
   });
   //
