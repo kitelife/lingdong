@@ -41,8 +41,12 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(jsoncpp cpr googletest libuv)
 
 add_subdirectory(third_party/abseil)
+# https://github.com/pantor/inja
 add_subdirectory(third_party/inja)
+# https://github.com/ToruNiina/toml11
 add_subdirectory(third_party/toml11)
+# https://github.com/SRombauts/SQLiteCpp
+add_subdirectory(third_party/SQLiteCpp)
 
 add_executable(lingdong src/main.cpp
         src/maker.hpp
@@ -62,9 +66,11 @@ add_executable(lingdong src/main.cpp
 
 target_link_libraries(
         lingdong
+        #
         absl::strings
         absl::hash
         absl::time
+        #
         inja
         jsoncpp_static
         toml11::toml11
@@ -73,6 +79,21 @@ target_link_libraries(
         gflags
         spdlog::spdlog_header_only
         libuv::libuv
+        #
+        SQLiteCpp
+        sqlite3
+        pthread
+        dl
+)
+
+add_executable(test_sqlite src/test_sqlite.cpp)
+target_link_libraries(
+        test_sqlite
+        #
+        SQLiteCpp
+        sqlite3
+        pthread
+        dl
 )
 
 # for testing
@@ -103,6 +124,12 @@ target_link_libraries(
         absl::time
         zlib
         toml11::toml11
+        #
+        #
+        SQLiteCpp
+        sqlite3
+        pthread
+        dl
 )
 include(GoogleTest)
 gtest_discover_tests(test_lingdong)
