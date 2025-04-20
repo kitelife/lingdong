@@ -1,4 +1,4 @@
-@import url("https://fontsapi.zeoseven.com/292/main/result.css");
+@import url("https://fontsapi.zeoseven.com/7/main/result.css");
 
 /*
  * Reset some basic elements
@@ -14,7 +14,7 @@ dl, dd, ol, ul, figure {
  */
 body {
     text-rendering: optimizeLegibility;
-    font-family: equity_text_a, "LXGW WenKai";
+    font-family: equity_text_a, "Zhuque Fangsong (technical preview)";
     font-weight: normal;
     font-variant-ligatures: common-ligatures;
     font-kerning: normal;
@@ -42,7 +42,7 @@ code {
     margin-bottom: 1em; }
 
 h2, h3, h4, h5, h6 {
-    font-family: equity_text_a, "LXGW WenKai";
+    font-family: equity_text_a, "Zhuque Fangsong (technical preview)";
     margin-top: 2em; }
 
 /**
@@ -269,7 +269,7 @@ p > img {
  * Site footer
  */
 .site-footer {
-    font-family: equity_text_a, "LXGW WenKai";
+    font-family: equity_text_a, "Zhuque Fangsong (technical preview)";
     border-top: 1px solid #444;
     padding: 1em 0; }
 
