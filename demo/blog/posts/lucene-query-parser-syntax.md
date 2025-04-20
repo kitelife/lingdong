@@ -210,7 +210,7 @@ jakarta^4 apache
 
 ### NOT
 
-若文档包含”NOT“之后的词，”NOT“ 操作会排查该文档。这相当于集合的差集操作。”!“ 符号可用于替代单词 ”NOT“。
+若文档包含“NOT”之后的词，“NOT” 操作会排查该文档。这相当于集合的差集操作。“!” 符号可用于替代单词 “NOT”。
 
 比如，使用如下查询语句搜索包含 ”jakarta apache“ 但不包含 ”Apache Lucene“ 的文档”：
 
@@ -244,7 +244,7 @@ Lucene 支持使用圆括号对子句进行分组，构成子查询。如果你�
 (jakarta OR apache) AND website
 ```
 
-如此就消除了任何困惑，确保你想表达是：必须存在 ”website“，以及可能存在词 ”jakarta“ 或 ”apache“。
+如此就消除了任何困惑，确保你想表达是：必须存在 “website”，以及可能存在词 “jakarta” 或 “apache”。
 
 ## 域分组
 
@@ -253,7 +253,7 @@ Lucene 支持使用圆括号对单个域的多个子句进行分组。
 例如，若想搜索一个 title 中既包含单词“return”且包含短语“pink panther”，可以使用如下查询：
 
 ```
-title:(+return +"pink panther")
+title:(+return +"pink panther")
 ```
 
 ## 特殊字符转义
