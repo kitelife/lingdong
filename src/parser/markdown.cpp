@@ -448,7 +448,9 @@ ParseResult Markdown::parse_image() {
 ParseResult Markdown::parse_paragraph() {
   const auto paragraph = std::make_shared<Paragraph>();
   if (parse_paragraph(lines.at(last_line_idx), paragraph)) {
-    elements_.push_back(paragraph);
+    if (!paragraph->blocks.empty()) { // 忽略空行
+      elements_.push_back(paragraph);
+    }
   }
   return ParseResult::make(0, last_line_idx + 1);
 }
