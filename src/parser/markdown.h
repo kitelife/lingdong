@@ -122,10 +122,12 @@ private:
 
 class Paragraph final : public Element {
 public:
-  std::vector<std::shared_ptr<InlineFragment>> blocks;
-  Paragraph() = default;
+  explicit Paragraph(const bool is_list_item = false): is_list_item_(is_list_item) {}
   [[nodiscard]] std::string to_text() const;
   std::string to_html() override;
+
+  bool is_list_item_;
+  std::vector<std::shared_ptr<InlineFragment>> blocks;
 };
 
 class BlockQuote final : public Element {
@@ -138,7 +140,7 @@ public:
 
 class Item final : public Element {
 public:
-  std::shared_ptr<Paragraph> paragraph_ptr = std::make_shared<Paragraph>();
+  std::shared_ptr<Paragraph> paragraph_ptr = std::make_shared<Paragraph>(true);
   std::shared_ptr<ItemList> child;
 
   std::string to_html() override;
