@@ -762,7 +762,7 @@ std::string Text::to_html() {
 }
 
 std::string Image::to_html() {
-  return fmt::format("<img src='{0}' title='{1}' alt='{1}' width='{2}'>",
+  return fmt::format("<img src='{0}' title='{1}' alt='{1}' width='{2}'/>",
     uri, alt_text, width);
 }
 

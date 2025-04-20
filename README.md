@@ -24,6 +24,7 @@
     - [ ] 图片压缩
   - [x] 默认主题
     - [ ] 待细节调整优化
+    - [ ] 评论插件（GitTalk/...）
   - [ ] 状态缓存
   - [ ] AI 简写
 
@@ -34,3 +35,4 @@
 ## 致谢
 
 - 前端语法高亮库： https://highlightjs.org/
+- 评论插件：https://gitalk.github.io/
