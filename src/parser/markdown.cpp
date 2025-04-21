@@ -266,8 +266,19 @@ ParseResult Markdown::parse_latex() {
 
 ParseResult Markdown::parse_dash_prefix_line() {
   const auto& last_line = lines.at(last_line_idx);
-  if (last_line.size() >= 3 && last_line[0] == '-' && last_line[1] == '-' && last_line[2] == '-') {
-    return parse_horizontal_rule();
+  if (last_line.size() >= 3) {
+    bool all_dash = true;
+    size_t idx = 0;
+    while (idx < last_line.size()) {
+      if (last_line[idx] != '-') {
+        all_dash = false;
+        break;
+      }
+      idx++;
+    }
+    if (all_dash) {
+      return parse_horizontal_rule();
+    }
   }
   return parse_itemlist();
 }
