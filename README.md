@@ -18,6 +18,7 @@
     - [x] 引用块
     - [ ] 表格
     - [ ] 脚注
+    - [ ] 单行文本对齐方式（右对齐，中间对齐）
   - 插件
     - [x] plantuml
     - [x] mermaid
@@ -37,3 +38,4 @@
 
 - 前端语法高亮库： https://highlightjs.org/
 - 评论插件：https://gitalk.github.io/
+- 默认主题引自 https://bitbashing.io/

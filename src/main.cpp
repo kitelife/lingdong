@@ -18,9 +18,10 @@ ConfigPtr load_conf(const std::string& conf_file_path = "config.toml") {
   return conf_ptr;
 }
 
-int main() {
+int main(int argc, char** argv) {
+  google::ParseCommandLineFlags(&argc, &argv, true);
   spdlog::set_level(spdlog::level::debug);
-
+  //
   const auto origin_wd = std::filesystem::current_path();
   current_path(std::filesystem::absolute(FLAGS_dir));
   spdlog::info("change working dir from {} to {}", origin_wd, std::filesystem::current_path());
