@@ -266,7 +266,7 @@ ParseResult Markdown::parse_latex() {
 
 ParseResult Markdown::parse_dash_prefix_line() {
   const auto& last_line = lines.at(last_line_idx);
-  if (last_line.size() == 3 && last_line[0] == '-' && last_line[1] == '-' && last_line[2] == '-') {
+  if (last_line.size() >= 3 && last_line[0] == '-' && last_line[1] == '-' && last_line[2] == '-') {
     return parse_horizontal_rule();
   }
   return parse_itemlist();
