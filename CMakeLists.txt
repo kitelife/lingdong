@@ -124,6 +124,7 @@ target_link_libraries(
         absl::time
         zlib
         toml11::toml11
+        inja
         #
         SQLiteCpp
         sqlite3

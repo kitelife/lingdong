@@ -2,6 +2,7 @@
 site_title = "BitPacking" # 无事牌
 site_url = "https://blog.xiayf.cn/"
 site_desc = "精进，求诸己身"
+site_ico = "/assets/bits_small.ico"
 
 exclude_source_entries = ["node_modules", "config.toml", "package.json", "package-lock.json"]
 dist_dir = "../dist/blog"

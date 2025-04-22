@@ -10,13 +10,13 @@
 - https://www.markdownguide.org/basic-syntax
  */
 
-#include <absl/strings/str_join.h>
-
 #include <map>
 #include <string>
 #include <vector>
 
-#include "inja/renderer.hpp"
+#include <absl/strings/str_join.h>
+#include <inja/inja.hpp>
+
 #include "parser.h"
 
 namespace ling {

@@ -285,6 +285,9 @@ inline void Maker::prefill_payload(nlohmann::json& payload) const {
   payload["SITE_TITLE"] = conf_->site_title;
   payload["SITE_URL"] = conf_->site_url;
   payload["SITE_DESC"] = conf_->site_desc;
+  if (!conf_->site_ico.empty()) {
+    payload["SITE_ICO"] = conf_->site_ico;
+  }
   //
   size_t idx = 0;
   for (const auto& [fst, snd] : conf_->navigation) {

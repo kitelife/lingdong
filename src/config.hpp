@@ -15,6 +15,7 @@ public:
   std::string site_title;
   std::string site_url;
   std::string site_desc;
+  std::string site_ico;
   std::vector<std::string> exclude_source_entries;
   std::vector<std::pair<std::string, std::string>> navigation;
   //
@@ -29,6 +30,7 @@ inline void Config::parse() {
   site_title = toml::find_or_default<std::string>(raw_toml_, "site_title");
   site_url = toml::find_or_default<std::string>(raw_toml_, "site_url");
   site_desc = toml::find_or_default<std::string>(raw_toml_, "site_desc");
+  site_ico = toml::find_or_default<std::string>(raw_toml_, "site_ico");
   exclude_source_entries = toml::find_or_default<std::vector<std::string>>(raw_toml_, "exclude_source_entries");
   //
   auto vv_navigation = toml::find_or_default<std::vector<std::vector<std::string>>>(raw_toml_, "navigation");
