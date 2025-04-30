@@ -1,6 +1,6 @@
 ---
 id: arrow-ipc
-name: Arrow 列存格式-序列化与进程间通信（译）
+title: Arrow 列存格式-序列化与进程间通信（译）
 date: 2024-12-07
 ---
 
