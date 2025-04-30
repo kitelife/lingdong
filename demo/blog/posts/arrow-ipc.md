@@ -28,7 +28,7 @@ date: 2024-12-07
 
 - 一个 32 比特长度的再开始标识。其值为 `0xFFFFFFFF`，表示重新开始一个有效消息。这一部分是在版本 0.15.0 引入的，部分原因是为了解决 Flatbuffers 要求8字节对齐的问题。
 - 消息元数据部分的大小，32 比特长度，小端编码。
-- 消息元数据，类型为#link("https://github.com/apache/arrow/blob/main/format/Message.fbs")[Message.fbs]文件中定义的 `Message` 类型。
+- 消息元数据，类型为 [Message.fbs]("https://github.com/apache/arrow/blob/main/format/Message.fbs")文件中定义的 `Message` 类型。
 - 消息体，其长度必须是8字节的倍数。
 
 语义上，消息格式形如：
@@ -52,7 +52,7 @@ date: 2024-12-07
 
 在读取一个输入流时，通常先解析 `Message` 元数据，经验证后获取到消息体的大小，然后读取消息体。
 
-== Schema 消息
+### Schema 消息
 
 [Schema.fbs]("https://github.com/apache/arrow/blob/main/format/Schema.fbs") 这个 Flatbuffers 文件包含所有内置类型的定义，以及用于表达一个给定成批记录 schema 的 `Schema` 元数据类型。schema 是若干字段列（`Field`）定义的有序序列，每个字段列定义包含列名称和列数据类型。`Schema` 类型的值经序列化后不会包含任何数据缓冲区，仅包含类型元数据。
 
