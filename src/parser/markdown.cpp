@@ -66,6 +66,9 @@ bool Markdown::parse() {
       case '$':  // 可能是独立成行的 latex 公式
         pr = parse_latex();
         break;
+      case '[': // 可能是脚注
+        pr = parse_footnote();
+        break;
       default:
         pr = parse_default();
     }
@@ -76,6 +79,33 @@ bool Markdown::parse() {
     last_line_idx = pr.next_line_idx;
   }
   return pr.status == 0;
+}
+
+ParseResult Markdown::parse_footnote() {
+  const auto& last_line = lines.at(last_line_idx);
+  // spdlog::debug("try to parse footnote: {}", last_line);
+  if (last_line.size() < 4 || last_line[1] != '^') {
+    return parse_default();
+  }
+  size_t idx = 2;
+  do {
+    if (last_line[idx] == ']') {
+      break;
+    }
+  } while (++idx < last_line.size());
+  if (idx < 3 || idx == last_line.size() || idx+1 == last_line.size() || last_line[idx+1] != ':') {
+    return parse_default();
+  }
+  const auto& id = last_line.substr(2, idx-2);
+  ++idx;
+  auto paragraph_ptr = std::make_shared<Paragraph>(true);
+  auto status = parse_paragraph(last_line.substr(idx+1), paragraph_ptr);
+  if (!status) {
+    spdlog::error("Failed to parse '{}'", last_line);
+  }
+  // spdlog::debug("Has footnote: {}", id);
+  footnotes_[id] = std::make_shared<Footnote>(id, paragraph_ptr);
+  return ParseResult::make(0, last_line_idx+1);
 }
 
 /*
@@ -547,6 +577,16 @@ LineParseResult Markdown::try_parse_link(const absl::string_view& line,
                                          size_t start,
                                          const ParagraphPtr& paragraph_ptr) {
   size_t idx = start + 1;
+  // 脚注
+  if (idx < line.size()) {
+    if (line[idx] == '^') {
+      auto pr = try_parse_footnote_ref(line, idx+1, paragraph_ptr);
+      if (pr.status == 0) {
+        return pr;
+      }
+    }
+  }
+  // 链接
   while (idx < line.size()) {
     if (line[idx] == ']') {
       break;
@@ -573,6 +613,26 @@ LineParseResult Markdown::try_parse_link(const absl::string_view& line,
   LineParseResult pr;
   pr.next_pos = idx + 1;
   return pr;
+}
+
+LineParseResult Markdown::try_parse_footnote_ref(const absl::string_view& line,
+                                                 size_t start,
+                                                 const ParagraphPtr& paragraph_ptr) {
+  size_t idx = start;
+  LineParseResult lpr;
+  do {
+    if (line[idx] == ']') {
+      break;
+    }
+  } while (++idx < line.size());
+  if (idx == start) {
+    lpr.status = 2;
+    return lpr;
+  }
+  const absl::string_view ref_id = line.substr(start, idx-start);
+  paragraph_ptr->blocks.push_back(std::make_shared<InlineFootnoteRef>(std::string(ref_id)));
+  lpr.next_pos = idx + 1;
+  return lpr;
 }
 
 LineParseResult Markdown::try_parse_text(const absl::string_view& line,
@@ -669,6 +729,17 @@ std::string Markdown::to_html() {
   for (const auto& ele : elements_) {
     lines.push_back(ele->to_html());
   }
+  if (!footnotes_.empty()) {
+    lines.push_back(HorizontalRule().to_html());
+    std::vector<std::string> footnote_str_vec;
+    for (const auto& [id, footnote] : footnotes_) {
+      footnote_str_vec.push_back(footnote->to_html());
+    }
+    // todo: html 结构不要放这里，定义 FootnotePart & Footnote 来包含这个 html 格式。
+    std::string footnotes_part = fmt::format(R"(<div class="footnotes" role="doc-endnotes"><ol>{}</ol></div>)",
+      absl::StrJoin(footnote_str_vec, "\n"));
+    lines.push_back(footnotes_part);
+  }
   return absl::StrJoin(lines, "\n");
 }
 
@@ -754,6 +825,14 @@ std::string CodeBlock::to_html() {
 
 std::string LatexBlock::to_html() {
   return fmt::format(R"(<p style="text-align: center">$${0}$$</p>)", content);
+}
+
+std::string Footnote::to_html() {
+  return fmt::format(R"(<li id="fn:{0}"><p>{1}<a href="#fnref:{0}" class="reversefootnote" role="doc-backlink">↩</a></p></li>)", id_, p_ptr_->to_html());
+}
+
+std::string InlineFootnoteRef::to_html() {
+  return fmt::format(R"(<sup id="fnref:{0}"><a href="#fn:{0}" class="footnote" rel="footnote" role="doc-noteref">[^{0}]</a></sup>)", id_);
 }
 
 std::string InlineCode::to_html() {

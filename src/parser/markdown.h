@@ -12,6 +12,7 @@
 
 #include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <absl/strings/str_join.h>
@@ -70,6 +71,7 @@ enum class FragmentType {
   INLINE_CODE,
   LATEX,
   LINK,
+  FOOT_NOTE_REF,
 };
 
 class InlineFragment : public Element {
@@ -77,6 +79,15 @@ public:
   FragmentType type_ = FragmentType::UNKNOWN;
 
   explicit InlineFragment(const FragmentType type) : type_(type) {}
+};
+
+class InlineFootnoteRef final : public InlineFragment {
+public:
+  explicit InlineFootnoteRef(std::string id): InlineFragment(FragmentType::FOOT_NOTE_REF), id_(std::move(id)) {}
+  std::string to_html() override;
+
+private:
+  std::string id_;
 };
 
 class InlineCode final : public InlineFragment {
@@ -213,6 +224,18 @@ public:
 using ParagraphPtr = std::shared_ptr<Paragraph>;
 using ItemListPtr = std::shared_ptr<ItemList>;
 
+class Footnote final : public Element {
+public:
+  std::string id_;
+  ParagraphPtr p_ptr_;
+
+public:
+  Footnote(std::string id, ParagraphPtr p_ptr) : id_(std::move(id)), p_ptr_(std::move(p_ptr)) {}
+  std::string to_html() override;
+};
+
+using FootnotePtr = std::shared_ptr<Footnote>;
+
 class Markdown final : public Parser {
 public:
   Markdown() = default;
@@ -251,6 +274,8 @@ private:
   ParseResult parse_horizontal_rule();
   ParseResult parse_image();
   //
+  ParseResult parse_footnote();
+  //
   ParseResult parse_default();
 
   static LineParseResult try_parse_code(const absl::string_view& line, size_t start,
@@ -258,6 +283,8 @@ private:
   static LineParseResult try_parse_inline_latex(const absl::string_view& line, size_t start,
     const ParagraphPtr& paragraph_ptr);
   static LineParseResult try_parse_link(const absl::string_view& line, size_t start,
+    const ParagraphPtr& paragraph_ptr);
+  static LineParseResult try_parse_footnote_ref(const absl::string_view& line, size_t start,
     const ParagraphPtr& paragraph_ptr);
   static LineParseResult try_parse_text(const absl::string_view& line, size_t start,
     const ParagraphPtr& paragraph_ptr);
@@ -270,6 +297,7 @@ private:
   //
   PostMetadata metadata_;
   std::vector<std::shared_ptr<Element>> elements_;
+  std::map<std::string, FootnotePtr> footnotes_;
 };
 
 using MarkdownPtr = std::shared_ptr<Markdown>;
