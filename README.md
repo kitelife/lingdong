@@ -26,6 +26,7 @@
     - [ ] 图片压缩
     - [ ] smms 图床
     - [ ] 基于 typst + [cmarker](https://typst.app/universe/package/cmarker/) 导出 pdf 格式
+    - [ ] 将 typst 算法伪代码块转换成图片（png/svg）
   - [x] 默认主题
     - [ ] 待细节调整优化
     - [ ] 评论插件（GitTalk/...）
