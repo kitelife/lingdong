@@ -16,6 +16,7 @@
       - [x] 多级列表
     - [x] 代码块
     - [x] 引用块
+    - [x] mathjax 数学公式
     - [ ] 表格
     - [x] 脚注
       - [ ] 调整实现
@@ -27,6 +28,7 @@
     - [ ] smms 图床
     - [ ] 基于 typst + [cmarker](https://typst.app/universe/package/cmarker/) 导出 pdf 格式
     - [ ] 将 typst 算法伪代码块转换成图片（png/svg）
+    - [ ] katex？（替换掉 mathjax，支持更多的 latex 能力）
   - [x] 默认主题
     - [ ] 待细节调整优化
     - [ ] 评论插件（GitTalk/...）
