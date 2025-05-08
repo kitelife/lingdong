@@ -832,7 +832,7 @@ std::string Footnote::to_html() {
 }
 
 std::string InlineFootnoteRef::to_html() {
-  return fmt::format(R"(<sup id="fnref:{0}"><a href="#fn:{0}" class="footnote" rel="footnote" role="doc-noteref">[^{0}]</a></sup>)", id_);
+  return fmt::format(R"(<sup id="fnref:{0}"><a href="#fn:{0}" class="footnote" rel="footnote" role="doc-noteref">[{0}]</a></sup>)", id_);
 }
 
 std::string InlineCode::to_html() {
