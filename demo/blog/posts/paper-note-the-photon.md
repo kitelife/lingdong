@@ -1,6 +1,6 @@
 ---
 id: reading-photon-paper
-title: 读文笔记：Photon - Fault-tolerant and Scalable Joining of Continuous Data Streams
+title: 读文：Photon - Fault-tolerant and Scalable Joining of Continuous Data Streams
 date: 2019-10-10
 ---
 

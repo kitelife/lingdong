@@ -1,5 +1,5 @@
 ---
-title: 读文笔记：关于 MMAP 与 SSD
+title: 读文：关于 MMAP 与 SSD
 date: 2022-09-14
 id: reading-about-mmap-ssd
 ---

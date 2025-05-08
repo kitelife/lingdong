@@ -1,5 +1,5 @@
 ---
-title: 读书笔记：Just For Fun - The Story of an Accidental Revolutionary
+title: 读书：Just For Fun - The Story of an Accidental Revolutionary
 date: 2013-11-07
 id: reading-just-for-fun
 ---

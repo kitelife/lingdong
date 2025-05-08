@@ -1,6 +1,6 @@
 ---
 id: reading-kafka-design
-title: 读文笔记：Kafka 官方设计文档
+title: 读文：Kafka 官方设计文档
 date: 2019-10-13
 ---
 

@@ -1,5 +1,5 @@
 ---
-title: Reactor 官方文档翻译简化版
+title: Reactor 官方文档（简译）
 date: 2019-06-26
 id: simplified-reactor-doc-zh
 ---
