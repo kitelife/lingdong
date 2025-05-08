@@ -140,6 +140,8 @@ public:
   [[nodiscard]] std::string to_text() const;
   std::string to_html() override;
 
+  // left / center / right / justify
+  std::string text_align = "justify";
   bool unwrap_html_;
   std::vector<std::shared_ptr<InlineFragment>> blocks;
 };

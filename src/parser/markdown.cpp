@@ -510,6 +510,23 @@ bool Markdown::parse_paragraph(const std::string& line, const ParagraphPtr& para
   }
   LineParseResult pr;
   size_t idx = 0;
+  if (clean_line_view[idx] == '\\' && clean_line_view.size() > 2) {
+    switch (clean_line_view[idx+1]) {
+      case 'L':
+        paragraph_ptr->text_align = "left";
+        idx += 2;
+        break;
+      case 'C':
+        paragraph_ptr->text_align = "center";
+        idx += 2;
+        break;
+      case 'R':
+        paragraph_ptr->text_align = "right";
+        idx += 2;
+        break;
+      default:
+    }
+  }
   while (idx < clean_line_view.size()) {
     auto c = clean_line_view[idx];
     switch (c) {
@@ -760,7 +777,7 @@ std::string Paragraph::to_html() {
   if (unwrap_html_) {
     return to_text();
   }
-  return fmt::format("<p>{}</p>", to_text());
+  return fmt::format(R"(<p class="text-align-{0}">{1}</p>)", text_align, to_text());
 }
 
 std::string BlockQuote::to_html() {
