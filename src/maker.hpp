@@ -255,6 +255,9 @@ inline bool Maker::load() {
 inline bool Maker::parse() {
   plugin::PlantUML plugin_plantuml {conf_};
   plugin::Mermaid plugin_mermaid {conf_};
+  if (!plugin_plantuml.init() || !plugin_mermaid.init()) {
+    return false;
+  }
   for (const auto& post : posts_) {
     spdlog::debug("try to parse post: {}", post->file_path());
     if (!post->parse()) {
@@ -265,6 +268,8 @@ inline bool Maker::parse() {
     plugin_plantuml.run(post->parser());
     plugin_mermaid.run(post->parser());
   }
+  plugin_plantuml.destroy();
+  plugin_mermaid.destroy();
   // 按时间从大到小排序
   std::sort(posts_.begin(), posts_.end(), [](const PostPtr& p1, const PostPtr& p2) {
     return p1->updated_at() > p2->updated_at();

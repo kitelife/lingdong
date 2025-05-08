@@ -36,6 +36,7 @@ static std::string get_cmd_stdout(std::string cmd) {
 class Mermaid final: public Plugin {
 public:
   explicit Mermaid(ConfigPtr  config): config_(std::move(config)) {};
+  bool init() override;
   bool run(const ParserPtr& parser_ptr) override;
 
 private:
@@ -49,11 +50,7 @@ private:
   ConfigPtr config_;
 };
 
-// https://github.com/mermaid-js/mermaid-cli
-inline bool Mermaid::run(const ParserPtr& parser_ptr) {
-  if (parser_ptr == nullptr) {
-    return false;
-  }
+inline bool Mermaid::init() {
   if (!is_npm_exist() || !is_jq_exist()) {
     spdlog::error("npm or jq not exists!");
     return false;
@@ -64,8 +61,15 @@ inline bool Mermaid::run(const ParserPtr& parser_ptr) {
       spdlog::error("failed to install mermaid cli!");
       return false;
     }
-  } else {
-    spdlog::debug("mermaid cli has installed!");
+  }
+  spdlog::debug("mermaid cli has installed!");
+  return true;
+}
+
+// https://github.com/mermaid-js/mermaid-cli
+inline bool Mermaid::run(const ParserPtr& parser_ptr) {
+  if (parser_ptr == nullptr) {
+    return false;
   }
   auto* md = dynamic_cast<Markdown*>(parser_ptr.get());
   auto temp_dir = std::filesystem::current_path() / "temp";
