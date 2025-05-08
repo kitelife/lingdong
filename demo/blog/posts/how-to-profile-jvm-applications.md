@@ -140,7 +140,7 @@ $ sbt -J-Dsbt.launcher.standby=20s -J-XX:+PreserveFramePointer reload reload rel
 
 Netflix 公司近期发布了一个新的火焰图可视化工具 - [Flamescope](https://medium.com/netflix-techblog/netflix-flamescope-a57ca19d47bb)，可以将火焰图过滤限制在一个特定的时间范围内。
 
-![FlameScope|400](https://i.loli.net/2020/07/13/djm2hkvC98irQu7.png)
+![FlameScope|200](https://i.loli.net/2020/07/13/djm2hkvC98irQu7.png)
 
 Martin Spier 和 Brendan Gregg 为研究扰动以及其他时间相关的问题（perturbations and other time-based issues）而开发了这个工具。常规的火焰图是聚合了所有堆栈追踪抽样数据，如果系统中发生了一个短时小故障，就会被深埋于其他追踪信息中，这个工具就是为了解决这个问题。
 

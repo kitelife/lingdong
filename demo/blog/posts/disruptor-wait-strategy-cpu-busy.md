@@ -90,7 +90,7 @@ private int applyWaitMethod(final SequenceBarrier barrier, int counter) throws A
 Disruptor 作为一个任务队列，自带一个线程池，线程池的线程工厂即构造方法传入的 factory，线程数量等于 [disruptor.handleEventsWith](https://github.com/LMAX-Exchange/disruptor/blob/master/src/main/java/com/lmax/disruptor/dsl/Disruptor.java#L165) 调用时传入的回调方法数量，handleEventsWith 的参数数量不定:
 
 ```java
-public final EventHandlerGroup<T> handleEventsWith(final EventHandler<? super T>... handlers)`
+public final EventHandlerGroup<T> handleEventsWith(final EventHandler<? super T>... handlers)
 ```
 
 18个 Disruptor 实例，每个实例有一个消费者线程，消费者线程不断检查队列中是否有新的 `Event<T>` 任务需要处理，如果有，则调用 EventHandler 回调方法进行处理，否则睡眠 sleepTimeNs 纳秒。
