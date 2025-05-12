@@ -46,7 +46,7 @@ inline void Config::parse() {
   const std::string theme_name = toml::find_or_default<std::string>(raw_toml_, "theme_name");
   theme = (std::filesystem::path(theme_dir) / std::filesystem::path(theme_name)).string();
   //
-  toml::find_or_default<std::vector<std::string>>(raw_toml_, "plugins");
+  plugins = toml::find_or_default<std::vector<std::string>>(raw_toml_, "plugins");
   dist_dir = toml::find_or<std::string>(raw_toml_, "dist_dir", "dist");
 }
 

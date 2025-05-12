@@ -79,11 +79,7 @@ static std::string zlib_deflate_decompress(const std::string& input) {
 
 class PlantUML final : public Plugin {
 public:
-  explicit PlantUML(ConfigPtr config): config_(std::move(config)) {
-    plantuml_server_ = toml::find_or<std::string>(config_->raw_toml_, "plantuml", "server", "www.plantuml.com");
-    diagram_header_ = toml::find_or_default<std::string>(config_->raw_toml_, "plantuml", "header");
-    // std::cout << "diagram_header_: " << diagram_header_ << std::endl;
-  };
+  bool init(ConfigPtr config_ptr) override;
   bool run(const ParserPtr& parser_ptr) override;
 
   std::pair<bool, std::string> diagram_desc2pic(std::vector<std::string>& lines);
@@ -126,8 +122,19 @@ inline std::pair<bool, std::string> PlantUML::diagram_desc2pic(std::vector<std::
   return std::make_pair(true, r.text);
 }
 
+inline bool PlantUML::init(ConfigPtr config_ptr) {
+  config_ = config_ptr;
+  plantuml_server_ = toml::find_or<std::string>(config_->raw_toml_, "plantuml", "server", "www.plantuml.com");
+  diagram_header_ = toml::find_or_default<std::string>(config_->raw_toml_, "plantuml", "header");
+  inited_ = true;
+  return true;
+}
+
 inline bool PlantUML::run(const ParserPtr& parser_ptr) {
   if (parser_ptr == nullptr) {
+    return false;
+  }
+  if (!inited_) {
     return false;
   }
   auto* md = dynamic_cast<Markdown*>(parser_ptr.get());
@@ -175,4 +182,6 @@ inline bool PlantUML::run(const ParserPtr& parser_ptr) {
   }
   return true;
 }
+
+static PluginRegister<PlantUML> plantuml_register_ {"PlantUML"};
 }

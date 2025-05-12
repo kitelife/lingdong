@@ -59,6 +59,7 @@ add_executable(lingdong src/main.cpp
         src/plugin/plugin.h
         src/plugin/plantuml.hpp
         src/plugin/mermaid.hpp
+        src/plugin/plugins.hpp
 
         src/utils/taoli.hpp
         src/utils/strings.hpp

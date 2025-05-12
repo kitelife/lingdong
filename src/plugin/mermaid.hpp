@@ -35,8 +35,7 @@ static std::string get_cmd_stdout(std::string cmd) {
 
 class Mermaid final: public Plugin {
 public:
-  explicit Mermaid(ConfigPtr  config): config_(std::move(config)) {};
-  bool init() override;
+  bool init(ConfigPtr config_ptr) override;
   bool run(const ParserPtr& parser_ptr) override;
 
 private:
@@ -50,7 +49,8 @@ private:
   ConfigPtr config_;
 };
 
-inline bool Mermaid::init() {
+inline bool Mermaid::init(ConfigPtr config_ptr) {
+  config_ = config_ptr;
   if (!is_npm_exist() || !is_jq_exist()) {
     spdlog::error("npm or jq not exists!");
     return false;
@@ -63,12 +63,17 @@ inline bool Mermaid::init() {
     }
   }
   spdlog::debug("mermaid cli has installed!");
+  inited_ = true;
   return true;
 }
 
 // https://github.com/mermaid-js/mermaid-cli
 inline bool Mermaid::run(const ParserPtr& parser_ptr) {
   if (parser_ptr == nullptr) {
+    return false;
+  }
+  if (!inited_) {
+    spdlog::error("Init before run!");
     return false;
   }
   auto* md = dynamic_cast<Markdown*>(parser_ptr.get());
@@ -152,5 +157,7 @@ inline bool Mermaid::is_mermaid_cli_installed() {
 inline bool Mermaid::install_mermaid_cli() {
   return system("npm install @mermaid-js/mermaid-cli 2>&1") == 0;
 }
+
+static PluginRegister<Mermaid> mermaid_register_ {"Mermaid"};
 
 }

@@ -23,17 +23,20 @@ static bool is_local_uri(const absl::string_view uri) {
   return true;
 }
 
-class SmallImage final : Plugin {
+class SmallImage final : public Plugin {
 public:
-  explicit SmallImage(ConfigPtr  config): config_(std::move(config)) {
-    threshold_ = toml::find_or<size_t>(config_->raw_toml_, "small_image", "threshold", 1024*1024);
-  };
+  bool init(ConfigPtr config) override;
   bool run(const ParserPtr& parser_ptr) override;
 
 private:
-  ConfigPtr config_;
-  size_t threshold_;
+  size_t threshold_ = 0;
 };
+
+inline bool SmallImage::init(ConfigPtr config) {
+  threshold_ = toml::find_or<size_t>(config->raw_toml_, "small_image", "threshold", 1024*1024);
+  inited_ = true;
+  return true;
+}
 
 inline bool SmallImage::run(const ParserPtr& parser_ptr) {
   if (parser_ptr == nullptr) {
@@ -67,5 +70,7 @@ inline bool SmallImage::run(const ParserPtr& parser_ptr) {
   }
   return true;
 }
+
+static PluginRegister<SmallImage> smallimage_register_ {"SmallImage"};
 
 }

@@ -12,14 +12,23 @@ namespace ling::plugin {
 
 class Smms final : public Plugin {
 public:
-  explicit Smms(const ConfigPtr& config) : config_(config) {}
+  bool init(ConfigPtr config_ptr) override;
   bool run(const ParserPtr& parser_ptr) override;
 
 private:
   ConfigPtr config_;
 };
 
+inline bool Smms::init(ConfigPtr config_ptr) {
+  inited_ = true;
+  return true;
+}
+
+
 inline bool Smms::run(const ParserPtr& parser_ptr) {
   return true;
 }
+
+static PluginRegister<Smms> smms_register_ {"Smms"};
+
 }
