@@ -104,7 +104,7 @@ ParseResult Markdown::parse_footnote() {
     spdlog::error("Failed to parse '{}'", last_line);
   }
   // spdlog::debug("Has footnote: {}", id);
-  footnotes_[id] = std::make_shared<Footnote>(id, paragraph_ptr);
+  footnotes_ptr_->add_footnote(id, std::make_shared<Footnote>(id, paragraph_ptr));
   return ParseResult::make(0, last_line_idx+1);
 }
 
@@ -746,19 +746,27 @@ std::string Markdown::to_html() {
   for (const auto& ele : elements_) {
     lines.push_back(ele->to_html());
   }
-  if (!footnotes_.empty()) {
-    lines.push_back(HorizontalRule().to_html());
-    std::vector<std::string> footnote_str_vec;
-    for (const auto& [id, footnote] : footnotes_) {
-      footnote_str_vec.push_back(footnote->to_html());
-    }
-    // todo: html 结构不要放这里，定义 FootnotePart & Footnote 来包含这个 html 格式。
-    std::string footnotes_part = fmt::format(R"(<div class="footnotes" role="doc-endnotes"><ol>{}</ol></div>)",
-      absl::StrJoin(footnote_str_vec, "\n"));
-    lines.push_back(footnotes_part);
+  const auto& footnotes_html = footnotes_ptr_->to_html();
+  if (!footnotes_html.empty()) {
+    lines.push_back(footnotes_html);
   }
   return absl::StrJoin(lines, "\n");
 }
+
+std::string Footnotes::to_html() {
+  if (footnotes_.empty()) {
+    return "";
+  }
+  std::vector<std::string> lines;
+  lines.reserve(footnotes_.size());
+  for (const auto& [id, footnote] : footnotes_) {
+    lines.push_back(footnote->to_html());
+  }
+  const std::string footnotes_part = fmt::format(R"(<div class="footnotes" role="doc-endnotes"><ol>{}</ol></div>)",
+      absl::StrJoin(lines, "\n"));
+  return HorizontalRule().to_html() + "\n" + footnotes_part;
+}
+
 
 std::string Heading::to_html() {
   return fmt::format("<h{0}>{1}</h{0}>", level_, title_);

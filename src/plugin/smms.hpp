@@ -6,8 +6,6 @@
 
 #include "plugin.h"
 
-#include "../config.hpp"
-
 namespace ling::plugin {
 
 class Smms final : public Plugin {

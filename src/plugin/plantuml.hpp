@@ -12,7 +12,6 @@
 #include <iostream>
 #include <utility>
 
-#include "../config.hpp"
 #include "../parser/markdown.h"
 #include "plugin.h"
 

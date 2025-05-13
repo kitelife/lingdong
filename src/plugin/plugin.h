@@ -3,6 +3,7 @@
 //
 #pragma once
 
+#include "../config.hpp"
 #include "../parser/parser.h"
 
 namespace ling::plugin {

@@ -238,6 +238,16 @@ public:
 
 using FootnotePtr = std::shared_ptr<Footnote>;
 
+class Footnotes final : public Element {
+public:
+  std::map<std::string, FootnotePtr> footnotes_;
+  std::string to_html() override;
+  //
+  void add_footnote(const std::string& id, const FootnotePtr& footnote_ptr) {
+    footnotes_[id] = footnote_ptr;
+  };
+};
+
 class Markdown final : public Parser {
 public:
   Markdown() = default;
@@ -299,7 +309,7 @@ private:
   //
   PostMetadata metadata_;
   std::vector<std::shared_ptr<Element>> elements_;
-  std::map<std::string, FootnotePtr> footnotes_;
+  std::shared_ptr<Footnotes> footnotes_ptr_ = std::make_shared<Footnotes>();
 };
 
 using MarkdownPtr = std::shared_ptr<Markdown>;

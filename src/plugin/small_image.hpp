@@ -12,7 +12,6 @@
 #include <toml.hpp>
 
 #include "../parser/markdown.h"
-#include "../config.hpp"
 
 namespace ling::plugin {
 
