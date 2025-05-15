@@ -1,11 +1,11 @@
 #pragma once
 
 #include <absl/strings/ascii.h>
+#include <spdlog/spdlog.h>
 
 #include <filesystem>
 #include <inja/inja.hpp>
 #include <nlohmann/json.hpp>
-#include <spdlog/spdlog.h>
 
 #include "absl/time/clock.h"
 #include "config.hpp"
@@ -26,7 +26,7 @@ public:
   explicit Post(const path& file_path);
   bool parse() const;
   ~Post() = default;
-  ParserPtr parser() {
+  MarkdownPtr parser() {
     return parser_;
   }
   [[nodiscard]] std::string title();
@@ -40,7 +40,7 @@ public:
 
 private:
   path file_path_;
-  ParserPtr parser_;
+  MarkdownPtr parser_;
   //
   file_time_type last_write_time_;
   std::string post_updated_;
@@ -74,22 +74,19 @@ inline std::string Post::title() {
     return title_;
   }
   if (parser_ != nullptr) {
-    auto* md_ = dynamic_cast<Markdown*>(parser_.get());
-    if (md_ != nullptr) {
-      auto title = md_->metadata().title;
-      if (title.empty()) {
-        for (const auto& ele : md_->elements()) {
-          auto* h1 = dynamic_cast<Heading*>(ele.get());
-          if (h1 != nullptr) {
-            if (h1->level_ == 1) {
-              title_ = h1->title_;
-              break;
-            }
+    auto title = parser_->metadata().title;
+    if (title.empty()) {
+      for (const auto& ele : parser_->elements()) {
+        auto* h1 = dynamic_cast<Heading*>(ele.get());
+        if (h1 != nullptr) {
+          if (h1->level_ == 1) {
+            title_ = h1->title_;
+            break;
           }
         }
-      } else {
-        title_ = title;
       }
+    } else {
+      title_ = title;
     }
   }
   return title_;
@@ -100,12 +97,9 @@ inline std::string Post::updated_at() {
     return updated_at_;
   }
   if (parser_ != nullptr) {
-    auto* md_ = dynamic_cast<Markdown*>(parser_.get());
-    if (md_ != nullptr) {
-      auto publish_date = md_->metadata().publish_date;
-      if (!publish_date.empty()) {
-        updated_at_ = publish_date;
-      }
+    auto publish_date = parser_->metadata().publish_date;
+    if (!publish_date.empty()) {
+      updated_at_ = publish_date;
     }
   }
   if (updated_at_.empty()) {
@@ -119,10 +113,7 @@ inline std::string Post::id() {
     return id_;
   }
   if (parser_ != nullptr) {
-    auto* md_ = dynamic_cast<Markdown*>(parser_.get());
-    if (md_ != nullptr) {
-      id_ = md_->metadata().id;
-    }
+    id_ = parser_->metadata().id;
   }
   if (id_.empty()) {
     id_ = file_name_;
@@ -146,7 +137,7 @@ inline std::string Post::html_file_name() {
 
 class Theme final {
 public:
-  explicit Theme(path theme_path): base_path_(std::move(theme_path)) {
+  explicit Theme(path theme_path) : base_path_(std::move(theme_path)) {
     static_path_ = base_path_ / path("static");
     template_path_ = base_path_ / path("templates");
   }
@@ -155,10 +146,10 @@ public:
   path static_path_;
   path template_path_;
   //
-  path template_index {"index.html"};
-  path template_post {"post.html"};
-  path template_posts {"posts.html"};
-  path template_rss {"rss.xml"};
+  path template_index{"index.html"};
+  path template_post{"post.html"};
+  path template_posts{"posts.html"};
+  path template_rss{"rss.xml"};
 
 private:
   path base_path_;
@@ -167,7 +158,7 @@ private:
 // Maker
 class Maker final {
 public:
-  explicit Maker(ConfigPtr conf): conf_(std::move(conf)) {}
+  explicit Maker(ConfigPtr conf) : conf_(std::move(conf)) {}
   bool make();
 
 private:
@@ -196,9 +187,8 @@ using MakerPtr = std::shared_ptr<Maker>;
 
 inline void Maker::init() {
   std::unordered_set<std::string> excluded_entries;
-  std::for_each(conf_->exclude_source_entries.begin(), conf_->exclude_source_entries.end(), [&excluded_entries](auto& entry) {
-    excluded_entries.emplace(entry);
-  });
+  std::for_each(conf_->exclude_source_entries.begin(), conf_->exclude_source_entries.end(),
+                [&excluded_entries](auto& entry) { excluded_entries.emplace(entry); });
   const auto& dir_iter = directory_iterator{current_path()};
   std::for_each(begin(dir_iter), end(dir_iter), [this, &excluded_entries](const directory_entry& entry) {
     if (excluded_entries.count(entry.path().filename()) > 0) {
@@ -222,8 +212,8 @@ inline void Maker::init() {
 }
 
 inline bool Maker::load() {
-  static path posts_path {"posts"};
-  static path pages_path {"pages"};
+  static path posts_path{"posts"};
+  static path pages_path{"pages"};
   //
   const auto is_markdown_file = [](const directory_entry& entry) -> bool {
     if (!entry.is_regular_file()) {
@@ -267,9 +257,8 @@ inline bool Maker::parse() {
   }
   plugins.destroy();
   // 按时间从大到小排序
-  std::sort(posts_.begin(), posts_.end(), [](const PostPtr& p1, const PostPtr& p2) {
-    return p1->updated_at() > p2->updated_at();
-  });
+  std::sort(posts_.begin(), posts_.end(),
+            [](const PostPtr& p1, const PostPtr& p2) { return p1->updated_at() > p2->updated_at(); });
   //
   std::for_each(pages_.begin(), pages_.end(), [](auto& page) {
     spdlog::debug("try to pase page: {}", page->file_path());
@@ -300,8 +289,8 @@ inline void Maker::prefill_payload(nlohmann::json& payload) const {
 // https://docs.getpelican.com/en/latest/themes.html
 // https://github.com/pantor/inja
 inline bool Maker::generate() const {
-  Theme theme {conf_->theme};
-  Environment env {absolute(theme.template_path_).string()};
+  Theme theme{conf_->theme};
+  Environment env{absolute(theme.template_path_).string()};
   // post & page
   inja::json post_payload;
   prefill_payload(post_payload);
@@ -311,9 +300,10 @@ inline bool Maker::generate() const {
     post_payload["updated_at"] = post->updated_at();
     post_payload["post_content"] = post->parser()->to_html();
     //
-    const path base_path = dist_path_ / (is_page ? page_dir_ : post_dir_);;
+    const path base_path = dist_path_ / (is_page ? page_dir_ : post_dir_);
+
     path post_file_path = base_path / post->html_file_name();
-    std::fstream post_file_stream {post_file_path, std::ios::out | std::ios::trunc};
+    std::fstream post_file_stream{post_file_path, std::ios::out | std::ios::trunc};
     if (!post_file_stream.is_open()) {
       spdlog::error("could not open post file: {}", post_file_path);
       return;
@@ -340,6 +330,9 @@ inline bool Maker::generate() const {
   copy(theme.static_path_, dist_path_ / "static", copy_options::recursive);
   // copy other directories
   std::for_each(subdirs_.begin(), subdirs_.end(), [&](const path& subdir) {
+    if (!exists(subdir)) {
+      return;
+    }
     std::string dir_name = subdir.stem().string();
     spdlog::debug("subdir: {}, dir_name: {}", subdir, dir_name);
     if (dir_name == "posts" || dir_name == "pages") {
@@ -357,13 +350,13 @@ inline void Maker::make_posts(Environment& env, Theme& theme) const {
   size_t post_idx = 0;
   for (const auto& post : posts_) {
     posts_json["posts"][post_idx] = {
-      {"title", post->title()},
-      {"updated_at", post->updated_at()},
-      {"url", fmt::format("/{0}/{1}", post_dir_.string(), post->html_file_name())},
+        {"title", post->title()},
+        {"updated_at", post->updated_at()},
+        {"url", fmt::format("/{0}/{1}", post_dir_.string(), post->html_file_name())},
     };
     post_idx++;
   }
-  std::fstream posts_file_stream {dist_path_ / "posts.html", std::ios::out | std::ios::trunc};
+  std::fstream posts_file_stream{dist_path_ / "posts.html", std::ios::out | std::ios::trunc};
   if (!posts_file_stream.is_open()) {
     spdlog::error("could not open posts file: {}", dist_path_ / "posts.html");
     return;
@@ -381,13 +374,13 @@ inline void Maker::make_index(Environment& env, Theme& theme) const {
   size_t post_idx = 0;
   for (const auto& post : posts_) {
     index_json["posts"][post_idx] = {
-      {"title", post->title()},
-      {"updated_at", post->updated_at()},
-      {"url", fmt::format("/{0}/{1}", post_dir_.string(), post->html_file_name())},
+        {"title", post->title()},
+        {"updated_at", post->updated_at()},
+        {"url", fmt::format("/{0}/{1}", post_dir_.string(), post->html_file_name())},
     };
     post_idx++;
   }
-  std::fstream index_file_stream {dist_path_ / "index.html", std::ios::out | std::ios::trunc};
+  std::fstream index_file_stream{dist_path_ / "index.html", std::ios::out | std::ios::trunc};
   if (!index_file_stream.is_open()) {
     spdlog::error("could not open index file: {}", dist_path_ / "index.html");
     return;
@@ -406,21 +399,21 @@ inline void Maker::make_rss(Environment& env, Theme& theme) const {
   //
   size_t post_idx = 0;
   std::string site_url = conf_->site_url;
-  if (site_url[site_url.size()-1] == '/') {
-    site_url = site_url.substr(0, site_url.size()-1);
+  if (site_url[site_url.size() - 1] == '/') {
+    site_url = site_url.substr(0, site_url.size() - 1);
   }
   std::string post_dir = post_dir_.string();
   for (const auto& post : posts_) {
     rss_json["posts"][post_idx] = {
-      {"title", post->title()},
-      {"desc", inja::htmlescape(post->html())},
-      {"pub_date", post->updated_at()},
-      {"link", fmt::format("{0}/{1}/{2}", site_url, post_dir, post->html_file_name())},
+        {"title", post->title()},
+        {"desc", inja::htmlescape(post->html())},
+        {"pub_date", post->updated_at()},
+        {"link", fmt::format("{0}/{1}/{2}", site_url, post_dir, post->html_file_name())},
     };
     post_idx++;
   }
   //
-  std::fstream rss_file_stream {dist_path_ / "rss.xml", std::ios::out | std::ios::trunc};
+  std::fstream rss_file_stream{dist_path_ / "rss.xml", std::ios::out | std::ios::trunc};
   if (!rss_file_stream.is_open()) {
     spdlog::error("could not open rss file: {}", dist_path_ / "rss.xml");
     return;
@@ -430,7 +423,6 @@ inline void Maker::make_rss(Environment& env, Theme& theme) const {
   rss_file_stream.flush();
   rss_file_stream.close();
 }
-
 
 inline bool Maker::make() {
   init();
@@ -443,4 +435,4 @@ inline bool Maker::make() {
   return generate();
 }
 
-}
+}  // namespace ling

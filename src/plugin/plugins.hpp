@@ -10,10 +10,10 @@
 #include "plugin.h"
 
 // 为了执行 static 语句
-#include "plantuml.hpp"
 #include "mermaid.hpp"
-#include "small_image.hpp"
+#include "plantuml.hpp"
 #include "smms.hpp"
+#include "typst_cmarker_pdf.hpp"
 //
 
 namespace ling::plugin {
@@ -21,7 +21,7 @@ namespace ling::plugin {
 class Plugins final : public Plugin {
 public:
   bool init(ConfigPtr config_ptr) override;
-  bool run(const ParserPtr& parser_ptr) override;
+  bool run(const MarkdownPtr& md_ptr) override;
   bool destroy() override;
 
 private:
@@ -44,9 +44,9 @@ inline bool Plugins::init(ConfigPtr config_ptr) {
   return true;
 }
 
-inline bool Plugins::run(const ParserPtr& parser_ptr) {
+inline bool Plugins::run(const MarkdownPtr& md_ptr) {
   for (const auto& [pn, plugin] : plugins_) {
-    if (!plugin->run(parser_ptr)) {
+    if (!plugin->run(md_ptr)) {
       spdlog::error("Failed to run plugin {0} on {}", pn);
     }
   }

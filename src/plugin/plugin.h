@@ -4,7 +4,7 @@
 #pragma once
 
 #include "../config.hpp"
-#include "../parser/parser.h"
+#include "../parser/markdown.h"
 
 namespace ling::plugin {
 
@@ -14,7 +14,7 @@ public:
   virtual bool init(ConfigPtr config_ptr) {
     return true;
   }
-  virtual bool run(const ParserPtr& parser_ptr) = 0;
+  virtual bool run(const MarkdownPtr& md_ptr) = 0;
   virtual bool destroy() {
     return true;
   }

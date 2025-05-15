@@ -3,9 +3,6 @@ project(lingdong)
 
 set(CMAKE_CXX_STANDARD 17)
 
-set(ENV{HTTP_PROXY}  "127.0.0.1:7890")
-set(ENV{HTTPS_PROXY}  "127.0.0.1:7890")
-
 find_package(gflags REQUIRED)
 if(NOT TARGET spdlog)
     # Stand-alone build
@@ -52,7 +49,6 @@ add_executable(lingdong src/main.cpp
         src/maker.hpp
         src/server.hpp
         src/config.hpp
-        src/parser/parser.h
         src/parser/markdown.cpp
         src/parser/markdown.h
 
@@ -60,8 +56,7 @@ add_executable(lingdong src/main.cpp
         src/plugin/plantuml.hpp
         src/plugin/mermaid.hpp
         src/plugin/smms.hpp
-        src/plugin/small_image.hpp
-        src/plugin/typst_pdf.hpp
+        src/plugin/typst_cmarker_pdf.hpp
         src/plugin/plugins.hpp
 
         src/utils/taoli.hpp
@@ -111,7 +106,6 @@ add_executable(
         src/plugin/plantuml.hpp
         src/plugin/mermaid.hpp
 
-        src/parser/parser.h
         src/parser/markdown.h
         src/parser/markdown.cpp
 

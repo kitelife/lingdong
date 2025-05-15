@@ -41,6 +41,7 @@ bool Markdown::parse() {
   if (pr.status == 2) {
     return false;
   }
+  body_start_line_idx = pr.next_line_idx;
   last_line_idx = pr.next_line_idx;
   //
   while (last_line_idx < lines.size()) {
@@ -752,6 +753,12 @@ std::string Markdown::to_html() {
   }
   return absl::StrJoin(lines, "\n");
 }
+
+std::string Markdown::body_part() {
+  const std::vector<std::string> body_lines {lines.begin() + body_start_line_idx, lines.end()};
+  return absl::StrJoin(body_lines, "\n");
+}
+
 
 std::string Footnotes::to_html() {
   if (footnotes_.empty()) {

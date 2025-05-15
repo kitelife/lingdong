@@ -12,12 +12,16 @@ theme_name = "default"
 
 navigation = [["关于我", "/pages/about.html"], ["作品", "/pages/works.html"], ["RSS", "/rss.xml"]]
 
-plugins = ["PlantUML", "Mermaid"]
+plugins = ["PlantUML", "Mermaid", "TypstCmarkerPdf"]
 
 [plantuml]
 server = "127.0.0.1:8000"
 header = "skinparam defaultFontName \"Albert Sans\"\nskinparam defaultFontSize 15\nscale max 1600 width"
 jar_path = "/Users/xiayf/software/plantuml-mit-1.2025.1.jar"
+
+[typst_pdf]
+output_dir = "../dist/blog/pdf"
+text_fonts = "\"Zhuque Fangsong (technical preview)\", \"TsangerJinKai05 W04\""
 
 [small_image]
 thresold = 1048576 # 1MB

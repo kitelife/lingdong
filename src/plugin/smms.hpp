@@ -11,7 +11,7 @@ namespace ling::plugin {
 class Smms final : public Plugin {
 public:
   bool init(ConfigPtr config_ptr) override;
-  bool run(const ParserPtr& parser_ptr) override;
+  bool run(const MarkdownPtr& md_ptr) override;
 
 private:
   ConfigPtr config_;
@@ -23,7 +23,7 @@ inline bool Smms::init(ConfigPtr config_ptr) {
 }
 
 
-inline bool Smms::run(const ParserPtr& parser_ptr) {
+inline bool Smms::run(const MarkdownPtr& md_ptr) {
   return true;
 }
 

@@ -36,7 +36,7 @@ static std::string get_cmd_stdout(std::string cmd) {
 class Mermaid final: public Plugin {
 public:
   bool init(ConfigPtr config_ptr) override;
-  bool run(const ParserPtr& parser_ptr) override;
+  bool run(const MarkdownPtr& md_ptr) override;
 
 private:
   static bool is_npm_exist();
@@ -68,15 +68,14 @@ inline bool Mermaid::init(ConfigPtr config_ptr) {
 }
 
 // https://github.com/mermaid-js/mermaid-cli
-inline bool Mermaid::run(const ParserPtr& parser_ptr) {
-  if (parser_ptr == nullptr) {
+inline bool Mermaid::run(const MarkdownPtr& md_ptr) {
+  if (md_ptr == nullptr) {
     return false;
   }
   if (!inited_) {
     spdlog::error("Init before run!");
     return false;
   }
-  auto* md = dynamic_cast<Markdown*>(parser_ptr.get());
   auto temp_dir = std::filesystem::current_path() / "temp";
   auto dist_img_dir = std::filesystem::path(config_->dist_dir) / "images";
   if (!exists(temp_dir)) {
@@ -85,7 +84,7 @@ inline bool Mermaid::run(const ParserPtr& parser_ptr) {
   if (!exists(dist_img_dir)) {
     create_directories(dist_img_dir);
   }
-  for (auto& ele : md->elements()) {
+  for (auto& ele : md_ptr->elements()) {
     if (ele == nullptr) {
       continue;
     }

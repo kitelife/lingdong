@@ -79,7 +79,7 @@ static std::string zlib_deflate_decompress(const std::string& input) {
 class PlantUML final : public Plugin {
 public:
   bool init(ConfigPtr config_ptr) override;
-  bool run(const ParserPtr& parser_ptr) override;
+  bool run(const MarkdownPtr& md_ptr) override;
 
   std::pair<bool, std::string> diagram_desc2pic(std::vector<std::string>& lines);
   static std::string hex_encode(const std::string& diagram_desc);
@@ -129,19 +129,18 @@ inline bool PlantUML::init(ConfigPtr config_ptr) {
   return true;
 }
 
-inline bool PlantUML::run(const ParserPtr& parser_ptr) {
-  if (parser_ptr == nullptr) {
+inline bool PlantUML::run(const MarkdownPtr& md_ptr) {
+  if (md_ptr == nullptr) {
     return false;
   }
   if (!inited_) {
     return false;
   }
-  auto* md = dynamic_cast<Markdown*>(parser_ptr.get());
   auto dist_img_dir = std::filesystem::path(config_->dist_dir) / "images";
   if (!exists(dist_img_dir)) {
     create_directories(dist_img_dir);
   }
-  for (auto& ele : md->elements()) {
+  for (auto& ele : md_ptr->elements()) {
     if (ele == nullptr) {
       continue;
     }

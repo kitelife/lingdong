@@ -18,11 +18,17 @@
 #include <absl/strings/str_join.h>
 #include <inja/inja.hpp>
 
-#include "parser.h"
-
 namespace ling {
 
 using StrPair = std::pair<std::string, std::string>;
+
+class PostMetadata final {
+public:
+  std::string id;
+  std::string title;
+  std::string publish_date;
+  std::vector<std::string> tags;
+};
 
 class ParseResult {
 public:
@@ -248,12 +254,13 @@ public:
   };
 };
 
-class Markdown final : public Parser {
+class Markdown final {
 public:
   Markdown() = default;
-  bool parse_str(const std::string& md_content) override;
-  bool parse_file(const std::string& md_file_path) override;
-  std::string to_html() override;
+  bool parse_str(const std::string& md_content);
+  bool parse_file(const std::string& md_file_path);
+  std::string body_part();
+  std::string to_html();
   void clear();
 
   std::vector<std::shared_ptr<Element>>& elements() {
@@ -305,6 +312,7 @@ private:
   std::shared_ptr<std::istream> stream_ptr_;
   //
   std::vector<std::string> lines;
+  size_t body_start_line_idx = 0;
   size_t last_line_idx = 0;
   //
   PostMetadata metadata_;
