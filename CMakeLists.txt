@@ -100,11 +100,13 @@ enable_testing()
 add_executable(
         test_lingdong
         src/plugin/plantuml_test.cpp
+        src/plugin/smms_test.cpp
         src/utils/strings_test.cpp
         src/utils/time_test.cpp
         src/config.hpp
         src/plugin/plantuml.hpp
         src/plugin/mermaid.hpp
+        src/plugin/smms.hpp
 
         src/parser/markdown.h
         src/parser/markdown.cpp

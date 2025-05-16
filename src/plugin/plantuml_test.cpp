@@ -11,7 +11,7 @@
 using namespace std::string_literals; // enables s-suffix for std::string literals
 using namespace ::ling::plugin;
 
-TEST(PluginPlantUMLTest, Encode) {
+TEST(PlantUMLPluginTest, encode) {
   const std::string diagram_desc = R"("@startuml
 Alice -> Bob: Authentication Response
 Bob --> Alice: Authentication Response
@@ -21,7 +21,7 @@ Bob --> Alice: Authentication Response
   EXPECT_EQ(PlantUML::hex_encode(diagram_desc), diagram_desc_encoded);
 }
 
-TEST(PluginPlantUMLTest, ZlibDeflate) {
+TEST(PlantUMLPluginTest, zlib_deflate) {
   static std::string input = "hello";
   std::string compress_output = zlib_deflate_compress(input);
   std::string decompress_output = zlib_deflate_decompress(compress_output);
