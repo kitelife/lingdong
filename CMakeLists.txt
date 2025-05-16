@@ -38,7 +38,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(jsoncpp cpr googletest libuv)
 
 add_subdirectory(third_party/abseil)
-# https://github.com/pantor/inja
+# https://github.com/pantor/inja, 另一个选择是 https://github.com/jinja2cpp/Jinja2Cpp
 add_subdirectory(third_party/inja)
 # https://github.com/ToruNiina/toml11
 add_subdirectory(third_party/toml11)
