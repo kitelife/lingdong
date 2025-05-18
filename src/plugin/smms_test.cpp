@@ -6,11 +6,36 @@
 #include "smms.hpp"
 
 TEST(SmmsPluginTest, fetch_api_token) {
-  std::ifstream account_file("/Users/xiayf/github/lingdong/src/plugin/.smms_account.json");
+  std::ifstream account_file("../src/plugin/.smms_account.json");
   const auto j_account = nlohmann::json::parse(account_file);
   ling::plugin::SmmsOpenAPI smms_api {j_account["username"].get<std::string>(), j_account["password"].get<std::string>()};
   //
-  std::ifstream token_file("/Users/xiayf/github/lingdong/src/plugin/.smms_token.json");
+  std::ifstream token_file("../src/plugin/.smms_token.json");
   const auto j_token = nlohmann::json::parse(token_file);
   EXPECT_EQ(smms_api.fetch_api_token(), j_token["token"].get<std::string>());
+};
+
+TEST(SmmsPluginTest, fetch_upload_history) {
+  std::ifstream account_file("../src/plugin/.smms_account.json");
+  const auto j_account = nlohmann::json::parse(account_file);
+  ling::plugin::SmmsOpenAPI smms_api {j_account["username"].get<std::string>(), j_account["password"].get<std::string>()};
+  const auto histories = smms_api.fetch_upload_history();
+  for (const auto& h : histories) {
+    std::cout << h << std::endl;
+  }
+  EXPECT_GT(histories.size(), 0);
+}
+
+TEST(SmmsPluginTest, upload) {
+  std::ifstream account_file("../src/plugin/.smms_account.json");
+  const auto j_account = nlohmann::json::parse(account_file);
+  ling::plugin::SmmsOpenAPI smms_api {j_account["username"].get<std::string>(), j_account["password"].get<std::string>()};
+  //
+  std::string image_path = "../demo/blog/assets/kmeans_clustering.png";
+  const auto result = smms_api.upload(image_path);
+  EXPECT_TRUE(result.success);
+  std::cout << result.history << std::endl;
+  if (result.success && !result.history.hash.empty()) {
+    EXPECT_TRUE(smms_api.del(result.history.hash));
+  }
 }
