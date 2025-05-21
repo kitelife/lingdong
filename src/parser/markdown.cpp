@@ -281,14 +281,36 @@ ParseResult Markdown::parse_codeblock() {
 
 ParseResult Markdown::parse_latex() {
   size_t line_idx = last_line_idx;
-  const auto line_view = utils::view_strip_empty(lines.at(line_idx));
+  auto line_view = utils::view_strip_empty(lines.at(line_idx));
   if (line_view.empty()) {
     return parse_default();
   }
   size_t view_len = line_view.size();
-  if (line_view[0] == '$' && line_view[1] == '$' && line_view[view_len - 1] == '$' && line_view[view_len - 2] == '$') {
+  // 可能单行，也可能多行
+  if (line_view[0] == '$' && line_view[1] == '$') {
     const auto latex_block_ptr = std::make_shared<LatexBlock>();
-    latex_block_ptr->content = std::string(line_view.substr(2, view_len - 4));
+    if (view_len > 4 && line_view[view_len - 1] == '$' && line_view[view_len - 2] == '$') { // 单行情况
+      latex_block_ptr->content = std::string(line_view.substr(2, view_len - 4));
+    } else { // 多行情况
+      std::vector<std::string> latex_lines;
+      latex_lines.emplace_back(line_view.substr(2, view_len - 2));
+      //
+      bool reach_end = false;
+      while ((++line_idx) < lines.size()) {
+        line_view = utils::view_strip_empty(lines.at(line_idx));
+        view_len = line_view.size();
+        if (view_len >= 2 && line_view[view_len-1] == '$' && line_view[view_len-2] == '$') { // 结束行
+          latex_lines.emplace_back(line_view.substr(0, view_len - 2));
+          reach_end = true;
+          break;
+        }
+        latex_lines.emplace_back(line_view);
+      }
+      if (!reach_end) {
+        return parse_default();
+      }
+      latex_block_ptr->content = absl::StrJoin(latex_lines, "\n");
+    }
     elements_.push_back(latex_block_ptr);
     return ParseResult::make(0, line_idx + 1);
   }
