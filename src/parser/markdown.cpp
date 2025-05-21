@@ -282,10 +282,10 @@ ParseResult Markdown::parse_codeblock() {
 ParseResult Markdown::parse_latex() {
   size_t line_idx = last_line_idx;
   auto line_view = utils::view_strip_empty(lines.at(line_idx));
-  if (line_view.empty()) {
+  size_t view_len = line_view.size();
+  if (view_len < 2) {
     return parse_default();
   }
-  size_t view_len = line_view.size();
   // 可能单行，也可能多行
   if (line_view[0] == '$' && line_view[1] == '$') {
     const auto latex_block_ptr = std::make_shared<LatexBlock>();
