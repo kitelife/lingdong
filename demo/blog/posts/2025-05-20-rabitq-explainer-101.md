@@ -6,11 +6,11 @@ id: rabitq-explainer-101
 
 原文:  [RaBitQ binary quantization 101](https://www.elastic.co/search-labs/blog/rabitq-explainer-101)
 
-## 一、引言(Introduction)
+## 一、引言
 
 正如我们之前在 [标量量化入门](https://blog.xiayf.cn/posts/scalar-quantization-101.html) 中讨论的那样，大多数嵌入模型输出$float32$类型向量值，这个精度对于表征向量空间来说通常过于冗余。标量量化技术大大减少了表征这些向量所需的存储空间。之前我们也讨论过 [Elasticsearch 中的比特向量](https://www.elastic.co/search-labs/blog/bit-vectors-in-elasticsearch)，以及二值量化导致的损失通常是不可接受的。
 
-借助 [RaBitQ 论文](https://arxiv.org/pdf/2405.12497)中提出的二值量化技术，可以解决将数据简单量化为比特向量（bit vector）过程中所遇到的问题，通过更细致地划分空间以及保留变换的残差实现与标量量化相近的精度质量。相比其他类似技术，比如[乘积量化(PQ)](http://hal.archives-ouvertes.fr/docs/00/51/44/62/PDF/paper_hal.pdf)，这些新技术能够实现性能更优的距离计算，通常得到的计算结果也更准，也能实现标量量化通常不可能实现的32倍压缩（32x level of compression）。
+借助 [RaBitQ 论文](https://arxiv.org/pdf/2405.12497)中提出的二值量化技术，可以解决将数据简单量化为比特向量（bit vector）过程中所遇到的问题，通过更细致地划分空间以及保留变换的残差，实现与标量量化相近的精度质量。相比其他类似技术，比如[乘积量化(PQ)](http://hal.archives-ouvertes.fr/docs/00/51/44/62/PDF/paper_hal.pdf)，这些新技术能够实现性能更优的距离计算，通常得到的计算结果也更准，也能实现标量量化通常不可能实现的32倍压缩（32x level of compression）。
 
 本文中，我们将解释二值量化的一些核心要素，相关的数学细节请参阅 [RaBitQ 论文](https://arxiv.org/pdf/2405.12497)。
 
