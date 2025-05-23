@@ -16,24 +16,26 @@
 #include <cpr/cpr.h>
 #include <spdlog/spdlog.h>
 #include <nlohmann/json.hpp>
+#include <tsl/robin_map.h>
 
 #include "plugin.h"
+#include "../utils/strings.hpp"
 
 namespace ling::plugin {
 
 using json = nlohmann::json;
-using path = std::filesystem::path;
+using namespace std::filesystem;
 
-static std::string base_url = "https://sm.ms/api/v2";
-static path account_file_path {".smms_account.json"};
-static path token_file_path {".smms_token.json"};
+static std::string BASE_URL = "https://sm.ms/api/v2";
+static std::string CACHE_DIR = ".smms_cache";
+static std::string UPLOAD_HISTORY_CACHE_FILE = "upload_history.json";
 
 class SmmsUploadHistory {
 public:
   std::string file_name;
   std::string store_name;
   std::string hash;
-  uint32_t size;
+  uint32_t size {0};
   std::string created_at;
   std::string url;
   std::string url4del;
@@ -49,6 +51,16 @@ public:
     }
     url = j["url"].get<std::string>();
     url4del = j["delete"].get<std::string>();
+  }
+
+  void to(nlohmann::json& j) const {
+    j["filename"] = file_name;
+    j["storename"] = store_name;
+    j["hash"] = hash;
+    j["size"] = size;
+    j["created_at"] = created_at;
+    j["url"] = url;
+    j["delete"] = url4del;
   }
 
   friend std::ostream& operator<<(std::ostream& os, const SmmsUploadHistory& h) {
@@ -72,14 +84,16 @@ using HistoryVec = std::vector<SmmsUploadHistory>;
 
 class SmmsOpenAPI {
 public:
+  SmmsOpenAPI() = default;
   SmmsOpenAPI(std::string username, std::string password): username_(std::move(username)), password_(std::move(password)) {};
+  void set_api_token(const std::string& token) {
+    this->api_token_ = token;
+  }
   std::string fetch_api_token();
   HistoryVec fetch_upload_history();
   SmmsUploadResult upload(const std::string& image_path);
+  SmmsUploadResult upload(const path& image_path);
   bool del(const std::string& hash);
-
-private:
-  static std::string fetch_local_token();
 
 private:
   std::string username_;
@@ -87,31 +101,11 @@ private:
   std::string api_token_;
 };
 
-inline std::string SmmsOpenAPI::fetch_local_token() {
-  if (!std::filesystem::exists(account_file_path)) {
-    return "";
-  }
-  std::ifstream account_file(account_file_path);
-  if (!account_file.is_open()) {
-    return "";
-  }
-  const auto j_account = nlohmann::json::parse(account_file);
-  if (!j_account.contains("token")) {
-    return "";
-  }
-  return j_account["token"].get<std::string>();
-}
-
 inline std::string SmmsOpenAPI::fetch_api_token() {
   if (!api_token_.empty()) {
     return api_token_;
   }
-  const auto local_saved_token = fetch_local_token();
-  if (!local_saved_token.empty()) {
-    api_token_ = local_saved_token;
-    return api_token_;
-  }
-  const auto url = base_url + "/token";
+  const auto url = BASE_URL + "/token";
   cpr::Response r = cpr::Post(cpr::Url{url},
     cpr::Parameters{{"username", username_}, {"password", password_}});
   if (r.status_code != 200) {
@@ -133,7 +127,7 @@ inline std::string SmmsOpenAPI::fetch_api_token() {
 
 inline HistoryVec SmmsOpenAPI::fetch_upload_history() {
   const auto api_token = fetch_api_token();
-  const auto url = base_url + "/upload_history";
+  const auto url = BASE_URL + "/upload_history";
   HistoryVec history_vec {};
   //
   const auto fetch_one_page = [api_token, url, &history_vec](const int page) -> std::pair<bool, int> {
@@ -179,16 +173,19 @@ inline HistoryVec SmmsOpenAPI::fetch_upload_history() {
 }
 
 inline SmmsUploadResult SmmsOpenAPI::upload(const std::string& image_path) {
+  const path p {image_path};
+  return upload(p);
+}
+
+inline SmmsUploadResult SmmsOpenAPI::upload(const path& image_path) {
   SmmsUploadResult upload_result {};
   upload_result.success = false;
-  //
-  const path p {image_path};
   const auto api_token = fetch_api_token();
-  const auto url = base_url + "/upload";
+  const auto url = BASE_URL + "/upload";
   //
   cpr::Response r = cpr::Post(cpr::Url{url},
     cpr::Header{{"Content-Type", "multipart/form-data"}, {"Authorization", api_token}},
-    cpr::Multipart{{"smfile", cpr::File(p.string(), p.filename())}, {"format", "json"}});
+    cpr::Multipart{{"smfile", cpr::File(image_path.string(), image_path.filename())}, {"format", "json"}});
   if (r.status_code != 200) {
     spdlog::error("Failed to fetch upload, status_code: {}, resp: {}", r.status_code, r.text);
     return upload_result;
@@ -198,7 +195,7 @@ inline SmmsUploadResult SmmsOpenAPI::upload(const std::string& image_path) {
     !rj.contains("data") || !rj["data"].is_object()) {
     spdlog::error("Failed to fetch upload image, resp: {}", r.text);
     return upload_result;
-  }
+    }
   upload_result.success = true;
   upload_result.history.from(rj["data"]);
   return upload_result;
@@ -206,7 +203,7 @@ inline SmmsUploadResult SmmsOpenAPI::upload(const std::string& image_path) {
 
 inline bool SmmsOpenAPI::del(const std::string& hash) {
   const auto api_token = fetch_api_token();
-  const auto url = base_url + "/delete/" + hash;
+  const auto url = BASE_URL + "/delete/" + hash;
   cpr::Response r = cpr::Get(cpr::Url{url},
     cpr::Header{{"Authorization", api_token}},
     cpr::Parameters({{"format", "json"}}));
@@ -226,18 +223,112 @@ class Smms final : public Plugin {
 public:
   bool init(ConfigPtr config_ptr) override;
   bool run(const MarkdownPtr& md_ptr) override;
+  bool destroy() override;
+
+private:
+  bool load_upload_history();
+  bool cache_upload_history();
 
 private:
   ConfigPtr config_;
+  SmmsOpenAPI api_;
+  //
+  tsl::robin_map<std::string, SmmsUploadHistory> upload_history_;
 };
 
 inline bool Smms::init(ConfigPtr config_ptr) {
+  const auto api_token = toml::find_or<std::string>(config_->raw_toml_, "smms", "api_token", "");
+  if (api_token.empty()) {
+    const auto username = toml::find_or<std::string>(config_->raw_toml_, "smms", "username", "");
+    const auto password = toml::find_or<std::string>(config_->raw_toml_, "smms", "password", "");
+    if (username.empty() || password.empty()) {
+      spdlog::warn("Must specify username and password for smms plugin");
+      return false;
+    }
+    api_ = SmmsOpenAPI{username, password};
+  } else {
+    api_ = SmmsOpenAPI{};
+    api_.set_api_token(api_token);
+  }
+  load_upload_history();
+  //
   inited_ = true;
   return true;
 }
 
-
 inline bool Smms::run(const MarkdownPtr& md_ptr) {
+  if (!inited_) {
+    return false;
+  }
+  for (const auto& ele : md_ptr->elements()) {
+    if (ele == nullptr) {
+      continue;
+    }
+    auto* img_ptr = dynamic_cast<Image*>(ele.get());
+    if (img_ptr == nullptr) {
+      continue;
+    }
+    const auto& uri = img_ptr->uri;
+    if (uri.find("https://") != std::string::npos || uri.find("http://") != std::string::npos) {
+      continue;
+    }
+    auto img_path = path(uri);
+    if (upload_history_.contains(img_path.filename())) {
+      continue;
+    }
+    const auto& r = api_.upload(img_path);
+    if (!r.success) {
+      continue;
+    }
+    upload_history_[img_path.filename()] = r.history;
+    //
+    img_ptr->uri = r.history.url;
+  }
+  return true;
+}
+
+inline bool Smms::destroy() {
+  return cache_upload_history();
+}
+
+inline bool Smms::load_upload_history() {
+  const path cache_path {CACHE_DIR};
+  if (!exists(cache_path)) {
+    create_directories(cache_path);
+  }
+  HistoryVec vec;
+  path history_fp = cache_path / UPLOAD_HISTORY_CACHE_FILE;
+  if (exists(history_fp)) {
+    const auto jh = nlohmann::json::parse(utils::read_file_all(history_fp));
+    for (const auto& j : jh) {
+      vec.emplace_back();
+      vec.back().from(j);
+    }
+  } else {
+    vec = api_.fetch_upload_history();
+  }
+  for (const auto& v : vec) {
+    upload_history_[v.file_name] = v;
+  }
+  return true;
+}
+
+inline bool Smms::cache_upload_history() {
+  nlohmann::json hj = json::array();
+  for (const auto& [fst, snd] : upload_history_) {
+    hj.emplace_back();
+    snd.to(hj.back());
+  }
+  const std::string hs = hj.dump();
+  path history_fp = path(CACHE_DIR) / UPLOAD_HISTORY_CACHE_FILE;
+  std::ofstream hfs(history_fp, std::ios::trunc);
+  if (!hfs.is_open()) {
+    spdlog::error("Failed to open cache file {}", history_fp.string());
+    return false;
+  }
+  hfs << hs;
+  hfs.flush();
+  hfs.close();
   return true;
 }
 

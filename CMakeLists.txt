@@ -47,6 +47,8 @@ add_subdirectory(third_party/inja)
 add_subdirectory(third_party/toml11)
 # https://github.com/SRombauts/SQLiteCpp
 add_subdirectory(third_party/SQLiteCpp)
+# https://github.com/Tessil/robin-map
+add_subdirectory(third_party/robin-map)
 
 add_executable(lingdong src/main.cpp
         src/maker.hpp
@@ -87,6 +89,8 @@ target_link_libraries(
         sqlite3
         pthread
         dl
+        #
+        tsl::robin_map
 )
 
 add_executable(tester src/tester.cpp)
