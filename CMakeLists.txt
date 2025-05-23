@@ -1,7 +1,10 @@
 cmake_minimum_required(VERSION 3.30)
-project(lingdong)
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+project(lingdong LANGUAGES CXX)
 
 find_package(gflags REQUIRED)
 if(NOT TARGET spdlog)
@@ -62,6 +65,7 @@ add_executable(lingdong src/main.cpp
         src/utils/taoli.hpp
         src/utils/strings.hpp
 )
+target_compile_options(lingdong PRIVATE -O3 -g)
 
 target_link_libraries(
         lingdong

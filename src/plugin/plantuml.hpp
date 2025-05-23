@@ -76,16 +76,28 @@ static std::string zlib_deflate_decompress(const std::string& input) {
   return output;
 }
 
+static std::string PLANTUML_REMOTE_SERVER = "www.plantuml.com";
+
 class PlantUML final : public Plugin {
 public:
   bool init(ConfigPtr config_ptr) override;
   bool run(const MarkdownPtr& md_ptr) override;
+  bool destroy() override;
 
   std::pair<bool, std::string> diagram_desc2pic(std::vector<std::string>& lines);
   static std::string hex_encode(const std::string& diagram_desc);
 
 private:
+  bool start_picoweb_server();
+  bool stop_picoweb_server() const;
+
+private:
   ConfigPtr config_;
+  //
+  std::string jar_path_;
+  uint32_t picweb_port_ {8000};
+  bool picoweb_server_started_ {false};
+  //
   std::string plantuml_server_;
   std::string diagram_header_;
 };
@@ -123,10 +135,28 @@ inline std::pair<bool, std::string> PlantUML::diagram_desc2pic(std::vector<std::
 
 inline bool PlantUML::init(ConfigPtr config_ptr) {
   config_ = config_ptr;
-  plantuml_server_ = toml::find_or<std::string>(config_->raw_toml_, "plantuml", "server", "www.plantuml.com");
+  jar_path_ = toml::find_or<std::string>(config_->raw_toml_, "plantuml", "jar_path", "");
+  picweb_port_ = toml::find_or<uint32_t>(config_->raw_toml_, "plantuml", "picoweb_port", 8000);
+  plantuml_server_ = toml::find_or<std::string>(config_->raw_toml_, "plantuml", "server", PLANTUML_REMOTE_SERVER);
   diagram_header_ = toml::find_or_default<std::string>(config_->raw_toml_, "plantuml", "header");
+  if (!jar_path_.empty() && (plantuml_server_.empty() || plantuml_server_ == PLANTUML_REMOTE_SERVER)) {
+    start_picoweb_server();
+    plantuml_server_ = fmt::format("127.0.0.1:{}", picweb_port_);
+    picoweb_server_started_ = true;
+  }
   inited_ = true;
   return true;
+}
+
+inline bool PlantUML::start_picoweb_server() {
+  const std::string cmd = fmt::format("nohup java -jar {} -picoweb:{} > /dev/null 2>&1 &", jar_path_, picweb_port_);
+  return std::system(cmd.c_str()) == 0;
+}
+
+inline bool PlantUML::stop_picoweb_server() const {
+  std::string cmd = fmt::format("lsof -i:{}", picweb_port_);
+  cmd += " | grep \"java\" | awk -F' ' '{print $2}' | xargs kill";
+  return std::system(cmd.c_str()) == 0;
 }
 
 inline bool PlantUML::run(const MarkdownPtr& md_ptr) {
@@ -169,6 +199,7 @@ inline bool PlantUML::run(const MarkdownPtr& md_ptr) {
     svg_file_stream.close();
     // 替换
     auto* image_ptr = new Image();
+    image_ptr->width = "";
     image_ptr->alt_text = svg_file_path.stem();
     image_ptr->uri = "/images/" + svg_file_path.filename().string();
     for (const auto& [fst, snd] : codeblock->attrs) {
@@ -177,6 +208,16 @@ inline bool PlantUML::run(const MarkdownPtr& md_ptr) {
       }
     }
     ele.reset(image_ptr);
+  }
+  return true;
+}
+
+inline bool PlantUML::destroy() {
+  if (!inited_) {
+    return true;
+  }
+  if (picoweb_server_started_) {
+    return stop_picoweb_server();
   }
   return true;
 }

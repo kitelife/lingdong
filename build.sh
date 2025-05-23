@@ -6,7 +6,3 @@ git submodule update
 cmake -S . -B build
 #
 cmake --build build
-#
-pushd build
-ctest
-popd

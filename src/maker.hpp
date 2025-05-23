@@ -203,7 +203,7 @@ inline void Maker::init() {
       remove_all(entry);
     }
   }
-  create_directory(dist_path_);
+  create_directories(dist_path_);
   //
   post_dir_ = "posts";
   create_directory(dist_path_ / post_dir_);
@@ -256,9 +256,13 @@ inline bool Maker::parse() {
     plugins.run(post->parser());
   }
   plugins.destroy();
-  // 按时间从大到小排序
-  std::sort(posts_.begin(), posts_.end(),
-            [](const PostPtr& p1, const PostPtr& p2) { return p1->updated_at() > p2->updated_at(); });
+  // 按时间从大到小排序，如果时间相同，则比较标题
+  std::sort(posts_.begin(), posts_.end(), [](const PostPtr& p1, const PostPtr& p2) {
+    if (p1->updated_at() == p2->updated_at()) {
+      return p1->title() > p2->title();
+    }
+    return p1->updated_at() > p2->updated_at();
+  });
   //
   std::for_each(pages_.begin(), pages_.end(), [](auto& page) {
     spdlog::debug("try to pase page: {}", page->file_path());

@@ -221,7 +221,7 @@ AllowAllParametersOfDeclarationOnNextLine: false
 
 ### 3.1 单元测试
 
-- 明确单元测试与集成测试的区别，[单元测试 - 维基百科，自由的百科全书 (wikipedia.org)](https://zh.wikipedia.org/wiki/%E5%8D%95%E5%85%83%E6%B5%8B%E8%AF%95)
+- 明确单元测试与集成测试的区别，[wikipedia - 单元测试](https://zh.wikipedia.org/wiki/%E5%8D%95%E5%85%83%E6%B5%8B%E8%AF%95)
 - 单元测试的作用：
     - 验证某个逻辑的当前实验是否符合预期
     - 更重要的是对以后的代码变更可能造成的非预期影响/破坏进行一定的防御

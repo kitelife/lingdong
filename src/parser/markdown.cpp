@@ -906,6 +906,9 @@ std::string Text::to_html() {
 }
 
 std::string Image::to_html() {
+  if (width.empty()) {
+    return fmt::format("<img src='{0}' title='{1}' alt='{1}'/>", uri, alt_text);
+  }
   return fmt::format("<img src='{0}' title='{1}' alt='{1}' width='{2}'/>",
     uri, alt_text, width);
 }
