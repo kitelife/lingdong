@@ -18,7 +18,7 @@ id: leveldb-note-4
 - 1、写入操作可以指定是同步的（sync）或者异步的，这里说的<u>同步异步是针对 WAL log 文件写入而言的</u>，需要在吞吐性能和数据一致性之间做好平衡：
     - 如果写入操作指定为同步，那么将操作记录到 WAL log 文件后，还要<u>确保文件内容持久化到磁盘</u>，这个持久化操作对 leveldb 的写入吞吐影响会比较大。
     - 如果写入操作指定为<u>非同步，那么对 WAL log 的文件写入，实际只是写到内核的文件缓冲区</u>。如果写入操作记录到可变 Memtable 并返回写入成功状态给调用方后，内核缓冲区内容刷出到磁盘之前，系统 crash 或者机器掉电都会导致写入数据丢失，存在先写后读的一致性问题。
-- 2、leveldb 的实现中，可变 Memtable 对象和不可变 Memtable 对象均只有一个，并且 Memtable 对象的内存占用存在上限阈值，一旦可变 Memtable 写满且不可变 Memtable 还存在（还没来得及 minor compaction 成 $level_0$ 数据文件），那么写入就会被阻塞（详情见[[## 2、写入缓冲与攒批]] 部分解说），那么：
+- 2、leveldb 的实现中，可变 Memtable 对象和不可变 Memtable 对象均只有一个，并且 Memtable 对象的内存占用存在上限阈值，一旦可变 Memtable 写满且不可变 Memtable 还存在（还没来得及 minor compaction 成 $level_0$ 数据文件），那么写入就会被阻塞，那么：
     - 可以适当调大 Memtable 内存占用的上限阈值，但也不能调得很大，因为这会导致 compaction 压力会比较大，间接影响读/检索的性能：
         - 如果 $level_0$ 文件很多，来不及 major compaction，而这些文件的 key 区间又存在重合，就可能需要检索多个 $level_0$ 文件。
         - major compaction 涉及较多的文件磁盘 I/O，从而可能影响检索时的文件读取。
