@@ -100,6 +100,7 @@ private:
   //
   std::string plantuml_server_;
   std::string diagram_header_;
+  std::filesystem::path target_img_dir_;
 };
 
 // https://plantuml.com/text-encoding
@@ -143,6 +144,13 @@ inline bool PlantUML::init(ConfigPtr config_ptr) {
     plantuml_server_ = fmt::format("127.0.0.1:{}", picweb_port_);
     picoweb_server_started_ = true;
   }
+  //
+  target_img_dir_ = std::filesystem::current_path() / "plantuml-images";
+  if (std::filesystem::exists(target_img_dir_)) {
+    std::filesystem::remove_all(target_img_dir_);
+  }
+  create_directories(target_img_dir_);
+  //
   inited_ = true;
   return true;
 }
@@ -165,10 +173,7 @@ inline bool PlantUML::run(const MarkdownPtr& md_ptr) {
   if (!inited_) {
     return false;
   }
-  auto target_img_dir = std::filesystem::current_path() / "images";
-  if (!exists(target_img_dir)) {
-    create_directories(target_img_dir);
-  }
+  //
   for (auto& ele : md_ptr->elements()) {
     if (ele == nullptr) {
       continue;
@@ -185,7 +190,7 @@ inline bool PlantUML::run(const MarkdownPtr& md_ptr) {
       return false;
     }
     auto hash_value = absl::Hash<std::string>{}(snd);
-    auto svg_file_path = target_img_dir / fmt::format("{0}.svg", hash_value);
+    auto svg_file_path = target_img_dir_ / fmt::format("{0}.svg", hash_value);
     std::fstream svg_file_stream;
     svg_file_stream.open(svg_file_path, std::ios::out | std::ios::trunc);
     if (!svg_file_stream.is_open()) {
@@ -199,7 +204,7 @@ inline bool PlantUML::run(const MarkdownPtr& md_ptr) {
     auto* image_ptr = new Image();
     image_ptr->width = "";
     image_ptr->alt_text = svg_file_path.stem();
-    image_ptr->uri = "../images/" + svg_file_path.filename().string();
+    image_ptr->uri = "../plantuml-images/" + svg_file_path.filename().string();
     for (const auto& [fst, snd] : codeblock->attrs) {
       if (fst == "alt") {
         image_ptr->alt_text = snd;
