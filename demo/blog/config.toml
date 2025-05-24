@@ -16,7 +16,7 @@ plugins = ["PlantUML", "Mermaid"]
 
 [plantuml]
 #server = "127.0.0.1:8000"
-header = "skinparam defaultFontName \"Albert Sans\"\nskinparam defaultFontSize 15\nscale max 660 width"
+header = "skinparam defaultFontName \"Albert Sans\"\nskinparam defaultFontSize 15\nscale max 800 width"
 jar_path = "/Users/xiayf/software/plantuml-mit-1.2025.1.jar"
 picoweb_port = 8000
 

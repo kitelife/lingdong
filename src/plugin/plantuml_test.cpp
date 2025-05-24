@@ -21,6 +21,14 @@ Bob --> Alice: Authentication Response
   EXPECT_EQ(PlantUML::hex_encode(diagram_desc), diagram_desc_encoded);
 }
 
+TEST(PlantUMLPluginTest, zh_encode) {
+  const std::string diagram_desc = R"(@startuml
+Alice->Bob : 中文
+@enduml)";
+  const std::string encoded = "~h407374617274756d6c0a416c6963652d3e426f62203a20e4b8ade696870a40656e64756d6c";
+  EXPECT_EQ(PlantUML::hex_encode(diagram_desc), encoded);
+}
+
 TEST(PlantUMLPluginTest, zlib_deflate) {
   static std::string input = "hello";
   std::string compress_output = zlib_deflate_compress(input);

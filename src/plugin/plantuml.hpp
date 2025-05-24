@@ -18,7 +18,7 @@
 namespace ling::plugin {
 
 // https://gist.github.com/gomons/9d446024fbb7ccb6536ab984e29e154a
-static std::string zlib_deflate_compress(const std::string input) {
+static std::string zlib_deflate_compress(const std::string& input) {
   //
   z_stream zs = {};
   if (deflateInit(&zs, Z_BEST_COMPRESSION) != Z_OK) {
@@ -106,8 +106,8 @@ private:
 inline std::string PlantUML::hex_encode(const std::string& diagram_desc) {
   std::stringstream ss;
   ss << "~h";
-  for (const auto c : diagram_desc) {
-    ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(c);
+  for (const unsigned char c : diagram_desc) {
+    ss << std::hex << std::setprecision(2) << std::setw(2) << std::setfill('0') << static_cast<int>(c);
   }
   return ss.str();
 }
@@ -122,14 +122,12 @@ inline std::pair<bool, std::string> PlantUML::diagram_desc2pic(std::vector<std::
   ss << "@enduml";
   std::string plantuml_diagram = ss.str();
   auto encoded = hex_encode(plantuml_diagram);
-  static std::string target_url = fmt::format("http://{0}/plantuml/svg/{1}", plantuml_server_, encoded);
-  // std::cout << target_url << std::endl;
+  const std::string target_url = fmt::format("http://{0}/plantuml/svg/{1}", plantuml_server_, encoded);
   cpr::Response r = cpr::Get(cpr::Url{target_url});
   if (r.status_code != 200) {
     spdlog::error("Failed to call plantuml, status_code: {}, response: {}", r.status_code, r.text);
     return std::make_pair(false, "");
   }
-  // std::cout << r.text << std::endl;
   return std::make_pair(true, r.text);
 }
 
@@ -178,7 +176,6 @@ inline bool PlantUML::run(const MarkdownPtr& md_ptr) {
     if (codeblock == nullptr) {
       continue;
     }
-    // std::cout << "has codeblock, lang_name=" << codeblock->lang_name << std::endl;
     if (codeblock->lang_name != "plantuml" && codeblock->lang_name != "plantuml-svg") {
       continue;
     }
