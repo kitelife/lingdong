@@ -107,6 +107,7 @@ inline std::string PlantUML::hex_encode(const std::string& diagram_desc) {
   std::stringstream ss;
   ss << "~h";
   for (const unsigned char c : diagram_desc) {
+    // https://stackoverflow.com/questions/37272384/c-convert-utf8-string-to-hexadecimal-and-vice-versa
     ss << std::hex << std::setprecision(2) << std::setw(2) << std::setfill('0') << static_cast<int>(c);
   }
   return ss.str();
