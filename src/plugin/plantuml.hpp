@@ -165,9 +165,9 @@ inline bool PlantUML::run(const MarkdownPtr& md_ptr) {
   if (!inited_) {
     return false;
   }
-  auto dist_img_dir = std::filesystem::path(config_->dist_dir) / "images";
-  if (!exists(dist_img_dir)) {
-    create_directories(dist_img_dir);
+  auto target_img_dir = std::filesystem::current_path() / "images";
+  if (!exists(target_img_dir)) {
+    create_directories(target_img_dir);
   }
   for (auto& ele : md_ptr->elements()) {
     if (ele == nullptr) {
@@ -185,7 +185,7 @@ inline bool PlantUML::run(const MarkdownPtr& md_ptr) {
       return false;
     }
     auto hash_value = absl::Hash<std::string>{}(snd);
-    auto svg_file_path = dist_img_dir / fmt::format("{0}.svg", hash_value);
+    auto svg_file_path = target_img_dir / fmt::format("{0}.svg", hash_value);
     std::fstream svg_file_stream;
     svg_file_stream.open(svg_file_path, std::ios::out | std::ios::trunc);
     if (!svg_file_stream.is_open()) {
@@ -199,7 +199,7 @@ inline bool PlantUML::run(const MarkdownPtr& md_ptr) {
     auto* image_ptr = new Image();
     image_ptr->width = "";
     image_ptr->alt_text = svg_file_path.stem();
-    image_ptr->uri = "/images/" + svg_file_path.filename().string();
+    image_ptr->uri = "../images/" + svg_file_path.filename().string();
     for (const auto& [fst, snd] : codeblock->attrs) {
       if (fst == "alt") {
         image_ptr->alt_text = snd;

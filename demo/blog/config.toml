@@ -12,7 +12,7 @@ theme_name = "default"
 
 navigation = [["关于我", "/pages/about.html"], ["作品", "/pages/works.html"], ["RSS", "/rss.xml"]]
 
-plugins = ["PlantUML", "Mermaid"]
+plugins = ["PlantUML", "Mermaid", "Smms"]
 
 [plantuml]
 #server = "127.0.0.1:8000"
@@ -25,6 +25,6 @@ output_dir = "../dist/blog/pdf"
 text_fonts = "\"Zhuque Fangsong (technical preview)\", \"TsangerJinKai05 W04\""
 
 [smms]
-username = ""
-password = ""
+username = "xiayf"
+password = "06122553abc"
 api_token = ""

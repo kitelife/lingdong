@@ -17,6 +17,7 @@
 #include <spdlog/spdlog.h>
 #include <nlohmann/json.hpp>
 #include <tsl/robin_map.h>
+#include <tsl/robin_set.h>
 
 #include "plugin.h"
 #include "../utils/strings.hpp"
@@ -183,17 +184,21 @@ inline SmmsUploadResult SmmsOpenAPI::upload(const path& image_path) {
   const auto api_token = fetch_api_token();
   const auto url = BASE_URL + "/upload";
   //
+  auto img_ap = absolute(image_path);
   cpr::Response r = cpr::Post(cpr::Url{url},
     cpr::Header{{"Content-Type", "multipart/form-data"}, {"Authorization", api_token}},
-    cpr::Multipart{{"smfile", cpr::File(image_path.string(), image_path.filename())}, {"format", "json"}});
+    cpr::Multipart{{"smfile", cpr::File(img_ap.string(), img_ap.filename().string())},
+      {"format", "json"}});
   if (r.status_code != 200) {
-    spdlog::error("Failed to fetch upload, status_code: {}, resp: {}", r.status_code, r.text);
+    spdlog::error("Failed to upload, status_code: {}, resp: {}, image path: {}, image name: {}",
+      r.status_code, r.text, img_ap.string(), img_ap.filename().string());
     return upload_result;
   }
   const auto rj = json::parse(r.text);
   if (!rj.contains("success") || !rj["success"].is_boolean() || rj["success"].get<bool>() == false ||
     !rj.contains("data") || !rj["data"].is_object()) {
-    spdlog::error("Failed to fetch upload image, resp: {}", r.text);
+    spdlog::error("Failed to upload image, resp: {}, image path: {}, image name: {}",
+      r.text, img_ap.string(), img_ap.filename().string());
     return upload_result;
     }
   upload_result.success = true;
@@ -234,9 +239,11 @@ private:
   SmmsOpenAPI api_;
   //
   tsl::robin_map<std::string, SmmsUploadHistory> upload_history_;
+  tsl::robin_set<std::string> smms_supported_exts {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"};
 };
 
 inline bool Smms::init(ConfigPtr config_ptr) {
+  config_ = config_ptr;
   const auto api_token = toml::find_or<std::string>(config_->raw_toml_, "smms", "api_token", "");
   if (api_token.empty()) {
     const auto username = toml::find_or<std::string>(config_->raw_toml_, "smms", "username", "");
@@ -268,20 +275,31 @@ inline bool Smms::run(const MarkdownPtr& md_ptr) {
     if (img_ptr == nullptr) {
       continue;
     }
-    const auto& uri = img_ptr->uri;
+    auto uri = img_ptr->uri;
     if (uri.find("https://") != std::string::npos || uri.find("http://") != std::string::npos) {
       continue;
     }
+    if (uri.find("../") == 0) {
+      uri = uri.substr(1, uri.size() - 1);
+    } else if (uri[0] == '/') {
+      uri = "." + uri;
+    }
     auto img_path = path(uri);
-    if (upload_history_.contains(img_path.filename())) {
+    if (!smms_supported_exts.contains(img_path.extension())) {
+      spdlog::info("Smms not support this image type, skip image: {}", img_path.string());
+      continue;
+    }
+    auto img_file_name = img_path.filename().string();
+    if (upload_history_.contains(img_file_name)) {
+      img_ptr->uri = upload_history_[img_file_name].url;
       continue;
     }
     const auto& r = api_.upload(img_path);
     if (!r.success) {
       continue;
     }
-    upload_history_[img_path.filename()] = r.history;
-    //
+    spdlog::info("success to upload image:{}, smms url: {}", uri, r.history.url);
+    upload_history_[img_file_name] = r.history;
     img_ptr->uri = r.history.url;
   }
   return true;
@@ -319,7 +337,7 @@ inline bool Smms::cache_upload_history() {
     hj.emplace_back();
     snd.to(hj.back());
   }
-  const std::string hs = hj.dump();
+  const std::string hs = hj.dump(2);
   path history_fp = path(CACHE_DIR) / UPLOAD_HISTORY_CACHE_FILE;
   std::ofstream hfs(history_fp, std::ios::trunc);
   if (!hfs.is_open()) {

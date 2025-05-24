@@ -339,7 +339,7 @@ inline bool Maker::generate() const {
     }
     std::string dir_name = subdir.stem().string();
     spdlog::debug("subdir: {}, dir_name: {}", subdir, dir_name);
-    if (dir_name == "posts" || dir_name == "pages") {
+    if (dir_name == "posts" || dir_name == "pages" || dir_name[0] == '.') {
       return;
     }
     copy(subdir, dist_path_ / dir_name, copy_options::recursive);

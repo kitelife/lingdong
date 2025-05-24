@@ -24,8 +24,7 @@
   - 插件
     - [x] plantuml
     - [x] mermaid
-    - [ ] 图片压缩
-    - [ ] smms 图床
+    - [x] smms 图床
     - [x] 基于 typst + [cmarker](https://typst.app/universe/package/cmarker/) 导出 pdf 格式
       - 实现不太理想，存在兼容性问题，导致一些 markdown 文件无法转成 pdf
     - [ ] 将 typst 算法伪代码块转换成图片（png/svg）

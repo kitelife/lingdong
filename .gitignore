@@ -6,3 +6,5 @@ dist/
 package-lock.json
 .smms_account.json
 .smms_token.json
+.smms_cache/
+demo/blog/images/
