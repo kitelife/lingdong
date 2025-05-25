@@ -37,6 +37,9 @@ public:
   [[nodiscard]] std::string file_path() {
     return file_path_;
   }
+  std::string file_name() {
+    return file_name_;
+  }
 
 private:
   path file_path_;
@@ -232,6 +235,10 @@ inline bool Maker::load() {
     }
     posts_.emplace_back(std::make_shared<Post>(entry.path()));
   }
+  // 按文件名从小到大排序，确定处理序列
+  std::sort(posts_.begin(), posts_.end(), [](const PostPtr& lhs, const PostPtr& rhs) {
+    return lhs->file_name() < rhs->file_name();
+  });
   for (const auto& entry : directory_iterator(pages_path)) {
     if (!is_markdown_file(entry)) {
       continue;
