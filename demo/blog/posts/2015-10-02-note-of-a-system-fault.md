@@ -59,17 +59,35 @@ id: note-of-a-system-fault
 
 结果中，有两种任务线程：“Binlog Dump”和“Query”，其中“Query”数量占绝大多数（和MySQL进程与数据库代理服务器之间的网络连接数大致相当）：
 
-- Binlog Dump：该任务线程表明当前MySQL实例为主MySQL，并且其状态表明主从同步已顺利完成
-- Query：表明当前线程正在执行一次SQL查询操作。该SQL为`SELECT h.host, p.result, p.update_time FROM PIXIU p join Host h using(host_id) WHERE ...`，线程所处状态为“Sorting result”（正在创建排序索引），持续时间为86-99秒左右。很明显，这句SQL语句花费的时间过长，存在问题。
+1、Binlog Dump：该任务线程表明当前MySQL实例为主 MySQL，并且其状态表明主从同步已顺利完成。
+2、Query：表明当前线程正在执行一次 SQL 查询操作。该 SQL 为:
+
+```sql
+SELECT h.host, p.result, p.update_time FROM PIXIU p join Host h using(host_id) WHERE ...
+```
+线程所处状态为“Sorting result”（正在创建排序索引），持续时间为86-99秒左右。很明显，这句SQL语句花费的时间过长，存在问题。
 
 综合上面所述，可以引出一个猜测：由于这条SQL查询需耗费较长时间，并且被频繁执行，涉及该SQL的请求需要较长时间完成，大量SQL线程排队无响应，阻塞了大量PHP-FPM进程，在某些时候会达到PHP-FPM并发子进程数上限（更何况某个会被频繁访问的页面请求涉及该SQL，导致情况更糟），PHP-FPM无法处理新的请求，对于已有的请求也会因为超时导致Nginx响应502。
 
 那么针对该猜测，可以做两个优化来解决故障：
 
-- 优化这条SQL
+- 优化这条 SQL
 - 使用缓存
 
-这条SQL的完整语句为： `SELECT h.host,p.result,p.update_time FROM Pixiu p join Host h using(host_id) WHERE result!='[]' order by update_time desc` ，其中字段p.result的类型为 `mediumtext NOT NULL` ，字段p.update_time的类型为 `timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP` 。
+这条SQL的完整语句为： 
+
+```sql
+SELECT h.host,p.result,p.update_time FROM Pixiu p 
+    JOIN Host h USING(host_id) 
+    WHERE result!='[]'
+    ORDER BY update_time DESC
+```
+
+- 字段 p.result 的类型为 `mediumtext NOT NULL`
+- 字段 p.update_time 的类型为：
+```sql
+timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+```
 
 由于业务逻辑并不要求该SQL的结果是排序的，所以我们将该SQL中的排序条件`order by update_time desc`删除，经测试发现查询时间大幅度降低到9ms左右（原来的平均查询时间为600多-700ms左右），另外，由于业务逻辑对于该条SQL涉及的数据的实时性要求不高，我们使用Memcached缓存了该SQL的查询结果。
 
