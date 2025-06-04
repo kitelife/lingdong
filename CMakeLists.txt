@@ -51,6 +51,16 @@ add_subdirectory(third_party/SQLiteCpp)
 # https://github.com/Tessil/robin-map
 add_subdirectory(third_party/robin-map)
 
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    add_compile_options(-fdiagnostics-color=always)
+elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+    add_compile_options(-fcolor-diagnostics)
+endif()
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -mavx2")
+endif()
+
 add_executable(lingdong src/main.cpp
         src/maker.hpp
         src/server.hpp

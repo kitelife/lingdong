@@ -10,7 +10,7 @@ dist_dir = "../dist/blog"
 theme_dir = "../../themes"
 theme_name = "default"
 
-navigation = [["关于我", "/pages/about.html"], ["作品", "/pages/works.html"], ["RSS", "/rss.xml"]]
+navigation = [["关于我", "/pages/about.html"], ["作品", "/pages/works.html"], ["琳琅", "/pages/linlang.html"], ["RSS", "/rss.xml"]]
 
 plugins = ["PlantUML", "Mermaid", "Smms"]
 
