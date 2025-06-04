@@ -10,6 +10,7 @@ id: linlang
 - [MacBook Pro](https://www.apple.com.cn/macbook-pro/)，M2，购于 2023 年
 - 机械键盘： FILCO/斐尔可 MINILA / 67键 / 茶轴，购于 2019.03
 - [AirPods Pro](https://www.apple.com.cn/airpods-pro/)，购于 2021.06
+- [佳明运动手表 - Forerunner 255](https://www.garmin.com/en-US/p/780139/)，购于 2023.10
 
 ### 软件
 
