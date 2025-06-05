@@ -38,8 +38,20 @@ FetchContent_Declare(
         GIT_REPOSITORY https://github.com/libuv/libuv.git
         GIT_TAG v1.50.0
 )
+FetchContent_Declare(
+        roaring
+        GIT_REPOSITORY https://github.com/RoaringBitmap/CRoaring.git
+        GIT_TAG v4.3.5
+        GIT_SHALLOW TRUE
+)
+set(ENABLE_ROARING_TESTS OFF CACHE INTERNAL "")
+set(ROARING_BUILD_STATIC ON CACHE INTERNAL "")
 
-FetchContent_MakeAvailable(jsoncpp cpr googletest libuv)
+FetchContent_MakeAvailable(jsoncpp cpr googletest libuv roaring)
+
+FetchContent_GetProperties(roaring)
+SET(CPP_ROARING_HEADERS ${roaring_SOURCE_DIR}/cpp/roaring64map.hh  ${roaring_SOURCE_DIR}/cpp/roaring.hh)
+file(COPY ${CPP_ROARING_HEADERS} DESTINATION ${roaring_SOURCE_DIR}/include/roaring)
 
 add_subdirectory(third_party/abseil)
 # https://github.com/pantor/inja, 另一个选择是 https://github.com/jinja2cpp/Jinja2Cpp
@@ -102,6 +114,7 @@ target_link_libraries(
         dl
         #
         tsl::robin_map
+        roaring
 )
 
 add_executable(tester src/tester.cpp)
