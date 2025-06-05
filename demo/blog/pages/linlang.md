@@ -14,6 +14,7 @@ id: linlang
 
 ### 软件
 
+- [鼠须管](https://github.com/rime/squirrel)，输入法，免费
 - [Arc](https://arc.net/)，浏览器，免费
 - [Clion](https://www.jetbrains.com/clion/)，C++ IDE，付费
 - xFormula，Latex 公式编辑器，付费
