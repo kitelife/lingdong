@@ -52,6 +52,7 @@ id: linlang
 ## 资料库
 
 - [SaltTiger](http://www.salttiger.com/)
+- [Standard C++](https://isocpp.org/)
 - [ACM Queue](https://queue.acm.org/index.cfm)
 - [Berkeley EECS Technical Reports](https://www2.eecs.berkeley.edu/Pubs/TechRpts/)
 - [The Linux Kernel documentation](https://www.kernel.org/doc/html/latest/index.html)
