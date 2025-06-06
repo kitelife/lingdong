@@ -30,6 +30,7 @@
     - [ ] 基于 markdown 抽象语法树，生成 typst 源码，然后编译出 pdf
     - [ ] 将 typst 算法伪代码块转换成图片（png/svg）
     - [ ] katex？（替换掉 mathjax，支持更多的 latex 能力）
+    - [ ] 自动配图 - 大模型文生图
   - [x] 默认主题
     - [ ] 待细节调整优化
     - [ ] 评论插件（GitTalk/...）
