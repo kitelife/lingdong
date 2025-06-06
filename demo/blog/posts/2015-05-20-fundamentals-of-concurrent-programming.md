@@ -1,5 +1,5 @@
 ---
-title: Go并发编程基础（译）
+title: Go 并发编程基础（译）
 date: 2015-05-20
 id: fundamentals-of-concurrent-programming
 ---

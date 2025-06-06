@@ -1,5 +1,5 @@
 ---
-title: 搭建高可用负载均衡组件及缓存DNS
+title: 搭建高可用负载均衡组件及缓存 DNS
 date: 2013-10-16
 id: ha-lb-and-dns
 ---

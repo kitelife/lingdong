@@ -1,10 +1,10 @@
 ---
-title: Linux添加定时任务
+title: Linux 添加定时任务
 date: 2011-12-07
 id: cron-usage
 ---
 
-在Linux下如果希望某个任务定时地执行，一般是使用cron服务器，将任务添加到cron任务列表中。
+在 Linux 下如果希望某个任务定时地执行，一般是使用cron服务器，将任务添加到cron任务列表中。
 
 #### 启动，关闭，重启cron(需超级用户权限)
 

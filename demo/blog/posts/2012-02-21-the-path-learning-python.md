@@ -1,5 +1,5 @@
 ---
-title: Python学习路线(针对具备一定编程经验者)
+title: Python 学习路线(针对具备一定编程经验者)
 date: 2012-02-21
 id: the-path-of-learning-python
 ---

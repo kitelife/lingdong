@@ -1,5 +1,5 @@
 ---
-title: 通过示例学习Git内部构造（译）
+title: 通过示例学习 Git 内部构造（译）
 date: 2013-09-28
 id: learning-git-internals-by-example
 ---
@@ -12,8 +12,8 @@ id: learning-git-internals-by-example
 
 ## 动机
 
-从Subversion和Mercurial切换到Git之后的几个月，我始终觉得Git在本质上是不同于Subversion和Mercurial的，但没法确切地说出区别。
-我经常在Github上看到tree、parent等术语，也搞不清楚它们确切的含义。
+从 Subversion 和 Mercuria l切换到 Git 之后的几个月，我始终觉得 Git 在本质上是不同于 Subversion 和 Mercurial 的，但没法确切地说出区别。
+我经常在 Github上 看到 tree、parent 等术语，也搞不清楚它们确切的含义。
 
 因此我决定花些时间学学Git。
 
@@ -22,7 +22,7 @@ id: learning-git-internals-by-example
 
 ## 实体、引用、索引（Objects，References，The Index）
 
-要理解Git内部构造的核心，我们应理解三个东西： **实体**、**引用**、 **索引**。
+要理解 Git内部构造的核心，我们应理解三个东西： **实体**、**引用**、 **索引**。
 
 我发现这个模型非常优雅。用一个小小的图表就能完全展现，也易于理解记忆。
 

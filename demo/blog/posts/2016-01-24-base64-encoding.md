@@ -1,5 +1,5 @@
 ---
-title: Base64编码原理与应用
+title: Base64 编码原理与应用
 date: 2016-01-24
 id: base64-encoding
 ---
