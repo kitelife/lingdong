@@ -867,9 +867,7 @@ ParseResult Markdown::parse_table() {
     last_line_idx++;
   } while (last_line_idx < lines.size());
   elements_.push_back(table_ptr);
-  // 避免重复处理最后一行
-  size_t next_line_idx = last_line_idx == lines.size() ? last_line_idx : last_line_idx - 1;
-  return ParseResult::make(0, next_line_idx);
+  return ParseResult::make(0, last_line_idx);
 }
 
 void Markdown::clear() {
