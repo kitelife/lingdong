@@ -3,13 +3,11 @@
 //
 #pragma once
 
-#include <absl/hash/hash.h>
 #include <cpr/cpr.h>
 #include <spdlog/spdlog.h>
 #include <zlib.h>
 
 #include <filesystem>
-#include <iostream>
 #include <utility>
 
 #include "../parser/markdown.h"
@@ -189,7 +187,8 @@ inline bool PlantUML::run(const MarkdownPtr& md_ptr) {
     if (!fst) {
       return false;
     }
-    auto hash_value = absl::Hash<std::string>{}(snd);
+    // WARNING: 此处不要使用 absl::Hash，因为它在不同线程中运行时使用的种子不一样，导致同样的输入，生成的哈希值会不一样。
+    auto hash_value = std::hash<std::string>{}(absl::StrJoin(codeblock->lines, "\n"));
     auto svg_file_path = target_img_dir_ / fmt::format("{0}.svg", hash_value);
     std::fstream svg_file_stream;
     svg_file_stream.open(svg_file_path, std::ios::out | std::ios::trunc);

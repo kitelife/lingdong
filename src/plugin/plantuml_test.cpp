@@ -3,6 +3,7 @@
 //
 #include "plantuml.hpp"
 
+#include <absl/hash/hash.h>
 #include <absl/strings/escaping.h>
 #include <gtest/gtest.h>
 
@@ -36,4 +37,22 @@ TEST(PlantUMLPluginTest, zlib_deflate) {
   std::cout << "decompress_output: " << decompress_output << std::endl;
   EXPECT_EQ(input, decompress_output);
   EXPECT_EQ(absl::WebSafeBase64Escape(compress_output), "eNrLSM3JyQcABiwCFQ");
+}
+
+TEST(PlantUMLPluginTest, absl_hash) {
+  std::string input1 = "~h407374617274756d6c0a416c6963652d3e426f62203a20e4b8ade696870a40656e64756d6c";
+  std::string input2 = "~h407374617274756d6c0a416c6963652d3e426f62203a20e4b8ade696870a40656e64756d6c";
+  auto hash1 = absl::Hash<std::string>{}(input1);
+  auto hash2 = absl::Hash<std::string>{}(input2);
+  std::cout << hash1 << std::endl;
+  ASSERT_EQ(hash2, hash1);
+}
+
+TEST(PlantUMLPluginTest, std_hash) {
+  std::string input1 = "~h407374617274756d6c0a416c6963652d3e426f62203a20e4b8ade696870a40656e64756d6c";
+  std::string input2 = "~h407374617274756d6c0a416c6963652d3e426f62203a20e4b8ade696870a40656e64756d6c";
+  auto hash1 = std::hash<std::string>{}(input1);
+  auto hash2 = std::hash<std::string>{}(input2);
+  std::cout << hash1 << std::endl;
+  ASSERT_EQ(hash2, hash1);
 }
