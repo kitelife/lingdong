@@ -7,9 +7,9 @@
 #include <absl/strings/str_split.h>
 #include <fmt/core.h>
 #include <spdlog/spdlog.h>
-#include <inja/inja.hpp>
 
 #include <fstream>
+#include <inja/inja.hpp>
 #include <iostream>
 #include <sstream>
 
@@ -67,8 +67,11 @@ bool Markdown::parse() {
       case '$':  // 可能是独立成行的 latex 公式
         pr = parse_latex();
         break;
-      case '[': // 可能是脚注
+      case '[':  // 可能是脚注
         pr = parse_footnote();
+        break;
+      case '<':  // 可能是 html 元素
+        pr = parse_html_element();
         break;
       default:
         pr = parse_default();
@@ -94,19 +97,19 @@ ParseResult Markdown::parse_footnote() {
       break;
     }
   } while (++idx < last_line.size());
-  if (idx < 3 || idx == last_line.size() || idx+1 == last_line.size() || last_line[idx+1] != ':') {
+  if (idx < 3 || idx == last_line.size() || idx + 1 == last_line.size() || last_line[idx + 1] != ':') {
     return parse_default();
   }
-  const auto& id = last_line.substr(2, idx-2);
+  const auto& id = last_line.substr(2, idx - 2);
   ++idx;
   auto paragraph_ptr = std::make_shared<Paragraph>(true);
-  auto status = parse_paragraph(last_line.substr(idx+1), paragraph_ptr);
+  auto status = parse_paragraph(last_line.substr(idx + 1), paragraph_ptr);
   if (!status) {
     spdlog::error("Failed to parse '{}'", last_line);
   }
   // spdlog::debug("Has footnote: {}", id);
   footnotes_ptr_->add_footnote(id, std::make_shared<Footnote>(id, paragraph_ptr));
-  return ParseResult::make(0, last_line_idx+1);
+  return ParseResult::make(0, last_line_idx + 1);
 }
 
 /*
@@ -289,9 +292,9 @@ ParseResult Markdown::parse_latex() {
   // 可能单行，也可能多行
   if (line_view[0] == '$' && line_view[1] == '$') {
     const auto latex_block_ptr = std::make_shared<LatexBlock>();
-    if (view_len > 4 && line_view[view_len - 1] == '$' && line_view[view_len - 2] == '$') { // 单行情况
+    if (view_len > 4 && line_view[view_len - 1] == '$' && line_view[view_len - 2] == '$') {  // 单行情况
       latex_block_ptr->content = std::string(line_view.substr(2, view_len - 4));
-    } else { // 多行情况
+    } else {  // 多行情况
       std::vector<std::string> latex_lines;
       latex_lines.emplace_back(line_view.substr(2, view_len - 2));
       //
@@ -299,7 +302,7 @@ ParseResult Markdown::parse_latex() {
       while ((++line_idx) < lines.size()) {
         line_view = utils::view_strip_empty(lines.at(line_idx));
         view_len = line_view.size();
-        if (view_len >= 2 && line_view[view_len-1] == '$' && line_view[view_len-2] == '$') { // 结束行
+        if (view_len >= 2 && line_view[view_len - 1] == '$' && line_view[view_len - 2] == '$') {  // 结束行
           latex_lines.emplace_back(line_view.substr(0, view_len - 2));
           reach_end = true;
           break;
@@ -519,7 +522,7 @@ ParseResult Markdown::parse_image() {
 ParseResult Markdown::parse_paragraph() {
   const auto paragraph = std::make_shared<Paragraph>();
   if (parse_paragraph(lines.at(last_line_idx), paragraph)) {
-    if (!paragraph->blocks.empty()) { // 忽略空行
+    if (!paragraph->blocks.empty()) {  // 忽略空行
       elements_.push_back(paragraph);
     }
   }
@@ -534,7 +537,7 @@ bool Markdown::parse_paragraph(const std::string& line, const ParagraphPtr& para
   LineParseResult pr;
   size_t idx = 0;
   if (clean_line_view[idx] == '\\' && clean_line_view.size() > 2) {
-    switch (clean_line_view[idx+1]) {
+    switch (clean_line_view[idx + 1]) {
       case 'L':
         paragraph_ptr->text_align = "left";
         idx += 2;
@@ -620,7 +623,7 @@ LineParseResult Markdown::try_parse_link(const absl::string_view& line,
   // 脚注
   if (idx < line.size()) {
     if (line[idx] == '^') {
-      auto pr = try_parse_footnote_ref(line, idx+1, paragraph_ptr);
+      auto pr = try_parse_footnote_ref(line, idx + 1, paragraph_ptr);
       if (pr.status == 0) {
         return pr;
       }
@@ -669,7 +672,7 @@ LineParseResult Markdown::try_parse_footnote_ref(const absl::string_view& line,
     lpr.status = 2;
     return lpr;
   }
-  const absl::string_view ref_id = line.substr(start, idx-start);
+  const absl::string_view ref_id = line.substr(start, idx - start);
   paragraph_ptr->blocks.push_back(std::make_shared<InlineFootnoteRef>(std::string(ref_id)));
   lpr.next_pos = idx + 1;
   return lpr;
@@ -744,9 +747,129 @@ LineParseResult Markdown::try_parse_text(const absl::string_view& line,
   return pr;
 }
 
+// 单行单个 html 元素
+ParseResult Markdown::parse_html_element() {
+  const auto& last_line = lines.at(last_line_idx);
+  const auto clean_line_view = utils::view_strip_empty(last_line);
+  if (clean_line_view.length() <= 4 || clean_line_view[clean_line_view.length() - 1] != '>') {
+    return parse_default();
+  }
+  size_t idx = 1;
+  while (!utils::is_space(clean_line_view[idx++]) && idx < clean_line_view.length()) {
+  }
+  if (idx == clean_line_view.length()) {
+    spdlog::warn("Illegal html element: {}", last_line);
+    return parse_default();
+  }
+  const auto& tag_name = clean_line_view.substr(1, idx - 2);
+  while (clean_line_view[idx++] != '>' && idx < clean_line_view.length()) {
+  }
+  if (idx == clean_line_view.length()) {
+    spdlog::warn("Illegal html element: {}", last_line);
+    return parse_default();
+  }
+  while (clean_line_view[idx++] != '<' && idx < clean_line_view.length()) {
+  }
+  if (idx == clean_line_view.length() || clean_line_view[idx] != '/') {
+    spdlog::warn("Illegal html element: {}", last_line);
+    return parse_default();
+  }
+  const auto& end_tag_name = clean_line_view.substr(idx + 1, clean_line_view.length() - idx - 2);
+  if (tag_name != end_tag_name) {
+    spdlog::warn("Illegal html element: {}", last_line);
+    return parse_default();
+  }
+  auto html_ele_ptr = std::make_shared<HtmlElement>();
+  html_ele_ptr->tag_name = tag_name;
+  html_ele_ptr->html = clean_line_view;
+  elements_.emplace_back(html_ele_ptr);
+  return ParseResult::make(0, last_line_idx + 1);
+}
+
+/*
+| Syntax      | Description | Test Text     |
+| :---        |    :----:   |          ---: |
+| Header      | Title       | Here's this   |
+| Paragraph   | Text        | And more      |
+ */
 ParseResult Markdown::parse_table() {
-  // TODO:
-  return parse_default();
+  // 标题行
+  absl::string_view clear_line_view = utils::view_strip_empty(lines.at(last_line_idx));
+  size_t line_len = clear_line_view.length();
+  if (clear_line_view[0] != '|' || clear_line_view[line_len - 1] != '|') {
+    return parse_default();
+  }
+  auto table_ptr = std::make_shared<Table>();
+  size_t end_idx = 1;
+  while (end_idx < line_len) {
+    size_t start_idx = end_idx;
+    while (clear_line_view[end_idx++] != '|') {
+    }
+    const auto col_title = utils::view_strip_empty(clear_line_view.substr(start_idx, end_idx - 1 - start_idx));
+    table_ptr->col_title_vec.emplace_back(col_title);
+  }
+  // 列对齐标记行
+  clear_line_view = utils::view_strip_empty(lines.at(last_line_idx + 1));
+  line_len = clear_line_view.length();
+  if (clear_line_view[0] != '|' || clear_line_view[line_len - 1] != '|') {
+    return parse_default();
+  }
+  end_idx = 1;
+  while (end_idx < line_len) {
+    size_t start_idx = end_idx;
+    while (clear_line_view[end_idx++] != '|') {
+    }
+    absl::string_view col_val = utils::view_strip_empty(clear_line_view.substr(start_idx, end_idx - 1 - start_idx));
+    if (col_val.length() < 3 || (col_val[0] != ':' && col_val[col_val.length() - 1] != ':')) {  // 默认左对齐
+      table_ptr->col_alignment_vec.push_back(AlignmentType::LEFT);
+      continue;
+    }
+    if (col_val[0] == ':') {
+      if (col_val[col_val.length() - 1] == ':') {  // 居中对齐
+        table_ptr->col_alignment_vec.push_back(AlignmentType::CENTER);
+      } else {
+        table_ptr->col_alignment_vec.push_back(AlignmentType::LEFT);
+      }
+    } else {
+      table_ptr->col_alignment_vec.push_back(AlignmentType::RIGHT);
+    }
+  }
+  if (table_ptr->col_title_vec.size() != table_ptr->col_alignment_vec.size()) {
+    spdlog::error("Illegal table");
+    return ParseResult::make(2, last_line_idx);
+  }
+  // 表格内容
+  last_line_idx += 2;
+  do {
+    clear_line_view = utils::view_strip_empty(lines.at(last_line_idx));
+    line_len = clear_line_view.length();
+    if (clear_line_view[0] != '|' || clear_line_view[line_len - 1] != '|') {
+      break;
+    }
+    end_idx = 1;
+    table_ptr->col_row_vec.emplace_back();
+    while (end_idx < line_len) {
+      size_t start_idx = end_idx;
+      while (clear_line_view[end_idx++] != '|') {
+      }
+      const auto col_val = clear_line_view.substr(start_idx, end_idx - 1 - start_idx);
+      auto paragraph_ptr = std::make_shared<Paragraph>();
+      if (parse_paragraph(std::string(col_val), paragraph_ptr)) {
+        table_ptr->col_row_vec.back().emplace_back(paragraph_ptr);
+      } else {
+        spdlog::warn("Illegal paragraph: {}", col_val);
+      }
+    }
+    if (table_ptr->col_row_vec.back().size() != table_ptr->col_title_vec.size()) {
+      spdlog::warn("Illegal table");
+      break;
+    }
+    last_line_idx++;
+  } while (last_line_idx < lines.size());
+  elements_.push_back(table_ptr);
+  // 避免重复处理最后一行
+  size_t next_line_idx = last_line_idx == lines.size() ? last_line_idx : last_line_idx - 1;
+  return ParseResult::make(0, next_line_idx);
 }
 
 void Markdown::clear() {
@@ -777,10 +900,9 @@ std::string Markdown::to_html() {
 }
 
 std::string Markdown::body_part() {
-  const std::vector<std::string> body_lines {lines.begin() + body_start_line_idx, lines.end()};
+  const std::vector<std::string> body_lines{lines.begin() + body_start_line_idx, lines.end()};
   return absl::StrJoin(body_lines, "\n");
 }
-
 
 std::string Footnotes::to_html() {
   if (footnotes_.empty()) {
@@ -791,11 +913,10 @@ std::string Footnotes::to_html() {
   for (const auto& [id, footnote] : footnotes_) {
     lines.push_back(footnote->to_html());
   }
-  const std::string footnotes_part = fmt::format(R"(<div class="footnotes" role="doc-endnotes"><ol>{}</ol></div>)",
-      absl::StrJoin(lines, "\n"));
+  const std::string footnotes_part =
+      fmt::format(R"(<div class="footnotes" role="doc-endnotes"><ol>{}</ol></div>)", absl::StrJoin(lines, "\n"));
   return HorizontalRule().to_html() + "\n" + footnotes_part;
 }
-
 
 std::string Heading::to_html() {
   return fmt::format("<h{0}>{1}</h{0}>", level_, title_);
@@ -873,8 +994,7 @@ std::string CodeBlock::to_html() {
     line = inja::htmlescape(line);
   }
   std::string class_name = fmt::format("language-{}", ln);
-  return fmt::format(R"(<pre class="{0}"><code>{1}</code></pre>)", class_name,
-                     absl::StrJoin(lines, "\n"));
+  return fmt::format(R"(<pre class="{0}"><code>{1}</code></pre>)", class_name, absl::StrJoin(lines, "\n"));
 }
 
 std::string LatexBlock::to_html() {
@@ -882,11 +1002,15 @@ std::string LatexBlock::to_html() {
 }
 
 std::string Footnote::to_html() {
-  return fmt::format(R"(<li id="fn:{0}"><p>{1}<a href="#fnref:{0}" class="reversefootnote" role="doc-backlink">↩</a></p></li>)", id_, p_ptr_->to_html());
+  return fmt::format(
+      R"(<li id="fn:{0}"><p>{1}<a href="#fnref:{0}" class="reversefootnote" role="doc-backlink">↩</a></p></li>)", id_,
+      p_ptr_->to_html());
 }
 
 std::string InlineFootnoteRef::to_html() {
-  return fmt::format(R"(<sup id="fnref:{0}"><a href="#fn:{0}" class="footnote" rel="footnote" role="doc-noteref">[{0}]</a></sup>)", id_);
+  return fmt::format(
+      R"(<sup id="fnref:{0}"><a href="#fn:{0}" class="footnote" rel="footnote" role="doc-noteref">[{0}]</a></sup>)",
+      id_);
 }
 
 std::string InlineCode::to_html() {
@@ -909,12 +1033,41 @@ std::string Image::to_html() {
   if (width.empty()) {
     return fmt::format("<img src='{0}' title='{1}' alt='{1}'/>", uri, alt_text);
   }
-  return fmt::format("<img src='{0}' title='{1}' alt='{1}' width='{2}'/>",
-    uri, alt_text, width);
+  return fmt::format("<img src='{0}' title='{1}' alt='{1}' width='{2}'/>", uri, alt_text, width);
 }
 
 std::string HorizontalRule::to_html() {
   return "<hr>";
 }
 
+std::string Table::to_html() {
+  static std::string table_tpl = R"(<table class="table table-bordered">
+<thead>
+<tr>{0}</tr>
+</thead>
+<tbody>{1}</tbody>
+</table>)";
+  //
+  std::string thead;
+  size_t col_cnt = col_title_vec.size();
+  std::vector<std::string> col_align;
+  col_align.reserve(col_cnt);
+  for (size_t col_idx = 0; col_idx < col_cnt; col_idx++) {
+    col_align.emplace_back(to_string(col_alignment_vec[col_idx]));
+    thead += fmt::format("<th style=\"text-align: {0}\">{1}</th>\n", col_align[col_idx], col_title_vec[col_idx]);
+  }
+  //
+  std::string tbody;
+  for (const auto& r : col_row_vec) {
+    std::string tr = "<tr>\n";
+    for (size_t col_idx = 0; col_idx < col_cnt; col_idx++) {
+      const auto& col_ptr = r[col_idx];
+      col_ptr->text_align = col_align[col_idx];
+      tr += fmt::format("<td style=\"text-align: {0}\">{1}</td>\n", col_align[col_idx], col_ptr->to_html());
+    }
+    tr += "</tr>\n";
+    tbody += tr;
+  }
+  return fmt::format(table_tpl, thead, tbody);
+}
 }  // namespace ling

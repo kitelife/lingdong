@@ -59,6 +59,17 @@ public:
   virtual ~Element() = default;
 };
 
+class HtmlElement final : public Element {
+public:
+  std::string tag_name;
+  std::string html;
+public:
+  HtmlElement() = default;
+  std::string to_html() override {
+    return html;
+  }
+};
+
 class Heading final : public Element {
 public:
   size_t level_;
@@ -224,11 +235,6 @@ public:
   std::string to_html() override;
 };
 
-class Table final : public Element {
-public:
-  std::string to_html() override;
-};
-
 using ParagraphPtr = std::shared_ptr<Paragraph>;
 using ItemListPtr = std::shared_ptr<ItemList>;
 
@@ -252,6 +258,29 @@ public:
   void add_footnote(const std::string& id, const FootnotePtr& footnote_ptr) {
     footnotes_[id] = footnote_ptr;
   };
+};
+
+// https://markdownguide.offshoot.io/extended-syntax/#tables
+enum class AlignmentType {
+  LEFT, RIGHT, CENTER
+};
+
+static std::string to_string(const AlignmentType alignment) {
+  switch (alignment) {
+      case AlignmentType::RIGHT: return "right";
+      case AlignmentType::CENTER: return "center";
+      default: return "left";
+  }
+}
+
+class Table final : public Element {
+public:
+  std::vector<std::string> col_title_vec;
+  std::vector<AlignmentType> col_alignment_vec;
+  std::vector<std::vector<ParagraphPtr>> col_row_vec;
+
+public:
+  std::string to_html() override;
 };
 
 class Markdown final {
@@ -282,6 +311,7 @@ private:
   ParseResult parse_paragraph();
   static bool parse_paragraph(const std::string& line, const ParagraphPtr& paragraph_ptr);
 
+  ParseResult parse_html_element();
   ParseResult parse_table();
   //
   ParseResult parse_dash_prefix_line();

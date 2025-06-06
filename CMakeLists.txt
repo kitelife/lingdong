@@ -140,6 +140,7 @@ add_executable(
         src/plugin/mermaid.hpp
         src/plugin/smms.hpp
 
+        src/parser/markdown_test.cpp
         src/parser/markdown.h
         src/parser/markdown.cpp
 

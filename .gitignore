@@ -8,3 +8,4 @@ package-lock.json
 .smms_token.json
 .smms_cache/
 demo/blog/plantuml-images/
+_draft/
