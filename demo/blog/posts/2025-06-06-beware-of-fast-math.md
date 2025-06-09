@@ -61,7 +61,7 @@ fast-math 是一个编译器标志（flag），或者许多编程语言和编译
 
 这个做法看起来可能是显然的（“你告诉编译器不会存在 NaN 值，那为什么它还要做检测？”），也可能是荒谬的（“如果都不做检测，那又怎么能安全地把 NaN 值优化掉呢？”），对错与否，取决于你问谁，即使是编译器开发者也[无法达成一致意见](https://twitter.com/johnregehr/status/1440021297103134720)。
 
-这也许是 fast-math 相关 [StackOverflow 问题](https://stackoverflow.com/q/7263404/392585)和 [GitHub](https://github.com/numba/numba/issues/2919) [bug](https://github.com/google/jax/issues/276) [报告](https://github.com/pytorch/glow/issues/2073)中最常见的原因。因此，如果你的代码经过 fast-math 编译优化后给出了错误结果，纳闷第一反应应该是关掉这个编译选项（`-fno-finite-math-only`）。
+这也许是 fast-math 相关 [StackOverflow 问题](https://stackoverflow.com/q/7263404/392585)和 [GitHub](https://github.com/numba/numba/issues/2919) [bug](https://github.com/google/jax/issues/276) [报告](https://github.com/pytorch/glow/issues/2073)中最常见的原因。因此，如果你的代码经过 fast-math 编译优化后给出了错误结果，那么第一反应应该是关掉这个编译选项（`-fno-finite-math-only`）。
 
 ## 三、`-fassociative-math`
 
