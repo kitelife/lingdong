@@ -62,6 +62,8 @@ add_subdirectory(third_party/toml11)
 add_subdirectory(third_party/SQLiteCpp)
 # https://github.com/Tessil/robin-map
 add_subdirectory(third_party/robin-map)
+# https://github.com/xtensor-stack/xsimd
+add_subdirectory(third_party/xsimd)
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     add_compile_options(-fdiagnostics-color=always)
@@ -72,6 +74,8 @@ endif()
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -mavx2")
 endif()
+
+include(third_party/cpuinfo/cpuinfo.cmake)
 
 add_executable(lingdong src/main.cpp
         src/maker.hpp
@@ -115,6 +119,8 @@ target_link_libraries(
         #
         tsl::robin_map
         roaring
+        cpuinfo
+        xsimd
 )
 
 add_executable(tester src/tester.cpp)
@@ -144,6 +150,9 @@ add_executable(
         src/parser/markdown.h
         src/parser/markdown.cpp
 
+        src/utils/simd.hpp
+        src/utils/simd_test.cpp
+
         src/utils/strings.hpp
         src/utils/time.hpp
 )
@@ -165,6 +174,8 @@ target_link_libraries(
         dl
         #
         tsl::robin_map
+        xsimd
+        cpuinfo
 )
 include(GoogleTest)
 gtest_discover_tests(test_lingdong)

@@ -24,8 +24,8 @@ static bool typst_compile(const std::string& input_file, const std::string& outp
 }
 
 static void with_public_permission(path p) {
-  permissions(p, std::filesystem::perms::owner_all | std::filesystem::perms::group_all,
-                std::filesystem::perm_options::add);
+  permissions(p, perms::owner_all | perms::group_all,
+                perm_options::add);
 };
 
 class TypstCmarkerPdf final: public Plugin {
@@ -88,13 +88,13 @@ inline bool TypstCmarkerPdf::init(ConfigPtr config_ptr) {
     spdlog::error("Please specify a text font for typst");
     return false;
   }
-  if (!std::filesystem::exists(tmp_dir)) {
-    std::filesystem::create_directory(tmp_dir);
+  if (!exists(tmp_dir)) {
+    create_directory(tmp_dir);
     with_public_permission(tmp_dir);
   }
   make_typst_wrapper_file();
-  if (!std::filesystem::exists(output_dir)) {
-    std::filesystem::create_directory(output_dir);
+  if (!exists(output_dir)) {
+    create_directory(output_dir);
     with_public_permission(output_dir);
   }
   return true;
@@ -113,14 +113,14 @@ inline bool TypstCmarkerPdf::run(const MarkdownPtr& md_ptr) {
 }
 
 inline bool TypstCmarkerPdf::destroy() {
-  if (std::filesystem::exists(tmp_dir / tmp_md_file_name)) {
+  if (exists(tmp_dir / tmp_md_file_name)) {
     std::filesystem::remove(tmp_dir / tmp_md_file_name);
   }
-  if (std::filesystem::exists(tmp_dir / typst_wrapper_file_name)) {
+  if (exists(tmp_dir / typst_wrapper_file_name)) {
     std::filesystem::remove(tmp_dir / typst_wrapper_file_name);
   }
-  if (std::filesystem::exists(tmp_dir)) {
-    std::filesystem::remove_all(tmp_dir);
+  if (exists(tmp_dir)) {
+    remove_all(tmp_dir);
   }
   return true;
 }
