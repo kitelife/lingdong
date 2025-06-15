@@ -46,6 +46,10 @@ TEST(PlantUMLPluginTest, absl_hash) {
   auto hash2 = absl::Hash<std::string>{}(input2);
   std::cout << hash1 << std::endl;
   ASSERT_EQ(hash2, hash1);
+  //
+  static void* p = &p;
+  std::cout << p << std::endl;
+  std::cout << &p << std::endl;
 }
 
 TEST(PlantUMLPluginTest, std_hash) {

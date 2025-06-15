@@ -33,11 +33,11 @@ TEST(SmmsPluginTest, fetch_upload_history) {
 TEST(SmmsPluginTest, upload) {
   auto smms_api = make_smms_api();
   //
-  std::string image_path = "../demo/blog/assets/kmeans_clustering.png";
-  const auto result = smms_api.upload(image_path);
-  EXPECT_TRUE(result.success);
-  std::cout << result.history << std::endl;
-  if (result.success && !result.history.hash.empty()) {
-    EXPECT_TRUE(smms_api.del(result.history.hash));
+  const std::string image_path = "../demo/blog/assets/kmeans_clustering.png";
+  const auto [success, history] = smms_api.upload(image_path);
+  EXPECT_TRUE(success);
+  std::cout << history << std::endl;
+  if (success && !history.hash.empty()) {
+    EXPECT_TRUE(smms_api.del(history.hash));
   }
 }
