@@ -1,5 +1,5 @@
 ---
-title: 装饰器与函数式 Python（译）
+title: 译文：装饰器与函数式 Python
 date: 2013-01-04
 id: decorators-and-functional-python
 ---

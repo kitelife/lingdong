@@ -1,5 +1,5 @@
 ---
-title: 数据压缩理论简介（译）
+title: 译文：数据压缩理论简介
 date: 2013-02-27
 id: a-introduction-to-compression
 ---

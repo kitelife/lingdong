@@ -1,5 +1,5 @@
 ---
-title: 一行式并行方案（译）
+title: 译文：一行式并行方案
 date: 2015-09-11
 id: parallelism-in-one-line
 ---

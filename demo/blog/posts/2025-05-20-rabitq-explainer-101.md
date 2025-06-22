@@ -1,5 +1,5 @@
 ---
-title: RaBitQ 二值量化入门（译）
+title: 译文：RaBitQ 二值量化入门
 date: 2025-05-20
 id: rabitq-explainer-101
 ---

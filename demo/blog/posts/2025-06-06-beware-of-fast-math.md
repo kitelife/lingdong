@@ -1,5 +1,5 @@
 ---
-title: 小心 fast-math（简译）
+title: 译文：小心 fast-math
 id: beware-of-fast-math
 date: 2025-06-06
 ---

@@ -1,5 +1,5 @@
 ---
-title: 如何剖析 JVM 应用（译）
+title: 译文：如何剖析 JVM 应用
 date: 2020-07-13
 id: how-to-profile-jvm-applications
 ---

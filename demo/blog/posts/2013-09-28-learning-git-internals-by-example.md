@@ -1,5 +1,5 @@
 ---
-title: 通过示例学习 Git 内部构造（译）
+title: 译文：通过示例学习 Git 内部构造
 date: 2013-09-28
 id: learning-git-internals-by-example
 ---

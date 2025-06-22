@@ -1,5 +1,5 @@
 ---
-title: Python 装饰器入门（译）
+title: 译文：Python 装饰器入门
 date: 2012-07-30
 id: a-primer-on-python-decorators
 ---

@@ -1,6 +1,6 @@
 ---
+title: 译文：标量量化入门
 id: scalar-quantization-101
-title: 标量量化入门（译）
 date: 2025-01-13
 ---
 

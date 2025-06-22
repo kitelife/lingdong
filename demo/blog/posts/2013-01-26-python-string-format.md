@@ -1,5 +1,5 @@
 ---
-title: Python 格式字符串（译）
+title: 译文：Python 格式字符串
 date: 2013-01-26
 id: python-string-format
 ---

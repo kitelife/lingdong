@@ -1,6 +1,6 @@
 ---
 id: lucene-query-parser-syntax
-title: Lucene 查询解析器语法（译）
+title: 译文：Lucene 查询解析器语法
 date: 2019-09-04
 ---
 
