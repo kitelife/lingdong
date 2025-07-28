@@ -47,7 +47,7 @@
         {% block content  %}
         {% endblock %}
         <div class="comment">
-            {% if giscus.enable %}<script src="https://giscus.app/client.js"
+            {% if exists("giscus") and giscus.enable %}<script src="https://giscus.app/client.js"
                                           data-repo="{{ giscus.repo }}"
                                           data-repo-id="{{ giscus.repo_id }}"
                                           data-category="{{ giscus.category }}"

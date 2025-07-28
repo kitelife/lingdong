@@ -11,7 +11,6 @@ theme_dir = "../../themes"
 theme_name = "default"
 
 navigation = [["关于我", "/pages/about.html"], ["作品", "/pages/works.html"], ["琳琅", "/pages/linlang.html"], ["RSS", "/rss.xml"]]
-comment_system = "giscus"
 
 plugins = ["PlantUML", "Mermaid", "Smms"]
 

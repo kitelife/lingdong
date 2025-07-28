@@ -294,6 +294,7 @@ inline bool Maker::generate() const {
   // post & page
   inja::json post_payload;
   prefill_payload(post_payload);
+  conf_->giscus.assemble(post_payload);
   const Template post_template = env.parse_template(theme.template_post);
   auto render_post = [&](const PostPtr& post, bool is_page) {
     post_payload["title"] = post->title();

@@ -104,8 +104,6 @@ inline void Config::assemble(inja::json& render_params) {
     render_params["navigation"][idx] = {{"url", snd}, {"name", fst}};
     idx++;
   }
-  //
-  giscus.assemble(render_params);
 }
 
 using ConfigPtr = std::shared_ptr<Config>;
