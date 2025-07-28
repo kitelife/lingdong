@@ -11,6 +11,7 @@ theme_dir = "../../themes"
 theme_name = "default"
 
 navigation = [["关于我", "/pages/about.html"], ["作品", "/pages/works.html"], ["琳琅", "/pages/linlang.html"], ["RSS", "/rss.xml"]]
+comment_system = "giscus"
 
 plugins = ["PlantUML", "Mermaid", "Smms"]
 
@@ -28,3 +29,10 @@ text_fonts = "\"Zhuque Fangsong (technical preview)\", \"TsangerJinKai05 W04\""
 username = "xiayf"
 password = "06122553abc"
 api_token = ""
+
+[giscus]
+enable = true
+repo = "kitelife/kitelife.github.com"
+repo_id = "MDEwOlJlcG9zaXRvcnk4NTg1Njcx"
+category = "giscus"
+category-id = "DIC_kwDOAIMBx84Ctgkx"
