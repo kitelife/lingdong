@@ -33,7 +33,9 @@
     - [ ] 自动配图 - 大模型文生图
   - [x] 默认主题
     - [ ] 待细节调整优化
-    - [ ] 评论插件（GitTalk/[giscus](https://giscus.app/zh-CN)...）
+    - [ ] 评论插件
+      - [x] [giscus](https://giscus.app/zh-CN)
+      - [ ] GitTalk
   - [ ] 状态缓存
   - [ ] AI 简写
   - [ ] 并行化加速
