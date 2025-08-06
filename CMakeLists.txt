@@ -93,6 +93,7 @@ add_executable(lingdong src/main.cpp
         src/plugin/giscus.hpp
         src/plugin/highlight.hpp
         src/plugin/mathjax.hpp
+        src/plugin/fekatex.hpp
         src/plugin/plugins.hpp
 
         src/utils/taoli.hpp

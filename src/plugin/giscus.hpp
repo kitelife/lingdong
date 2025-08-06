@@ -6,6 +6,8 @@
 
 namespace ling::plugin {
 
+// https://giscus.app/zh-CN
+
 class Giscus final : public Plugin {
 public:
   bool init(ContextPtr context_ptr) override;
@@ -34,7 +36,7 @@ inline bool Giscus::init(ContextPtr context_ptr) {
   auto html = fmt::format(tpl, giscus_conf.repo, giscus_conf.repo_id, giscus_conf.category, giscus_conf.category_id);
   //
   auto& render_ctx = context_ptr->with_render_ctx();
-  render_ctx["_AFTER_POST_CONTENT_PLUGIN_PARTS"].emplace_back(html);
+  render_ctx[to_string(FeInjectPos::PLUGIN_AFTER_POST_CONTENT_PARTS)].emplace_back(html);
   //
   inited_ = true;
   return true;

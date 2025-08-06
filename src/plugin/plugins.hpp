@@ -17,6 +17,7 @@
 #include "giscus.hpp"
 #include "highlight.hpp"
 #include "mathjax.hpp"
+#include "fekatex.hpp"
 //
 
 namespace ling::plugin {

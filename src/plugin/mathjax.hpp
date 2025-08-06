@@ -4,6 +4,8 @@
 
 namespace ling::plugin {
 
+// https://www.mathjax.org/
+
 class Mathjax final : public Plugin {
 public:
   bool init(ContextPtr context_ptr) override;
@@ -22,7 +24,7 @@ inline bool Mathjax::init(ContextPtr context_ptr) {
 </script>
 <script type="text/javascript" id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>)";
   auto& render_ctx = context_ptr->with_render_ctx();
-  render_ctx["_AFTER_FOOTER_PLUGIN_PARTS"].emplace_back(html);
+  render_ctx[to_string(FeInjectPos::PLUGIN_AFTER_FOOTER_PARTS)].emplace_back(html);
   //
   inited_ = true;
   return true;

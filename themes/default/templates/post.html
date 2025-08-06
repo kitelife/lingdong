@@ -9,8 +9,8 @@
         {{ post_content }}
     </article>
 </div>
-{% if exists("_AFTER_POST_CONTENT_PLUGIN_PARTS") %}
-{% for part in _AFTER_POST_CONTENT_PLUGIN_PARTS %}
+{% if exists("PLUGIN__AFTER_POST_CONTENT_PARTS") %}
+{% for part in PLUGIN__AFTER_POST_CONTENT_PARTS %}
 {{ part }}
 {% endfor %}
 {% endif %}

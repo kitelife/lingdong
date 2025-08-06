@@ -17,8 +17,8 @@
     {% if exists("SITE_ICO") %}
     <link crossorigin="" rel="shortcut icon" type="image/x-icon" href="{{ SITE_ICO }}">
     {% endif %}
-    {% if exists("_HEAD_PLUGIN_PARTS") %}
-    {% for part in _HEAD_PLUGIN_PARTS %}
+    {% if exists("PLUGIN__HEAD_PARTS") %}
+    {% for part in PLUGIN__HEAD_PARTS %}
     {{ part }}
     {% endfor %}
     {% endif %}
@@ -85,8 +85,8 @@
         </div>
     </div>
 </footer>
-{% if exists("_AFTER_FOOTER_PLUGIN_PARTS") %}
-{% for part in _AFTER_FOOTER_PLUGIN_PARTS %}
+{% if exists("PLUGIN__AFTER_FOOTER_PARTS") %}
+{% for part in PLUGIN__AFTER_FOOTER_PARTS %}
 {{ part }}
 {% endfor %}
 {% endif %}
