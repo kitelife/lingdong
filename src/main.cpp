@@ -4,7 +4,7 @@
 #include <fmt/std.h>
 #include <spdlog/spdlog.h>
 
-#include "config.hpp"
+#include "context.hpp"
 #include "maker.hpp"
 #include "server.hpp"
 
@@ -13,8 +13,10 @@ DEFINE_bool(enable_serve, false, "enable to serve the static site");
 
 DEFINE_string(test_post, "", "for test, to parse single post");
 
+using namespace ling;
+
 ConfigPtr load_conf(const std::string& conf_file_path = "config.toml") {
-  auto conf_ptr = std::make_shared<Config>();
+  auto conf_ptr = Context::singleton()->with_config();
   conf_ptr->raw_toml_ = toml::parse(conf_file_path);
   conf_ptr->parse();
   return conf_ptr;
@@ -44,12 +46,13 @@ int main(int argc, char** argv) {
     return 0;
   }
   //
-  const auto origin_wd = std::filesystem::current_path();
-  current_path(std::filesystem::absolute(FLAGS_dir));
-  spdlog::info("change working dir from {} to {}", origin_wd, std::filesystem::current_path());
+  const auto origin_wd = current_path();
+  current_path(absolute(FLAGS_dir));
+  spdlog::info("change working dir from {} to {}", origin_wd, current_path());
+  // 加载解析配置
+  load_conf();
   //
-  ConfigPtr config = load_conf();
-  const auto maker = std::make_shared<ling::Maker>(config);
+  const auto maker = std::make_shared<Maker>();
   if (!maker->make()) {
     spdlog::error("failed to make!");
     return -1;
@@ -58,7 +61,7 @@ int main(int argc, char** argv) {
   //
   if (FLAGS_enable_serve) {
     spdlog::info("try to serve this static site");
-    const auto server = std::make_shared<ling::Server>(config);
+    const auto server = std::make_shared<ling::Server>();
     server->start();
   }
   return 0;

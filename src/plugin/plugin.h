@@ -3,7 +3,7 @@
 //
 #pragma once
 
-#include "../config.hpp"
+#include "../context.hpp"
 #include "../parser/markdown.h"
 
 namespace ling::plugin {
@@ -11,10 +11,12 @@ namespace ling::plugin {
 class Plugin {
 public:
   virtual ~Plugin() = default;
-  virtual bool init(ConfigPtr config_ptr) {
+  virtual bool init(ContextPtr context_ptr) {
     return true;
   }
-  virtual bool run(const MarkdownPtr& md_ptr) = 0;
+  virtual bool run(const MarkdownPtr& md_ptr) {
+    return true;
+  };
   virtual bool destroy() {
     return true;
   }

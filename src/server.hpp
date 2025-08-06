@@ -116,7 +116,7 @@ using ConnectionPtr = std::shared_ptr<Connection>;
 
 class Server final {
 public:
-  explicit Server(ConfigPtr conf): conf_(std::move(conf)) {}
+  Server() = default;
   bool start();
 
 private:

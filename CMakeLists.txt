@@ -81,6 +81,7 @@ add_executable(lingdong src/main.cpp
         src/maker.hpp
         src/server.hpp
         src/config.hpp
+        src/context.hpp
         src/parser/markdown.cpp
         src/parser/markdown.h
 
@@ -89,6 +90,9 @@ add_executable(lingdong src/main.cpp
         src/plugin/mermaid.hpp
         src/plugin/smms.hpp
         src/plugin/typst_cmarker_pdf.hpp
+        src/plugin/giscus.hpp
+        src/plugin/highlight.hpp
+        src/plugin/mathjax.hpp
         src/plugin/plugins.hpp
 
         src/utils/taoli.hpp
@@ -142,6 +146,7 @@ add_executable(
         src/utils/strings_test.cpp
         src/utils/time_test.cpp
         src/config.hpp
+        src/context.hpp
         src/plugin/plantuml.hpp
         src/plugin/mermaid.hpp
         src/plugin/smms.hpp

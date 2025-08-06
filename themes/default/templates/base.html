@@ -12,12 +12,15 @@
 
     <title>{{ SITE_TITLE }}</title>
     <meta name="description" content="{{ SITE_DESC }}">
-
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css">
     <link rel="stylesheet" href="/static/main.css">
     <link rel="canonical" href="{{ SITE_URL }}">
     {% if exists("SITE_ICO") %}
     <link crossorigin="" rel="shortcut icon" type="image/x-icon" href="{{ SITE_ICO }}">
+    {% endif %}
+    {% if exists("_HEAD_PLUGIN_PARTS") %}
+    {% for part in _HEAD_PLUGIN_PARTS %}
+    {{ part }}
+    {% endfor %}
     {% endif %}
 </head>
 
@@ -41,32 +44,12 @@
         </nav>
     </div>
 </header>
-
 <div class="page-content">
     <div class="wrapper">
         {% block content  %}
         {% endblock %}
-        <div class="comment">
-            {% if exists("giscus") and giscus.enable %}<script src="https://giscus.app/client.js"
-                                          data-repo="{{ giscus.repo }}"
-                                          data-repo-id="{{ giscus.repo_id }}"
-                                          data-category="{{ giscus.category }}"
-                                          data-category-id="{{ giscus.category_id }}"
-                                          data-mapping="pathname"
-                                          data-strict="0"
-                                          data-reactions-enabled="1"
-                                          data-emit-metadata="0"
-                                          data-input-position="top"
-                                          data-theme="light"
-                                          data-lang="zh-CN"
-                                          data-loading="lazy"
-                                          crossorigin="anonymous"
-                                          async>
-        </script>{% endif %}
-        </div>
     </div>
 </div>
-
 <footer class="site-footer">
     <div class="wrapper">
         <div class="footer-col-wrapper">
@@ -102,18 +85,10 @@
         </div>
     </div>
 </footer>
-<script>
-    MathJax = {
-        tex: {
-            inlineMath: [['$', '$'], ['\\(', '\\)']]
-        },
-        svg: {
-            fontCache: 'global'
-        }
-    };
-</script>
-<script type="text/javascript" id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-<script>hljs.highlightAll();</script>
+{% if exists("_AFTER_FOOTER_PLUGIN_PARTS") %}
+{% for part in _AFTER_FOOTER_PLUGIN_PARTS %}
+{{ part }}
+{% endfor %}
+{% endif %}
 </body>
 </html>

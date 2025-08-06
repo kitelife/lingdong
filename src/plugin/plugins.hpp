@@ -6,7 +6,7 @@
 #include <fmt/std.h>
 #include <spdlog/spdlog.h>
 
-#include "../config.hpp"
+#include "../context.hpp"
 #include "plugin.h"
 
 // 为了执行 static 语句
@@ -14,13 +14,16 @@
 #include "plantuml.hpp"
 #include "smms.hpp"
 #include "typst_cmarker_pdf.hpp"
+#include "giscus.hpp"
+#include "highlight.hpp"
+#include "mathjax.hpp"
 //
 
 namespace ling::plugin {
 
 class Plugins final : public Plugin {
 public:
-  bool init(ConfigPtr config_ptr) override;
+  bool init(ContextPtr context_ptr) override;
   bool run(const MarkdownPtr& md_ptr) override;
   bool destroy() override;
 
@@ -28,14 +31,14 @@ private:
   std::map<std::string, PluginPtr> plugins_;
 };
 
-inline bool Plugins::init(ConfigPtr config_ptr) {
-  for (const auto& pn : config_ptr->plugins) {
+inline bool Plugins::init(ContextPtr context_ptr) {
+  for (const auto& pn : context_ptr->with_config()->plugins) {
     if (plugin_factory_m[pn] == nullptr) {
       spdlog::error("Has no plugin named {}", pn);
       continue;
     }
     auto plugin_ptr = plugin_factory_m[pn]();
-    if (!plugin_ptr->init(config_ptr)) {
+    if (!plugin_ptr->init(context_ptr)) {
       spdlog::error("Failed to init plugin {}", pn);
       continue;
     }

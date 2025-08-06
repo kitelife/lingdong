@@ -8,7 +8,7 @@
 #include <nlohmann/json.hpp>
 
 #include "absl/time/clock.h"
-#include "config.hpp"
+#include "context.hpp"
 #include "parser/markdown.h"
 #include "plugin/plugins.hpp"
 #include "utils/time.hpp"
@@ -138,30 +138,10 @@ inline std::string Post::html_file_name() {
   return fmt::format("{}.html", id());
 }
 
-class Theme final {
-public:
-  explicit Theme(path theme_path) : base_path_(std::move(theme_path)) {
-    static_path_ = base_path_ / path("static");
-    template_path_ = base_path_ / path("templates");
-  }
-
-public:
-  path static_path_;
-  path template_path_;
-  //
-  path template_index{"index.html"};
-  path template_post{"post.html"};
-  path template_posts{"posts.html"};
-  path template_rss{"rss.xml"};
-
-private:
-  path base_path_;
-};
-
 // Maker
 class Maker final {
 public:
-  explicit Maker(ConfigPtr conf) : conf_(std::move(conf)) {}
+  Maker() = default;
   bool make();
 
 private:
@@ -169,14 +149,11 @@ private:
   bool load();
   bool parse();
   bool generate() const;
-  void prefill_payload(inja::json& payload) const;
-  void make_posts(Environment& env, Theme& theme) const;
-  void make_index(Environment& env, Theme& theme) const;
-  void make_rss(Environment& env, Theme& theme) const;
+  void make_posts(Environment& env) const;
+  void make_index(Environment& env) const;
+  void make_rss(Environment& env) const;
 
 private:
-  ConfigPtr conf_;
-  //
   std::vector<path> subdirs_;
   std::vector<PostPtr> posts_;
   std::vector<PostPtr> pages_;
@@ -190,6 +167,7 @@ using MakerPtr = std::shared_ptr<Maker>;
 
 inline void Maker::init() {
   std::unordered_set<std::string> excluded_entries;
+  const auto conf_ = Context::singleton()->with_config();
   std::for_each(conf_->exclude_source_entries.begin(), conf_->exclude_source_entries.end(),
                 [&excluded_entries](auto& entry) { excluded_entries.emplace(entry); });
   const auto& dir_iter = directory_iterator{current_path()};
@@ -250,7 +228,7 @@ inline bool Maker::load() {
 
 inline bool Maker::parse() {
   plugin::Plugins plugins;
-  if (!plugins.init(conf_)) {
+  if (!plugins.init(Context::singleton())) {
     return false;
   }
   for (const auto& post : posts_) {
@@ -282,24 +260,20 @@ inline bool Maker::parse() {
   return true;
 }
 
-inline void Maker::prefill_payload(nlohmann::json& payload) const {
-  conf_->assemble(payload);
-}
-
 // https://docs.getpelican.com/en/latest/themes.html
 // https://github.com/pantor/inja
 inline bool Maker::generate() const {
-  Theme theme{conf_->theme};
-  Environment env{absolute(theme.template_path_).string()};
+  auto& conf_ptr = Context::singleton()->with_config();
+  auto& render_ctx = Context::singleton()->with_render_ctx();
+  conf_ptr->assemble(render_ctx);
+  auto& theme_ptr = conf_ptr->theme_ptr;
+  Environment env{absolute(theme_ptr->template_path_).string()};
   // post & page
-  inja::json post_payload;
-  prefill_payload(post_payload);
-  conf_->giscus.assemble(post_payload);
-  const Template post_template = env.parse_template(theme.template_post);
+  const Template post_template = env.parse_template(theme_ptr->template_post);
   auto render_post = [&](const PostPtr& post, bool is_page) {
-    post_payload["title"] = post->title();
-    post_payload["updated_at"] = post->updated_at();
-    post_payload["post_content"] = post->parser()->to_html();
+    render_ctx["title"] = post->title();
+    render_ctx["updated_at"] = post->updated_at();
+    render_ctx["post_content"] = post->parser()->to_html();
     //
     const path base_path = dist_path_ / (is_page ? page_dir_ : post_dir_);
 
@@ -309,9 +283,13 @@ inline bool Maker::generate() const {
       spdlog::error("could not open post file: {}", post_file_path);
       return;
     }
-    env.render_to(post_file_stream, post_template, post_payload);
+    env.render_to(post_file_stream, post_template, render_ctx);
     post_file_stream.flush();
     post_file_stream.close();
+    //
+    render_ctx.erase("title");
+    render_ctx.erase("updated_at");
+    render_ctx.erase("post_content");
   };
   for (const auto& post : posts_) {
     render_post(post, false);
@@ -320,15 +298,15 @@ inline bool Maker::generate() const {
     render_post(post, true);
   }
   // posts
-  make_posts(env, theme);
+  make_posts(env);
   // rss
-  if (exists(theme.template_path_ / "rss.xml")) {
-    make_rss(env, theme);
+  if (exists(theme_ptr->template_path_ / "rss.xml")) {
+    make_rss(env);
   }
   // index
-  make_index(env, theme);
+  make_index(env);
   // copy static
-  copy(theme.static_path_, dist_path_ / "static", copy_options::recursive);
+  copy(theme_ptr->static_path_, dist_path_ / "static", copy_options::recursive);
   // copy other directories
   std::for_each(subdirs_.begin(), subdirs_.end(), [&](const path& subdir) {
     if (!exists(subdir)) {
@@ -344,13 +322,14 @@ inline bool Maker::generate() const {
   return true;
 }
 
-inline void Maker::make_posts(Environment& env, Theme& theme) const {
-  inja::json posts_json;
-  prefill_payload(posts_json);
+inline void Maker::make_posts(Environment& env) const {
+  auto& context = Context::singleton();
+  auto render_ctx = context->with_render_ctx();
+  auto& theme = context->with_config()->theme_ptr;
   //
   size_t post_idx = 0;
   for (const auto& post : posts_) {
-    posts_json["posts"][post_idx] = {
+    render_ctx["posts"][post_idx] = {
         {"title", post->title()},
         {"updated_at", post->updated_at()},
         {"url", fmt::format("/{0}/{1}", post_dir_.string(), post->html_file_name())},
@@ -362,19 +341,20 @@ inline void Maker::make_posts(Environment& env, Theme& theme) const {
     spdlog::error("could not open posts file: {}", dist_path_ / "posts.html");
     return;
   }
-  Template posts_template = env.parse_template(theme.template_posts);
-  env.render_to(posts_file_stream, posts_template, posts_json);
+  Template posts_template = env.parse_template(theme->template_posts);
+  env.render_to(posts_file_stream, posts_template, render_ctx);
   posts_file_stream.flush();
   posts_file_stream.close();
 }
 
-inline void Maker::make_index(Environment& env, Theme& theme) const {
-  inja::json index_json;
-  prefill_payload(index_json);
+inline void Maker::make_index(Environment& env) const {
+  auto& context = Context::singleton();
+  auto render_ctx = context->with_render_ctx();
+  auto& theme = context->with_config()->theme_ptr;
   //
   size_t post_idx = 0;
   for (const auto& post : posts_) {
-    index_json["posts"][post_idx] = {
+    render_ctx["posts"][post_idx] = {
         {"title", post->title()},
         {"updated_at", post->updated_at()},
         {"url", fmt::format("/{0}/{1}", post_dir_.string(), post->html_file_name())},
@@ -386,26 +366,27 @@ inline void Maker::make_index(Environment& env, Theme& theme) const {
     spdlog::error("could not open index file: {}", dist_path_ / "index.html");
     return;
   }
-  Template index_template = env.parse_template(theme.template_index);
-  env.render_to(index_file_stream, index_template, index_json);
+  Template index_template = env.parse_template(theme->template_index);
+  env.render_to(index_file_stream, index_template, render_ctx);
   index_file_stream.flush();
   index_file_stream.close();
 }
 
-inline void Maker::make_rss(Environment& env, Theme& theme) const {
-  inja::json rss_json;
-  prefill_payload(rss_json);
+inline void Maker::make_rss(Environment& env) const {
+  auto& context = Context::singleton();
+  auto render_ctx = context->with_render_ctx();
+  auto& theme = context->with_config()->theme_ptr;
   //
-  rss_json["pub_date"] = absl::FormatTime(absl::Now());
+  render_ctx["pub_date"] = absl::FormatTime(absl::Now());
   //
   size_t post_idx = 0;
-  std::string site_url = conf_->site_url;
+  std::string site_url = Context::singleton()->with_config()->site_url;
   if (site_url[site_url.size() - 1] == '/') {
     site_url = site_url.substr(0, site_url.size() - 1);
   }
   std::string post_dir = post_dir_.string();
   for (const auto& post : posts_) {
-    rss_json["posts"][post_idx] = {
+    render_ctx["posts"][post_idx] = {
         {"title", post->title()},
         {"desc", inja::htmlescape(post->html())},
         {"pub_date", post->updated_at()},
@@ -419,8 +400,8 @@ inline void Maker::make_rss(Environment& env, Theme& theme) const {
     spdlog::error("could not open rss file: {}", dist_path_ / "rss.xml");
     return;
   }
-  Template rss_template = env.parse_template(theme.template_rss);
-  env.render_to(rss_file_stream, rss_template, rss_json);
+  Template rss_template = env.parse_template(theme->template_rss);
+  env.render_to(rss_file_stream, rss_template, render_ctx);
   rss_file_stream.flush();
   rss_file_stream.close();
 }

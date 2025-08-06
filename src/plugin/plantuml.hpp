@@ -78,7 +78,7 @@ static std::string PLANTUML_REMOTE_SERVER = "www.plantuml.com";
 
 class PlantUML final : public Plugin {
 public:
-  bool init(ConfigPtr config_ptr) override;
+  bool init(ContextPtr context_ptr) override;
   bool run(const MarkdownPtr& md_ptr) override;
   bool destroy() override;
 
@@ -131,8 +131,8 @@ inline std::pair<bool, std::string> PlantUML::diagram_desc2pic(std::vector<std::
   return std::make_pair(true, r.text);
 }
 
-inline bool PlantUML::init(ConfigPtr config_ptr) {
-  config_ = config_ptr;
+inline bool PlantUML::init(ContextPtr context_ptr) {
+  config_ = context_ptr->with_config();
   jar_path_ = toml::find_or<std::string>(config_->raw_toml_, "plantuml", "jar_path", "");
   picweb_port_ = toml::find_or<uint32_t>(config_->raw_toml_, "plantuml", "picoweb_port", 8000);
   plantuml_server_ = toml::find_or<std::string>(config_->raw_toml_, "plantuml", "server", PLANTUML_REMOTE_SERVER);

@@ -7,11 +7,14 @@
 #include <toml.hpp>
 #include <inja/inja.hpp>
 
-class Giscus {
+namespace ling {
+
+using namespace std::filesystem;
+
+class Giscus final {
 public:
   Giscus() = default;
   void parse(toml::basic_value<toml::type_config> raw_toml_);
-  void assemble(inja::json& params);
 
   bool enable = false;
   std::string repo;
@@ -32,16 +35,27 @@ inline void Giscus::parse(toml::basic_value<toml::type_config> raw_toml_) {
   category_id = toml::find_or_default<std::string>(raw_toml_, "giscus", "category_id");
 }
 
-inline void Giscus::assemble(inja::json& render_params) {
-  render_params["giscus"]["enable"] = enable;
-  if (!enable) {
-    return;
+class Theme final {
+public:
+  explicit Theme(path theme_path) : base_path_(std::move(theme_path)) {
+    static_path_ = base_path_ / path("static");
+    template_path_ = base_path_ / path("templates");
   }
-  render_params["giscus"]["repo"] = repo;
-  render_params["giscus"]["repo_id"] = repo_id;
-  render_params["giscus"]["category"] = category;
-  render_params["giscus"]["category_id"] = category_id;
-}
+
+public:
+  path static_path_;
+  path template_path_;
+  //
+  path template_index{"index.html"};
+  path template_post{"post.html"};
+  path template_posts{"posts.html"};
+  path template_rss{"rss.xml"};
+
+private:
+  path base_path_;
+};
+
+using ThemePtr = std::shared_ptr<Theme>;
 
 class Config {
 public:
@@ -58,7 +72,7 @@ public:
   std::vector<std::pair<std::string, std::string>> navigation;
   Giscus giscus;
   //
-  std::string theme;
+  ThemePtr theme_ptr;
   std::vector<std::string> plugins;
   std::string dist_dir;
   //
@@ -85,7 +99,7 @@ inline void Config::parse() {
   //
   const std::string theme_dir = toml::find_or_default<std::string>(raw_toml_, "theme_dir");
   const std::string theme_name = toml::find_or_default<std::string>(raw_toml_, "theme_name");
-  theme = (std::filesystem::path(theme_dir) / std::filesystem::path(theme_name)).string();
+  theme_ptr = std::make_shared<Theme>((path(theme_dir) / path(theme_name)).string());
   //
   plugins = toml::find_or_default<std::vector<std::string>>(raw_toml_, "plugins");
   dist_dir = toml::find_or<std::string>(raw_toml_, "dist_dir", "dist");
@@ -107,3 +121,4 @@ inline void Config::assemble(inja::json& render_params) {
 }
 
 using ConfigPtr = std::shared_ptr<Config>;
+}

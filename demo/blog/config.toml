@@ -12,7 +12,7 @@ theme_name = "default"
 
 navigation = [["关于我", "/pages/about.html"], ["作品", "/pages/works.html"], ["琳琅", "/pages/linlang.html"], ["RSS", "/rss.xml"]]
 
-plugins = ["PlantUML", "Mermaid", "Smms"]
+plugins = ["PlantUML", "Smms", "Giscus", "Highlight", "Mathjax"]
 
 [plantuml]
 #server = "127.0.0.1:8000"

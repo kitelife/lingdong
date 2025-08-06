@@ -30,7 +30,7 @@ static void with_public_permission(path p) {
 
 class TypstCmarkerPdf final: public Plugin {
 public:
-  bool init(ConfigPtr config_ptr) override;
+  bool init(ContextPtr context_ptr) override;
   bool run(const MarkdownPtr& md_ptr) override;
   bool destroy() override;
 
@@ -77,11 +77,12 @@ inline bool TypstCmarkerPdf::make_tmp_post_file(const MarkdownPtr& md_ptr) const
 }
 
 
-inline bool TypstCmarkerPdf::init(ConfigPtr config_ptr) {
+inline bool TypstCmarkerPdf::init(ContextPtr context_ptr) {
   if (!is_typst_exist()) {
     spdlog::error("Failed to enable plugin 'TypstPdf', because typst not installed");
     return false;
   }
+  auto config_ptr = context_ptr->with_config();
   output_dir = toml::find_or<std::string>(config_ptr->raw_toml_, "typst_pdf", "output_dir", "./");
   text_fonts = toml::find_or<std::string>(config_ptr->raw_toml_, "typst_pdf", "text_fonts", "");
   if (text_fonts.empty()) {
