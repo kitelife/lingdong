@@ -26,7 +26,7 @@ private:
 
 // 兜底，静态文件请求处理
 static void static_file_handler(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) {
-  std::string path = std::string(req.path);
+  std::string path = std::string(req.q.path);
   if (path[path.size()-1] == '/') {
     path += "index.html";
   }
