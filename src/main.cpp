@@ -9,7 +9,8 @@
 #include "server.hpp"
 
 DEFINE_string(dir, "../demo/blog", "working directory");
-DEFINE_bool(enable_serve, false, "enable to serve the static site");
+DEFINE_bool(skip_make, true, "skip make or not");
+DEFINE_bool(enable_serve, true, "enable to serve the static site");
 
 DEFINE_string(test_post, "", "for test, to parse single post");
 
@@ -51,18 +52,21 @@ int main(int argc, char** argv) {
   spdlog::info("change working dir from {} to {}", origin_wd, current_path());
   // 加载解析配置
   load_conf();
-  //
-  const auto maker = std::make_shared<Maker>();
-  if (!maker->make()) {
-    spdlog::error("failed to make!");
-    return -1;
+  // make
+  if (!FLAGS_skip_make) {
+    const auto maker = std::make_shared<Maker>();
+    if (!maker->make()) {
+      spdlog::error("failed to make!");
+      return -1;
+    }
+    spdlog::info("success to make!");
+  } else {
+    spdlog::info("Skip make!");
   }
-  spdlog::info("success to make!");
-  //
+  // serve
   if (FLAGS_enable_serve) {
     spdlog::info("try to serve this static site");
-    const auto server = std::make_shared<ling::Server>();
-    server->start();
+    server::start();
   }
   return 0;
 }
