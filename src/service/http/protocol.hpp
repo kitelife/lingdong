@@ -330,7 +330,7 @@ inline bool HttpResponse::send(uv_stream_t* client) {
   copy_idx += 4;
   auto req = static_cast<write_req_t*>(malloc(sizeof(write_req_t)));
   req->buf = uv_buf_init(resp_buf, buf_size);
-  spdlog::debug("Resp: {}", std::string(resp_buf, buf_size));
+  // spdlog::debug("Resp: {}", std::string(resp_buf, buf_size));
   uv_write(reinterpret_cast<uv_write_t*>(req), client, &req->buf, 1, clean_after_send);
   return true;
 }

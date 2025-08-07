@@ -104,7 +104,7 @@ add_executable(lingdong src/main.cpp
         src/utils/strings.hpp
         src/utils/guard.hpp
 )
-target_compile_options(lingdong PRIVATE -O0 -g)
+target_compile_options(lingdong PRIVATE -O3 -g)
 
 target_link_libraries(
         lingdong
