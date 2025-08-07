@@ -35,4 +35,20 @@ inline std::string read_file_all(const std::filesystem::path& p) {
   return content;
 }
 
+inline std::string find_suffix_type(const std::string& file_path) {
+  std::string suffix_type;
+  if (file_path.empty()) {
+    return suffix_type;
+  }
+  size_t idx = file_path.size()-1;
+  while (idx > 0) {
+    if (file_path[idx] == '.') {
+      suffix_type = file_path.substr(idx+1);
+      break;
+    }
+    idx--;
+  }
+  return suffix_type;
+}
+
 }

@@ -1,25 +1,77 @@
 #pragma once
 
+#include <string>
+
 #include <spdlog/spdlog.h>
 #include <tsl/robin_map.h>
 #include <uv.h>
 
-#include <string>
+#include "../protocol.h"
+#include "../../utils/strings.hpp"
 
 namespace ling::http {
+
+static size_t HTTP_FIRST_LINE_LENGTH_LIMIT {5 * 1024}; // 5kB
 
 class HttpRequest {
 public:
   HttpRequest() = default;
   void to_string(std::string& s);
+  ParseStatus parse(char* buffer, size_t buffer_size);
 
 public:
-  std::string_view action;
-  std::string_view path;
-  std::string_view http_version;
+  size_t first_line_end_idx = 0;
+  bool valid = false;
+  //
+  size_t headers_end_idx = 0;
+  //
+  std::string action;
+  std::string path;
+  std::string http_version;
   tsl::robin_map<std::string, std::string> headers;
   std::string_view body;
 };
+
+inline ParseStatus HttpRequest::parse(char* buffer, size_t buffer_size) {
+  if (first_line_end_idx <= 0) {
+    spdlog::error("illegal parse status");
+    return ParseStatus::INVALID;
+  }
+  if (headers_end_idx == 0) { // 解析请求头
+    size_t cnt = buffer_size-1-first_line_end_idx;
+    std::string_view part_after_first_line {buffer+first_line_end_idx+1, cnt};
+    size_t idx = 1;
+    size_t new_line_begin_idx = 0;
+    while (idx < part_after_first_line.size()) {
+      if (part_after_first_line[idx] == '\n') {
+        if (part_after_first_line[idx-1] == '\r') {
+          if (idx >= 4 && part_after_first_line[idx-1] == '\r' && part_after_first_line[idx-2] == '\n' && part_after_first_line[idx-3] == '\r') { // 请求头结束
+            headers_end_idx = idx+(first_line_end_idx+1);
+            break;
+          }
+          std::string_view header_line = part_after_first_line.substr(new_line_begin_idx, idx-new_line_begin_idx-1);
+          auto pos = header_line.find(':');
+          if (pos == std::string_view::npos) {
+            spdlog::warn("illegal header line: {}", header_line);
+          } else {
+            std::string header_name = std::string(utils::view_strip_empty(header_line.substr(0, pos)));
+            std::string header_val = std::string(utils::view_strip_empty(header_line.substr(pos+1, header_line.size()-1-pos)));
+            headers[header_name] = header_val;
+          }
+          new_line_begin_idx = idx+1;
+        }
+      }
+      idx++;
+    }
+  } // 判断请求体是否结束
+  if (headers_end_idx > 0 && buffer_size > headers_end_idx) {
+    if (buffer[buffer_size-1] == '\n' && buffer[buffer_size-2] == '\r' && buffer[buffer_size-3] == '\n' && buffer[buffer_size-4] == '\r') {
+      body = std::string_view(buffer+headers_end_idx+1, buffer_size-1-headers_end_idx);
+      return ParseStatus::COMPLETE;
+    }
+  }
+  return ParseStatus::CONTINUE;
+}
 
 inline void HttpRequest::to_string(std::string& s) {
   s += fmt::format("{} {} HTTP/{}\n", action, path, http_version);
@@ -32,6 +84,66 @@ inline void HttpRequest::to_string(std::string& s) {
     s += "\n\n";
   }
 }
+
+inline ParseStatus probe(const char* buffer, size_t buffer_size, HttpRequest& http_req) {
+  size_t idx = 1;
+  bool least_one_line = false;
+  while (idx < buffer_size) {
+    if (*(buffer+idx) == '\n' && *(buffer+idx-1) == '\r') {
+      least_one_line = true;
+      break;
+    }
+    idx++;
+  }
+  // 安全防护：首行长度限制
+  if (idx >= HTTP_FIRST_LINE_LENGTH_LIMIT) {
+    return ParseStatus::INVALID;
+  }
+  if (!least_one_line) {
+    return ParseStatus::CONTINUE;
+  }
+  http_req.first_line_end_idx = idx;
+  // 示例：GET /path HTTP/1.1
+  const std::string_view protocol_line {buffer, idx-1};
+  idx = 0;
+  size_t last_blank_idx = 0;
+  while (idx < protocol_line.size()) {
+    if (protocol_line[idx] == ' ' || protocol_line[idx] == '\t') {
+      if (http_req.action.empty()) {
+        http_req.action = protocol_line.substr(0, idx);
+        last_blank_idx = idx;
+      } else if (http_req.path.empty()) {
+        http_req.path = protocol_line.substr(last_blank_idx+1, idx-1-last_blank_idx);
+        last_blank_idx = idx;
+        break;
+      }
+    }
+    idx++;
+  }
+  if (last_blank_idx == 0) {
+    return ParseStatus::INVALID;
+  }
+  idx = last_blank_idx+1;
+  if (protocol_line.size()-idx < 5) {
+    return ParseStatus::INVALID;
+  }
+  const std::string_view protocol_version {buffer+idx, protocol_line.size()-idx};
+  idx = 0;
+  while (idx < protocol_version.size()-1) {
+    if (protocol_version[idx] == '/') {
+      http_req.http_version = protocol_version.substr(idx+1, protocol_version.size()-idx);
+      break;
+    }
+    idx++;
+  }
+  if (http_req.http_version.empty()) {
+    return ParseStatus::INVALID;
+  }
+  http_req.valid = true;
+  return ParseStatus::CONTINUE;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 typedef struct {
   uv_write_t req;
