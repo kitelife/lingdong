@@ -8,149 +8,21 @@
 #include "context.hpp"
 #include "server.hpp"
 #include "utils/strings.hpp"
+#include "http/protocol.hpp"
+#include "http/router.hpp"
 
 DEFINE_string(host, "127.0.0.1", "server host to listen");
 DEFINE_uint32(port, 8000, "server port to listen");
 
 namespace ling {
 
+using namespace http;
+
 static int DEFAULT_BACKLOG = 128;
 static size_t REQUEST_SIZE_LIMIT {10 * 1024 * 1024}; // 10MB
 static size_t HTTP_FIRST_LINE_LENGTH_LIMIT {5 * 1024}; // 5kB
 
 using LoopPtr = std::shared_ptr<uv_loop_t>;
-
-enum class HttpStatusCode {
-  OK = 200,
-
-  NOT_FOUND = 404,
-  BAD_REQUEST = 400,
-
-  INTERNAL_ERR = 500,
-};
-
-static tsl::robin_map<HttpStatusCode, std::string> CODE2MSG {
-  {HttpStatusCode::OK, "Ok"},
-  {HttpStatusCode::NOT_FOUND, "Not Found"},
-  {HttpStatusCode::BAD_REQUEST, "Bad Request"},
-  {HttpStatusCode::INTERNAL_ERR, "Internal Error"}
-};
-
-struct ContentType {
-  std::string type_name;
-  bool is_binary = false;
-};
-
-static tsl::robin_map<std::string, ContentType> FILE_SUFFIX_TYPE_M_CONTENT_TYPE {
-  {"css", {"text/css; charset=utf-8", false}},
-  {"js", {"application/javascript; charset=utf-8", false}},
-  {"html", {"text/html; charset=utf-8", false}},
-  {"htm", {"text/html; charset=utf-8", false}},
-  {"xml", {"application/xml; charset=utf-8", false}},
-  {"ico", {"image/x-icon", true}},
-};
-
-struct HttpHeader {
-  std::string name;
-};
-
-namespace http_header {
-static HttpHeader ContentType {"Content-Type"};
-}
-
-//--------------------------------------------------------------------------------
-
-typedef struct {
-  uv_write_t req;
-  uv_buf_t buf;
-} write_req_t;
-
-static void clean_after_send(uv_write_t *req, int status) {
-  if (status) {
-    fprintf(stderr, "Write error %s\n", uv_strerror(status));
-  }
-  // auto buf = reinterpret_cast<write_req_t*>(req)->buf;
-  // std::cout << std::string(buf.base, buf.len)  << std::endl;
-  //
-  write_req_t *wr = reinterpret_cast<write_req_t*>(req);
-  free(wr->buf.base);
-  free(wr);
-}
-
-class HttpResponse {
-public:
-  HttpResponse() = default;
-  ~HttpResponse() {}
-
-  bool send(uv_stream_t *client);
-  void with_code(HttpStatusCode status_code) {
-    code = status_code;
-  }
-  void with_header(std::string name, std::string value);
-  bool with_body(char* content_data, size_t content_length);
-
-private:
-  //
-  HttpStatusCode code = HttpStatusCode::OK;
-  tsl::robin_map<std::string, std::string> resp_headers;
-  //
-  bool sealed_ = false;
-  char* content_ = nullptr; // 在 clean_after_send 中被 free
-  size_t content_length_ = 0;
-};
-
-using HttpResponsePtr = std::shared_ptr<HttpResponse>;
-
-inline bool HttpResponse::send(uv_stream_t *client) {
-  size_t buf_size = 0;
-  std::vector<std::string> resp_lines;
-  resp_lines.emplace_back(fmt::format("HTTP/1.1 {} {}\r\n", static_cast<int>(code), CODE2MSG[code]));
-  buf_size += resp_lines.back().size();
-  for (auto [k, v] : resp_headers) {
-    resp_lines.emplace_back(fmt::format("{}: {}\r\n", k, v));
-    buf_size += resp_lines.back().size();
-  }
-  if (content_length_ > 0) {
-    resp_lines.emplace_back(fmt::format("Content-Length: {}\r\n", content_length_));
-    buf_size += resp_lines.back().size();
-  }
-  resp_lines.emplace_back("\r\n");
-  buf_size += resp_lines.back().size();
-  //
-  buf_size += content_length_ + 4;
-  //
-  size_t copy_idx = 0;
-  char* resp_buf = static_cast<char*>(malloc(buf_size));
-  for (auto s : resp_lines) {
-    memcpy(resp_buf+copy_idx, s.data(), s.size());
-    copy_idx += s.size();
-  }
-  if (content_length_ > 0) {
-    memcpy(resp_buf+copy_idx, content_, content_length_);
-    copy_idx += content_length_;
-  }
-  memcpy(resp_buf+copy_idx, "\r\n\r\n", 4);
-  copy_idx += 4;
-  auto req = static_cast<write_req_t*>(malloc(sizeof(write_req_t)));
-  req->buf = uv_buf_init(resp_buf, buf_size);
-  uv_write(reinterpret_cast<uv_write_t*>(req), client, &req->buf, 1, clean_after_send);
-  return true;
-}
-
-inline void HttpResponse::with_header(std::string name, std::string value) {
-  resp_headers[name] = value;
-}
-
-inline bool HttpResponse::with_body(char* content_data, size_t content_length) {
-  if (sealed_) {
-    spdlog::error("response has been sealed");
-    return false;
-  }
-  content_ = content_data;
-  content_length_ = content_length;
-  sealed_ = true;
-  return true;
-}
 
 enum class Protocol {
   UNKNOWN,
@@ -163,31 +35,6 @@ enum class ParseStatus {
   CONTINUE,
   COMPLETE,
 };
-
-class HttpRequest {
-public:
-  HttpRequest() = default;
-  void to_string(std::string& s);
-
-public:
-  std::string_view action;
-  std::string_view path;
-  std::string_view http_version;
-  tsl::robin_map<std::string, std::string> headers;
-  std::string_view body;
-};
-
-inline void HttpRequest::to_string(std::string& s) {
-  s += fmt::format("{} {} HTTP/{}\n", action, path, http_version);
-  for (auto [k, v] : headers) {
-    s += fmt::format("{}: {}\n", k, v);
-  }
-  s += "\n";
-  if (body.size() > 0) {
-    s += body;
-    s += "\n\n";
-  }
-}
 
 class RequestBuffer {
 public:
@@ -353,75 +200,16 @@ inline ParseStatus RequestBuffer::try_parse() {
   return ParseStatus::CONTINUE;
 }
 
-static std::string find_suffix_type(const std::string& file_path) {
-  std::string suffix_type = "";
-  if (file_path.size() == 0) {
-    return suffix_type;
-  }
-  size_t idx = file_path.size()-1;
-  while (idx > 0) {
-    if (file_path[idx] == '.') {
-      suffix_type = file_path.substr(idx+1);
-      break;
-    }
-    idx--;
-  }
-  return suffix_type;
-}
-
-static void static_file_handler(const HttpRequest& req, HttpResponsePtr resp, std::function<void(HttpResponsePtr)> cb) {
-  std::string path = std::string(req.path);
-  if (path[path.size()-1] == '/') {
-    path += "index.html";
-  }
-  std::filesystem::path file_path {"." + path};
-  if (!exists(file_path)) {
-    resp->with_code(HttpStatusCode::NOT_FOUND);
-    cb(resp);
-    return;
-  }
-  std::ifstream file_stream;
-  file_stream.open(file_path);
-  if (file_stream.fail()) {
-    resp->with_code(HttpStatusCode::INTERNAL_ERR);
-    cb(resp);
-    return;
-  }
-  std::string resp_content((std::istreambuf_iterator<char>(file_stream)), std::istreambuf_iterator<char>());
-  resp->with_body(resp_content.data(), resp_content.size());
-  std::string suffix_type = find_suffix_type(path);
-  if (!suffix_type.empty() && FILE_SUFFIX_TYPE_M_CONTENT_TYPE.contains(suffix_type)) {
-    resp->with_header(http_header::ContentType.name, FILE_SUFFIX_TYPE_M_CONTENT_TYPE[suffix_type].type_name);
-  }
-  //
-  cb(resp);
-}
-
-static tsl::robin_map<std::string, void(*)(const HttpRequest&, HttpResponsePtr, std::function<void(HttpResponsePtr)>)> routes {
-  {"", static_file_handler}
-};
-
-static void route(HttpRequest& req, std::function<void(HttpResponsePtr)> cb) {
-  const HttpResponsePtr resp_ptr = std::make_shared<HttpResponse>();
-  const auto route_path = std::string(req.path);
-  if (!routes.contains(route_path)) {
-    static_file_handler(req, resp_ptr, cb);
-    return;
-  }
-  routes[route_path](req, resp_ptr, cb);
-}
-
 inline void RequestBuffer::handle(uv_stream_t *client, std::function<void(uv_stream_t*)> cb) {
-  //
-  std::string req_str;
-  http_req.to_string(req_str);
-  spdlog::debug("HTTP Request:\n{}", req_str);
-  //
-  route(with_http_request(), [&](const HttpResponsePtr& resp_ptr) {
-    resp_ptr->send(client);
-    // 请求处理完成后，需要清理 client_req_buffer_m_
-    cb(client);
-  });
+  if (protocol_ == Protocol::HTTP) {
+    http_route(with_http_request(), [&](const HttpResponsePtr& resp_ptr) {
+      resp_ptr->send(client);
+      // 请求处理完成后，需要清理 client_req_buffer_m_
+      cb(client);
+    });
+    return;
+  }
+  spdlog::error("Illegal protocol");
 }
 
 using RequestBufferPtr = std::shared_ptr<RequestBuffer>;

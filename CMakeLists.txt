@@ -84,6 +84,8 @@ add_executable(lingdong src/main.cpp
         src/context.hpp
         src/parser/markdown.cpp
         src/parser/markdown.h
+        src/http/protocol.hpp
+        src/http/router.hpp
 
         src/plugin/plugin.h
         src/plugin/plantuml.hpp
