@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <utility>
 
 #include <spdlog/spdlog.h>
 #include <tsl/robin_map.h>
@@ -12,6 +13,15 @@
 namespace ling::http {
 
 static size_t HTTP_FIRST_LINE_LENGTH_LIMIT {5 * 1024}; // 5kB
+
+struct HttpHeader {
+  std::string name;
+};
+
+namespace header {
+static HttpHeader ContentType {"Content-Type"};
+static HttpHeader ContentLength {"Content-Length"};
+}
 
 struct UrlQuery {
   std::string path;
@@ -52,7 +62,7 @@ struct UrlQuery {
       }
       idx++;
     }
-    spdlog::debug(params_part.substr(sub_begin));
+    // spdlog::debug(params_part.substr(sub_begin));
     auto [pk, pv] = parse_one(std::string(utils::view_strip_empty(params_part.substr(sub_begin))));
     params[pk] = pv;
     return true;
@@ -80,6 +90,8 @@ public:
   bool valid = false;
   //
   size_t headers_end_idx = 0;
+  //
+  std::pair<std::string, int> from;
   //
   std::string action;
   std::string raw_q;
@@ -125,14 +137,20 @@ inline ParseStatus HttpRequest::parse(char* buffer, size_t buffer_size) {
     spdlog::debug("query: {}", q.json_str());
   }
   // 判断请求体是否结束
-  if (headers_end_idx > 0 && buffer_size > headers_end_idx) {
+  if (headers.contains(header::ContentLength.name)) {
+    long length = std::strtol(headers[header::ContentLength.name].c_str(), nullptr, 10);
+    if (length > 0 && length == buffer_size-1-headers_end_idx) {
+      body = body = std::string_view(buffer+headers_end_idx+1, length);
+      return ParseStatus::COMPLETE;
+    }
+  } else if (headers_end_idx > 0 && buffer_size > headers_end_idx) {
     if (buffer[buffer_size-1] == '\n' && buffer[buffer_size-2] == '\r' && buffer[buffer_size-3] == '\n' && \
       buffer[buffer_size-4] == '\r') {
       body = std::string_view(buffer+headers_end_idx+1, buffer_size-1-headers_end_idx);
       return ParseStatus::COMPLETE;
     }
   }
-  return ParseStatus::CONTINUE;
+  return ParseStatus::INVALID;
 }
 
 inline void HttpRequest::to_string(std::string& s) {
@@ -162,7 +180,7 @@ inline ParseStatus probe(const char* buffer, size_t buffer_size, HttpRequest& ht
     return ParseStatus::INVALID;
   }
   if (!least_one_line) {
-    return ParseStatus::CONTINUE;
+    return ParseStatus::INVALID;
   }
   http_req.first_line_end_idx = idx;
   // 示例：GET /path HTTP/1.1
@@ -225,14 +243,6 @@ static void clean_after_send(uv_write_t* req, int status) {
   free(wr);
 }
 
-struct HttpHeader {
-  std::string name;
-};
-
-namespace header {
-static HttpHeader ContentType{"Content-Type"};
-}
-
 enum class HttpStatusCode {
   OK = 200,
 
@@ -272,16 +282,17 @@ public:
     code = status_code;
   }
   void with_header(const std::string& name, const std::string& value);
-  bool with_body(char* content_data, size_t content_length);
+  bool with_body(std::string body);
 
 private:
   //
   HttpStatusCode code = HttpStatusCode::OK;
-  tsl::robin_map<std::string, std::string> resp_headers;
+  tsl::robin_map<std::string, std::string> resp_headers {};
   //
   bool sealed_ = false;
-  char* content_ = nullptr;  // 在 clean_after_send 中被 free
-  size_t content_length_ = 0;
+  // char* content_ = nullptr;  // 在 clean_after_send 中被 free
+  // size_t content_length_ = 0;
+  std::string body_;
 };
 
 using HttpResponsePtr = std::shared_ptr<HttpResponse>;
@@ -295,29 +306,31 @@ inline bool HttpResponse::send(uv_stream_t* client) {
     resp_lines.emplace_back(fmt::format("{}: {}\r\n", k, v));
     buf_size += resp_lines.back().size();
   }
-  if (content_length_ > 0) {
-    resp_lines.emplace_back(fmt::format("Content-Length: {}\r\n", content_length_));
+  if (!body_.empty()) {
+    resp_lines.emplace_back(fmt::format("{}: {}\r\n", header::ContentLength.name, body_.size()));
     buf_size += resp_lines.back().size();
+    //
+    buf_size += body_.size() + 4;
   }
   resp_lines.emplace_back("\r\n");
   buf_size += resp_lines.back().size();
   //
-  buf_size += content_length_ + 4;
-  //
   size_t copy_idx = 0;
   char* resp_buf = static_cast<char*>(malloc(buf_size));
+  memset(resp_buf, 0, buf_size);
   for (auto s : resp_lines) {
     memcpy(resp_buf + copy_idx, s.data(), s.size());
     copy_idx += s.size();
   }
-  if (content_length_ > 0) {
-    memcpy(resp_buf + copy_idx, content_, content_length_);
-    copy_idx += content_length_;
+  if (!body_.empty()) {
+    memcpy(resp_buf + copy_idx, body_.data(), body_.size());
+    copy_idx += body_.size();
+    memcpy(resp_buf + copy_idx, "\r\n\r\n", 4);
   }
-  memcpy(resp_buf + copy_idx, "\r\n\r\n", 4);
   copy_idx += 4;
   auto req = static_cast<write_req_t*>(malloc(sizeof(write_req_t)));
   req->buf = uv_buf_init(resp_buf, buf_size);
+  spdlog::debug("Resp: {}", std::string(resp_buf, buf_size));
   uv_write(reinterpret_cast<uv_write_t*>(req), client, &req->buf, 1, clean_after_send);
   return true;
 }
@@ -326,13 +339,12 @@ inline void HttpResponse::with_header(const std::string& name, const std::string
   resp_headers[name] = value;
 }
 
-inline bool HttpResponse::with_body(char* content_data, size_t content_length) {
+inline bool HttpResponse::with_body(std::string body) {
   if (sealed_) {
     spdlog::error("response has been sealed");
     return false;
   }
-  content_ = content_data;
-  content_length_ = content_length;
+  body_ = std::move(body);
   sealed_ = true;
   return true;
 }

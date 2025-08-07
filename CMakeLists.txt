@@ -102,6 +102,7 @@ add_executable(lingdong src/main.cpp
 
         src/utils/taoli.hpp
         src/utils/strings.hpp
+        src/utils/guard.hpp
 )
 target_compile_options(lingdong PRIVATE -O0 -g)
 

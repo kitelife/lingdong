@@ -5,6 +5,7 @@
 #include <utility>
 
 #include "../../utils/strings.hpp"
+#include "../../utils/guard.hpp"
 
 namespace ling::http {
 
@@ -38,12 +39,13 @@ static void static_file_handler(const HttpRequest& req, const HttpResponsePtr& r
   }
   std::ifstream file_stream;
   file_stream.open(file_path);
+  DeferGuard defer_guard([&]() {file_stream.close();});
   if (file_stream.fail()) {
     resp->with_code(HttpStatusCode::INTERNAL_ERR);
     return;
   }
   std::string resp_content((std::istreambuf_iterator<char>(file_stream)), std::istreambuf_iterator<char>());
-  resp->with_body(resp_content.data(), resp_content.size());
+  resp->with_body(resp_content);
   std::string suffix_type = utils::find_suffix_type(path);
   if (!suffix_type.empty() && FILE_SUFFIX_TYPE_M_CONTENT_TYPE.contains(suffix_type)) {
     resp->with_header(header::ContentType.name, FILE_SUFFIX_TYPE_M_CONTENT_TYPE[suffix_type].type_name);
@@ -55,9 +57,26 @@ static void access_stat_handler(const HttpRequest& req, const HttpResponsePtr& r
 
 }
 
-static tsl::robin_map<std::string, RouteHandler> NAME2HANDLER {
-  {"default", static_file_handler},
-  {"access_stat", access_stat_handler},
-};
+// 工具类
+// /tool/echo/
+static void simple_echo_handler(const HttpRequest& req, const HttpResponsePtr& resp, const std::function<void(HttpResponsePtr)>& cb) {
+  DoneCallbackGuard guard {cb, resp}; // guard
+  nlohmann::ordered_json resp_json;
+  resp_json["From"] = fmt::format("{}:{}", req.from.first, req.from.second);
+  resp_json["Action"] = req.action;
+  resp_json["Query"] = req.raw_q;
+  resp_json["HttpVersion"] = req.http_version;
+  auto headers = inja::json({});
+  for (auto [k, v] : req.headers) {
+    headers[k] = v;
+  }
+  resp_json["Headers"] = headers;
+  resp_json["Body"] = req.body;
+  const std::string resp_content = resp_json.dump(2);
+  // spdlog::debug("resp_content: {}", resp_content);
+  resp->with_body(resp_content);
+  resp->with_code(HttpStatusCode::OK);
+  resp->with_header(header::ContentType.name, "application/json,charset=utf-8");
+}
 
 }
