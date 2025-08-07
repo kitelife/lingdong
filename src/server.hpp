@@ -214,7 +214,6 @@ inline void RequestBuffer::handle(uv_stream_t *client, std::function<void(uv_str
 
 using RequestBufferPtr = std::shared_ptr<RequestBuffer>;
 
-
 // ---------------------------------------------------------------------------------------------------------------------
 
 namespace connection {
@@ -223,7 +222,7 @@ static tsl::robin_map<uv_stream_t*, RequestBufferPtr> client_req_buffer_m_;
 static std::mutex robin_mutex_;
 
 static void clean_client_req_buffer_m(uv_stream_t* client) {
-  std::lock_guard<std::mutex> {robin_mutex_};
+  std::lock_guard guard {robin_mutex_};
   client_req_buffer_m_.erase(client);
 }
 

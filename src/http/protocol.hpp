@@ -27,7 +27,7 @@ inline void HttpRequest::to_string(std::string& s) {
     s += fmt::format("{}: {}\n", k, v);
   }
   s += "\n";
-  if (body.size() > 0) {
+  if (!body.empty()) {
     s += body;
     s += "\n\n";
   }
@@ -90,7 +90,7 @@ static tsl::robin_map<std::string, ContentType> FILE_SUFFIX_TYPE_M_CONTENT_TYPE{
 class HttpResponse {
 public:
   HttpResponse() = default;
-  ~HttpResponse() {}
+  ~HttpResponse() = default;
 
   bool send(uv_stream_t* client);
   void with_code(HttpStatusCode status_code) {

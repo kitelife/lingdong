@@ -7,8 +7,10 @@
 
 namespace ling::http {
 
+using RouteHandler = void(*)(const HttpRequest&, HttpResponsePtr, const std::function<void(HttpResponsePtr)>&);
+
 static std::string find_suffix_type(const std::string& file_path) {
-  std::string suffix_type = "";
+  std::string suffix_type;
   if (file_path.empty()) {
     return suffix_type;
   }
@@ -23,7 +25,7 @@ static std::string find_suffix_type(const std::string& file_path) {
   return suffix_type;
 }
 
-static void static_file_handler(const HttpRequest& req, HttpResponsePtr resp, std::function<void(HttpResponsePtr)> cb) {
+static void static_file_handler(const HttpRequest& req, HttpResponsePtr resp, const std::function<void(HttpResponsePtr)>& cb) {
   std::string path = std::string(req.path);
   if (path[path.size()-1] == '/') {
     path += "index.html";
@@ -51,11 +53,11 @@ static void static_file_handler(const HttpRequest& req, HttpResponsePtr resp, st
   cb(resp);
 }
 
-static tsl::robin_map<std::string, void(*)(const HttpRequest&, HttpResponsePtr, std::function<void(HttpResponsePtr)>)> routes {
+static tsl::robin_map<std::string, RouteHandler> routes {
     {"", static_file_handler}
 };
 
-static void http_route(HttpRequest& req, std::function<void(HttpResponsePtr)> cb) {
+static void http_route(HttpRequest& req, const std::function<void(HttpResponsePtr)>& cb) {
   //
   std::string req_str;
   req.to_string(req_str);
