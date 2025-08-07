@@ -1,5 +1,5 @@
 ---
-title: 编程名言集锦（译）
+title: 译文：编程名言集锦
 date: 2015-06-02
 id: programming-quotes
 ---
