@@ -6,6 +6,8 @@
 
 #include "../../utils/strings.hpp"
 #include "../../utils/guard.hpp"
+#include "../../utils//time.hpp"
+#include "../../storage/local_sqlite.h"
 
 namespace ling::http {
 
@@ -24,6 +26,19 @@ private:
   DoneCallback cb_func_;
   HttpResponsePtr resp_ptr_;
 };
+
+static void log_req(const HttpRequest& req) {
+  std::string peer = fmt::format("{}:{}", req.from.first, req.from.second);
+  spdlog::info("{} {} from {}", req.action, req.raw_q, peer);
+  std::string user_agent = req.headers.at(header::UserAgent.name);
+  std::string now_str = utils::time_now_str();
+  //
+  std::string sql = fmt::format(R"(INSERT INTO access_log (peer, http_action, query_path, user_agent, created_time) VALUES ("{}", "{}", "{}", "{}", "{}"))",
+    peer, req.action, req.q.path, user_agent, now_str);
+  if (storage::LocalSqlite::singleton().exec(sql) != 1) {
+    spdlog::warn("Failed to log req");
+  }
+}
 
 // 兜底，静态文件请求处理
 static void static_file_handler(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) {
@@ -47,6 +62,11 @@ static void static_file_handler(const HttpRequest& req, const HttpResponsePtr& r
   std::string resp_content((std::istreambuf_iterator<char>(file_stream)), std::istreambuf_iterator<char>());
   resp->with_body(resp_content);
   std::string suffix_type = utils::find_suffix_type(path);
+  //
+  if (suffix_type == "html" || suffix_type == "htm") {
+    log_req(req);
+  }
+  //
   if (!suffix_type.empty() && FILE_SUFFIX_TYPE_M_CONTENT_TYPE.contains(suffix_type)) {
     resp->with_header(header::ContentType.name, FILE_SUFFIX_TYPE_M_CONTENT_TYPE[suffix_type].type_name);
   }

@@ -89,6 +89,9 @@ add_executable(lingdong src/main.cpp
         src/service/http/router.hpp
         src/service/http/handler.hpp
 
+        src/storage/local_sqlite.h
+        src/storage/local_sqlite.cpp
+
         src/plugin/plugin.h
         src/plugin/plantuml.hpp
         src/plugin/mermaid.hpp
@@ -131,16 +134,6 @@ target_link_libraries(
         roaring
         cpuinfo
         xsimd
-)
-
-add_executable(tester src/tester.cpp)
-target_link_libraries(
-        tester
-        #
-        SQLiteCpp
-        sqlite3
-        pthread
-        dl
 )
 
 # for testing

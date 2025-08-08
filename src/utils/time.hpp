@@ -4,6 +4,7 @@
 #include <filesystem>
 
 #include <absl/time/time.h>
+#include <absl/time/clock.h>
 #include <absl/strings/str_split.h>
 
 namespace ling::utils {
@@ -20,6 +21,14 @@ static std::string format2date(const absl::Time tp) {
 static std::string convert(const file_time_type t) {
   const absl::Time at = absl::FromUnixMicros(t.time_since_epoch().count() / 1000);
   return format2date(at);
+}
+
+static std::string convert(const absl::Time tp, const std::string& format) {
+  return FormatTime(format, tp, loc);
+}
+
+static std::string time_now_str() {
+  return convert(absl::Now(), "%Y-%m-%d %H:%M:%S");
 }
 
 static std::string convert(const time_point<std::chrono::system_clock> tp) {

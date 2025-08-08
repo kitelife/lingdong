@@ -21,6 +21,7 @@ struct HttpHeader {
 namespace header {
 static HttpHeader ContentType {"Content-Type"};
 static HttpHeader ContentLength {"Content-Length"};
+static HttpHeader UserAgent {"User-Agent"};
 }
 
 struct UrlQuery {
@@ -133,9 +134,11 @@ inline ParseStatus HttpRequest::parse(char* buffer, size_t buffer_size) {
       idx++;
     }
   }
+  /*
   if (spdlog::get_level() == spdlog::level::debug) {
     spdlog::debug("query: {}", q.json_str());
   }
+  */
   // 判断请求体是否结束
   if (headers.contains(header::ContentLength.name)) {
     long length = std::strtol(headers[header::ContentLength.name].c_str(), nullptr, 10);

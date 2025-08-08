@@ -35,3 +35,7 @@ repo = "kitelife/kitelife.github.com"
 repo_id = "MDEwOlJlcG9zaXRvcnk4NTg1Njcx"
 category = "giscus"
 category_id = "DIC_kwDOAIMBx84Ctgkx"
+
+[storage]
+db_file_path = "../dist/ling.db"
+init_sql = "CREATE TABLE IF NOT EXISTS access_log (id INTEGER PRIMARY KEY AUTOINCREMENT, peer TEXT, http_action TEXT, query_path TEXT, user_agent TEXT, created_time TEXT)"

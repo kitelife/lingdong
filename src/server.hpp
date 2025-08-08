@@ -9,6 +9,7 @@
 #include "service/protocol.h"
 #include "service/http/protocol.hpp"
 #include "service/http/router.hpp"
+#include "storage/local_sqlite.h"
 #include "utils/guard.hpp"
 
 DEFINE_string(host, "127.0.0.1", "server host to listen");
@@ -117,7 +118,7 @@ inline bool RequestBuffer::fill_peer_info(uv_stream_t* client) {
   char host[NI_MAXHOST], service[NI_MAXSERV];
   if (getnameinfo(peer_addr, peer_addr_len, host, NI_MAXHOST, service, NI_MAXSERV, NI_NUMERICSERV) == 0) {
     peer = std::make_pair(std::string(host), std::strtol(service, nullptr, 10));
-    spdlog::debug("peer host: {}, port: {}", peer.first, peer.second);
+    // spdlog::debug("peer host: {}, port: {}", peer.first, peer.second);
     return true;
   }
   return false;
@@ -206,8 +207,12 @@ static void on_new_connection(uv_stream_t* server, int status) {
   }
 }
 
-static bool start() {
-  auto conf_ptr = Context::singleton()->with_config();
+static bool init_db(const ConfigPtr& conf_ptr) {
+  auto& db = storage::LocalSqlite::singleton();
+  return db.open(conf_ptr->storage.db_file_path, conf_ptr->storage.init_sql);
+}
+
+static bool start_server(const ConfigPtr& conf_ptr) {
   auto dist_dir = conf_ptr->dist_dir;
   //
   const auto origin_wd = current_path();
@@ -229,6 +234,15 @@ static bool start() {
     return false;
   }
   return uv_run(loop_.get(), UV_RUN_DEFAULT);
+}
+
+static bool start() {
+  auto conf_ptr = Context::singleton()->with_config();
+  if (!init_db(conf_ptr)) {
+    spdlog::error("Failed to init db");
+    return false;
+  }
+  return start_server(conf_ptr);
 }
 
 }

@@ -14,7 +14,7 @@ using namespace std::filesystem;
 class Giscus final {
 public:
   Giscus() = default;
-  void parse(toml::basic_value<toml::type_config> raw_toml_);
+  void parse(const toml::basic_value<toml::type_config>& raw_toml_);
 
   bool enable = false;
   std::string repo;
@@ -23,7 +23,7 @@ public:
   std::string category_id;
 };
 
-inline void Giscus::parse(toml::basic_value<toml::type_config> raw_toml_) {
+inline void Giscus::parse(const toml::basic_value<toml::type_config>& raw_toml_) {
   enable = toml::find_or_default<bool>(raw_toml_, "giscus", "enable");
   spdlog::debug(enable ? "giscus enabled" : "giscus disabled");
   if (!enable) {
@@ -57,6 +57,22 @@ private:
 
 using ThemePtr = std::shared_ptr<Theme>;
 
+class Storage {
+public:
+  Storage() = default;
+  void parse(const toml::basic_value<toml::type_config>& raw_toml_);
+
+  std::string db_file_path;
+  std::string init_sql;
+};
+
+inline void Storage::parse(const toml::basic_value<toml::type_config>& raw_toml_) {
+  db_file_path = toml::find_or_default<std::string>(raw_toml_, "storage", "db_file_path");
+  init_sql = toml::find_or_default<std::string>(raw_toml_, "storage", "init_sql");
+}
+
+using StoragePtr = std::shared_ptr<Storage>;
+
 class Config {
 public:
   Config() = default;
@@ -73,6 +89,7 @@ public:
   Giscus giscus;
   //
   ThemePtr theme_ptr;
+  Storage storage;
   std::vector<std::string> plugins;
   std::string dist_dir;
   //
@@ -100,6 +117,8 @@ inline void Config::parse() {
   const std::string theme_dir = toml::find_or_default<std::string>(raw_toml_, "theme_dir");
   const std::string theme_name = toml::find_or_default<std::string>(raw_toml_, "theme_name");
   theme_ptr = std::make_shared<Theme>((path(theme_dir) / path(theme_name)).string());
+  //
+  storage.parse(raw_toml_);
   //
   plugins = toml::find_or_default<std::vector<std::string>>(raw_toml_, "plugins");
   dist_dir = toml::find_or<std::string>(raw_toml_, "dist_dir", "dist");
