@@ -77,6 +77,9 @@ endif()
 
 include(third_party/cpuinfo/cpuinfo.cmake)
 
+# https://cmake.org/cmake/help/latest/command/include_directories.html#command:include_directories
+include_directories(src)
+
 add_executable(lingdong src/main.cpp
         src/maker.hpp
         src/server.hpp

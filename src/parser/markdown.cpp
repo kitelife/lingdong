@@ -13,8 +13,8 @@
 #include <iostream>
 #include <sstream>
 
-#include "../utils/strings.hpp"
-#include "../utils/time.hpp"
+#include "utils/strings.hpp"
+#include "utils/time.hpp"
 
 namespace ling {
 

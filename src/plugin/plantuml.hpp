@@ -10,7 +10,7 @@
 #include <filesystem>
 #include <utility>
 
-#include "../parser/markdown.h"
+#include "parser/markdown.h"
 #include "plugin.h"
 
 namespace ling::plugin {

@@ -7,8 +7,8 @@
 #include <tsl/robin_map.h>
 #include <uv.h>
 
-#include "../protocol.h"
-#include "../../utils/strings.hpp"
+#include "service/protocol.h"
+#include "utils/strings.hpp"
 
 namespace ling::http {
 

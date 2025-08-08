@@ -6,7 +6,7 @@
 #include <fmt/std.h>
 #include <spdlog/spdlog.h>
 
-#include "../context.hpp"
+#include "context.hpp"
 #include "plugin.h"
 
 // 为了执行 static 语句

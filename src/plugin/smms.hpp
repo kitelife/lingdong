@@ -20,7 +20,7 @@
 #include <tsl/robin_set.h>
 
 #include "plugin.h"
-#include "../utils/strings.hpp"
+#include "utils/strings.hpp"
 
 namespace ling::plugin {
 

@@ -4,10 +4,10 @@
 #include <fstream>
 #include <utility>
 
-#include "../../utils/strings.hpp"
-#include "../../utils/guard.hpp"
-#include "../../utils//time.hpp"
-#include "../../storage/local_sqlite.h"
+#include "utils/strings.hpp"
+#include "utils/guard.hpp"
+#include "utils//time.hpp"
+#include "storage/local_sqlite.h"
 
 namespace ling::http {
 

@@ -9,7 +9,7 @@
 #include <fstream>
 #include <utility>
 
-#include "../parser/markdown.h"
+#include "parser/markdown.h"
 #include "absl/strings/strip.h"
 #include "plugin.h"
 

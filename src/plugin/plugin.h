@@ -3,8 +3,8 @@
 //
 #pragma once
 
-#include "../context.hpp"
-#include "../parser/markdown.h"
+#include "context.hpp"
+#include "parser/markdown.h"
 
 namespace ling::plugin {
 
