@@ -213,14 +213,19 @@ inline ParseStatus probe(const char* buffer, size_t buffer_size, HttpRequest& ht
   }
   const std::string_view protocol_version {buffer+idx, protocol_line.size()-idx};
   idx = 0;
+  bool match_http = false;
   while (idx < protocol_version.size()-1) {
     if (protocol_version[idx] == '/') {
+      if (protocol_version.substr(0, idx) != "HTTP") {
+        break;
+      }
+      match_http = true;
       http_req.http_version = protocol_version.substr(idx+1, protocol_version.size()-idx);
       break;
     }
     idx++;
   }
-  if (http_req.http_version.empty()) {
+  if (!match_http || http_req.http_version.empty()) {
     return ParseStatus::INVALID;
   }
   http_req.valid = true;

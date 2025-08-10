@@ -27,6 +27,7 @@ private:
   HttpResponsePtr resp_ptr_;
 };
 
+// TODO: 基于线程池异步处理
 static void log_req(const HttpRequest& req) {
   std::string peer = fmt::format("{}:{}", req.from.first, req.from.second);
   spdlog::info("{} {} from {}", req.action, req.raw_q, peer);
@@ -97,6 +98,11 @@ static void simple_echo_handler(const HttpRequest& req, const HttpResponsePtr& r
   resp->with_body(resp_content);
   resp->with_code(HttpStatusCode::OK);
   resp->with_header(header::ContentType.name, "application/json,charset=utf-8");
+}
+
+// 为一些没有提供 rss 的博客/站点提供 rss 生成服务
+static void rss_provider_handler(const HttpRequest& req, const HttpResponsePtr& resp, const std::function<void(HttpResponsePtr)>& cb) {
+
 }
 
 }

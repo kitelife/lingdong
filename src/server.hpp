@@ -192,6 +192,11 @@ static bool handle(const LoopPtr& loop_, uv_stream_t* server) {
 
 //----------------------------------------------------------------------------------------------------------------------
 
+static bool init_db(const ConfigPtr& conf_ptr) {
+  auto& db = storage::LocalSqlite::singleton();
+  return db.open(conf_ptr->storage.db_file_path, conf_ptr->storage.init_sql);
+}
+
 namespace server {
 
 static LoopPtr loop_;
@@ -205,11 +210,6 @@ static void on_new_connection(uv_stream_t* server, int status) {
   if (!connection::handle(loop_, server)) {
     spdlog::error("Failed to handle connection.");
   }
-}
-
-static bool init_db(const ConfigPtr& conf_ptr) {
-  auto& db = storage::LocalSqlite::singleton();
-  return db.open(conf_ptr->storage.db_file_path, conf_ptr->storage.init_sql);
 }
 
 static bool start_server(const ConfigPtr& conf_ptr) {

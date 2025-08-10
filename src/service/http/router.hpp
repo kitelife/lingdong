@@ -8,6 +8,7 @@ namespace ling::http {
 inline tsl::robin_map<std::string, RouteHandler> routes {
   {"/view_cnt/", access_stat_handler},
   {"/tool/echo/", simple_echo_handler},
+  {"/rss/provider/", rss_provider_handler},
   {"", static_file_handler},
 };
 
