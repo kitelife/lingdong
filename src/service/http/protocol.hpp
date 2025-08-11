@@ -254,16 +254,31 @@ static void clean_after_send(uv_write_t* req, int status) {
 enum class HttpStatusCode {
   OK = 200,
 
-  NOT_FOUND = 404,
   BAD_REQUEST = 400,
+  UNAUTHORIZED = 401,
+  FORBIDDEN = 403,
+  // https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/429
+  NOT_FOUND = 404,
+  METHOD_NOT_ALLOWED = 405,
+  CONTENT_TOO_LARGE = 413,
+  URI_TOO_LONG = 414,
+  TOO_MANY_REQUESTS = 429,
 
   INTERNAL_ERR = 500,
 };
 
 static tsl::robin_map<HttpStatusCode, std::string> CODE2MSG{
   {HttpStatusCode::OK, "Ok"},
-  {HttpStatusCode::NOT_FOUND, "Not Found"},
+
   {HttpStatusCode::BAD_REQUEST, "Bad Request"},
+  {HttpStatusCode::UNAUTHORIZED, "Unauthorized"},
+  {HttpStatusCode::FORBIDDEN, "Forbidden"},
+  {HttpStatusCode::NOT_FOUND, "Not Found"},
+  {HttpStatusCode::METHOD_NOT_ALLOWED, "Method Not Allowed"},
+  {HttpStatusCode::CONTENT_TOO_LARGE, "Content Too Large"},
+  {HttpStatusCode::URI_TOO_LONG, "URI Too Long"},
+  {HttpStatusCode::TOO_MANY_REQUESTS, "Too Many Requests"},
+
   {HttpStatusCode::INTERNAL_ERR, "Internal Error"}};
 
 struct ContentType {
@@ -278,6 +293,7 @@ static tsl::robin_map<std::string, ContentType> FILE_SUFFIX_TYPE_M_CONTENT_TYPE{
   {"htm", {"text/html; charset=utf-8", false}},
   {"xml", {"application/xml; charset=utf-8", false}},
   {"ico", {"image/x-icon", true}},
+  {"plain", {"text/plain", false}}
 };
 
 class HttpResponse {
