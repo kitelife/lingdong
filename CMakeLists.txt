@@ -64,6 +64,8 @@ add_subdirectory(third_party/SQLiteCpp)
 add_subdirectory(third_party/robin-map)
 # https://github.com/xtensor-stack/xsimd
 add_subdirectory(third_party/xsimd)
+# https://github.com/leethomason/tinyxml2/tree/11.0.0
+add_subdirectory(third_party/tinyxml2)
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     add_compile_options(-fdiagnostics-color=always)
@@ -110,7 +112,7 @@ add_executable(lingdong src/main.cpp
         src/utils/strings.hpp
         src/utils/guard.hpp
 )
-target_compile_options(lingdong PRIVATE -O3 -g)
+target_compile_options(lingdong PRIVATE -O0 -g)
 
 target_link_libraries(
         lingdong
@@ -137,6 +139,7 @@ target_link_libraries(
         roaring
         cpuinfo
         xsimd
+        tinyxml2
 )
 
 # for testing

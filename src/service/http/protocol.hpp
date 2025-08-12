@@ -6,6 +6,7 @@
 #include <spdlog/spdlog.h>
 #include <tsl/robin_map.h>
 #include <uv.h>
+#include <absl/strings/str_split.h>
 
 #include "service/protocol.h"
 #include "utils/strings.hpp"
@@ -13,15 +14,14 @@
 namespace ling::http {
 
 static size_t HTTP_FIRST_LINE_LENGTH_LIMIT {5 * 1024}; // 5kB
-
-struct HttpHeader {
-  std::string name;
-};
+static std::string HTTP_VERSION_CODE_1_1 = "1.1";
 
 namespace header {
-static HttpHeader ContentType {"Content-Type"};
-static HttpHeader ContentLength {"Content-Length"};
-static HttpHeader UserAgent {"User-Agent"};
+
+static std::string ContentType {"Content-Type"};
+static std::string ContentLength {"Content-Length"};
+static std::string UserAgent {"User-Agent"};
+
 }
 
 struct UrlQuery {
@@ -77,6 +77,23 @@ struct UrlQuery {
       j["params"][k] = v;
     }
     return j.dump(2);
+  }
+};
+
+// https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods/POST
+struct UrlEncodedFormBody {
+  tsl::robin_map<std::string, std::string> params;
+  //
+  void parse(std::string_view s) {
+    const std::vector<std::string> parts = absl::StrSplit(s, '&');
+    for (const auto& sp : parts) {
+      auto pos = sp.find('=');
+      if (pos == std::string::npos) {
+        params[sp] = "";
+      } else {
+        params[sp.substr(0, pos)] = sp.substr(pos+1, sp.size()-1-pos);
+      }
+    }
   }
 };
 
@@ -140,8 +157,8 @@ inline ParseStatus HttpRequest::parse(char* buffer, size_t buffer_size) {
   }
   */
   // 判断请求体是否结束
-  if (headers.contains(header::ContentLength.name)) {
-    long length = std::strtol(headers[header::ContentLength.name].c_str(), nullptr, 10);
+  if (headers.contains(header::ContentLength)) {
+    long length = std::strtol(headers[header::ContentLength].c_str(), nullptr, 10);
     if (length > 0 && length == buffer_size-1-headers_end_idx) {
       body = body = std::string_view(buffer+headers_end_idx+1, length);
       return ParseStatus::COMPLETE;
@@ -281,19 +298,33 @@ static tsl::robin_map<HttpStatusCode, std::string> CODE2MSG{
 
   {HttpStatusCode::INTERNAL_ERR, "Internal Error"}};
 
+
+namespace content_type {
+
+static std::string CSS = "text/css";
+static std::string JS = "application/javascript";
+static std::string HTML = "text/html";
+static std::string XML = "application/xml";
+static std::string ICO = "image/x-icon";
+static std::string PLAIN = "text/plain";
+static std::string JSON = "application/json";
+static std::string X_WWW_FORM_URL_ENCODED = "application/x-www-form-urlencoded";
+
+}
+
 struct ContentType {
   std::string type_name;
   bool is_binary = false;
 };
 
 static tsl::robin_map<std::string, ContentType> FILE_SUFFIX_TYPE_M_CONTENT_TYPE{
-  {"css", {"text/css; charset=utf-8", false}},
-  {"js", {"application/javascript; charset=utf-8", false}},
-  {"html", {"text/html; charset=utf-8", false}},
-  {"htm", {"text/html; charset=utf-8", false}},
-  {"xml", {"application/xml; charset=utf-8", false}},
-  {"ico", {"image/x-icon", true}},
-  {"plain", {"text/plain", false}}
+  {"css", {content_type::CSS, false}},
+  {"js", {content_type::JS, false}},
+  {"html", {content_type::HTML, false}},
+  {"htm", {content_type::HTML, false}},
+  {"xml", {content_type::XML, false}},
+  {"ico", {content_type::ICO, true}},
+  {"json", {content_type::JSON, false}},
 };
 
 class HttpResponse {
@@ -324,18 +355,17 @@ using HttpResponsePtr = std::shared_ptr<HttpResponse>;
 inline bool HttpResponse::send(uv_stream_t* client) {
   size_t buf_size = 0;
   std::vector<std::string> resp_lines;
-  resp_lines.emplace_back(fmt::format("HTTP/1.1 {} {}\r\n", static_cast<int>(code), CODE2MSG[code]));
+  resp_lines.emplace_back(fmt::format("HTTP/{} {} {}\r\n", HTTP_VERSION_CODE_1_1, static_cast<int>(code), CODE2MSG[code]));
   buf_size += resp_lines.back().size();
   for (auto [k, v] : resp_headers) {
     resp_lines.emplace_back(fmt::format("{}: {}\r\n", k, v));
     buf_size += resp_lines.back().size();
   }
-  if (!body_.empty()) {
-    resp_lines.emplace_back(fmt::format("{}: {}\r\n", header::ContentLength.name, body_.size()));
-    buf_size += resp_lines.back().size();
-    //
-    buf_size += body_.size() + 4;
-  }
+  //
+  resp_lines.emplace_back(fmt::format("{}: {}\r\n", header::ContentLength, body_.size()));
+  buf_size += resp_lines.back().size();
+  buf_size += body_.size() + 4;
+  //
   resp_lines.emplace_back("\r\n");
   buf_size += resp_lines.back().size();
   //

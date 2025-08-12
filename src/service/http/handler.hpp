@@ -5,11 +5,14 @@
 #include <utility>
 
 #include <absl/strings/escaping.h>
+#include <cpr/cpr.h>
 
-#include "utils/strings.hpp"
-#include "utils/guard.hpp"
-#include "utils//time.hpp"
+#include "protocol.hpp"
 #include "storage/local_sqlite.h"
+#include "utils//time.hpp"
+#include "utils/guard.hpp"
+#include "utils/strings.hpp"
+#include "utils/rss.hpp"
 
 namespace ling::http {
 
@@ -33,7 +36,7 @@ private:
 static void log_req(const HttpRequest& req) {
   std::string peer = fmt::format("{}:{}", req.from.first, req.from.second);
   spdlog::info("{} {} from {}", req.action, req.raw_q, peer);
-  std::string user_agent = req.headers.at(header::UserAgent.name);
+  std::string user_agent = req.headers.at(header::UserAgent);
   std::string now_str = utils::time_now_str();
   //
   std::string sql = fmt::format(R"(INSERT INTO access_log (peer, http_action, query_path, user_agent, created_time) VALUES ("{}", "{}", "{}", "{}", "{}"))",
@@ -73,7 +76,7 @@ static void static_file_handler(const HttpRequest& req, const HttpResponsePtr& r
   }
   //
   if (!suffix_type.empty() && FILE_SUFFIX_TYPE_M_CONTENT_TYPE.contains(suffix_type)) {
-    resp->with_header(header::ContentType.name, FILE_SUFFIX_TYPE_M_CONTENT_TYPE[suffix_type].type_name);
+    resp->with_header(header::ContentType, FILE_SUFFIX_TYPE_M_CONTENT_TYPE[suffix_type].type_name);
   }
 }
 
@@ -101,7 +104,7 @@ static void simple_echo_handler(const HttpRequest& req, const HttpResponsePtr& r
   // spdlog::debug("resp_content: {}", resp_content);
   resp->with_body(resp_content);
   resp->with_code(HttpStatusCode::OK);
-  resp->with_header(header::ContentType.name, "application/json,charset=utf-8");
+  resp->with_header(header::ContentType, content_type::JSON);
 }
 
 // /tool/base64
@@ -126,19 +129,71 @@ static void base64_handler(const HttpRequest& req, const HttpResponsePtr& resp, 
   } else { // encode
     for_web ? absl::WebSafeBase64Escape(src, &target) : absl::Base64Escape(src, &target);
   }
-  resp->with_body(target);
-  resp->with_header(header::ContentType.name, FILE_SUFFIX_TYPE_M_CONTENT_TYPE["plain"].type_name);
+  //
+  nlohmann::json resp_json;
+  resp_json["src"] = src;
+  resp_json["target"] = target;
+  resp->with_body(resp_json.dump(2));
+  resp->with_header(header::ContentType, FILE_SUFFIX_TYPE_M_CONTENT_TYPE["json"].type_name);
   resp->with_code(HttpStatusCode::OK);
 }
 
 // 为一些没有提供 rss 的博客/站点提供 rss 生成服务
 static void rss_provider_handler(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) {
-
+  // TODO:
 }
 
-// 提供 rss 阅读器功能
-static void rss_reader_handler(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) {
-
+static void rss_register_handler(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) {
+  DoneCallbackGuard guard {cb, resp};
+  //
+  std::string rss_url;
+  std::string rss_title;
+  std::string rss_tag;
+  // json
+  if (req.headers.at(header::ContentType) == content_type::JSON) {
+    auto j = nlohmann::json::parse(req.body);
+    if (j.contains("url")) {
+      rss_url = j["url"];
+    }
+    if (j.contains("title")) {
+      rss_title = j["title"];
+    }
+    if (j.contains("tag")) {
+      rss_tag = j["tag"];
+    }
+  } else if (req.headers.at(header::ContentType) == content_type::X_WWW_FORM_URL_ENCODED) {
+    UrlEncodedFormBody body;
+    body.parse(req.body);
+    rss_url = body.params["url"];
+    rss_title = body.params["title"];
+    rss_tag = body.params["tag"];
+  }
+  if (rss_url.empty()) {
+    resp->with_code(HttpStatusCode::BAD_REQUEST);
+    return;
+  }
+  cpr::Response r = cpr::Get(cpr::Url{rss_url});
+  nlohmann::json resp_json;
+  resp->with_header(header::ContentType, content_type::JSON);
+  resp->with_code(HttpStatusCode::OK);
+  if (r.status_code != cpr::status::HTTP_OK) {
+    resp_json["code"] = 101;
+    resp_json["msg"] = "failure to access this url";
+    resp->with_body(resp_json.dump(2));
+    return;
+  }
+  utils::RSS rss;
+  rss.parse(r.text);
+  resp_json["code"] = rss.parse_result_code();
+  resp_json["msg"] = rss.parse_result_msg();
+  if (rss.parse_result_code() == 0) {
+    nlohmann::json data_json;
+    rss.to_json(data_json);
+    resp_json["data"] = data_json;
+  }
+  resp->with_body(resp_json.dump(2));
+  spdlog::debug("rss: {}", r.text);
+  // TODO: 存储 rss 记录
 }
 
 }
