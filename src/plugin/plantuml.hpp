@@ -122,10 +122,13 @@ inline std::pair<bool, std::string> PlantUML::diagram_desc2pic(std::vector<std::
   ss << "@enduml";
   std::string plantuml_diagram = ss.str();
   auto encoded = hex_encode(plantuml_diagram);
-  const std::string target_url = fmt::format("http://{0}/plantuml/svg/{1}", plantuml_server_, encoded);
-  cpr::Response r = cpr::Get(cpr::Url{target_url});
+  const std::string target_url = fmt::format("http://{}/plantuml/svg/{}", plantuml_server_, encoded);
+  cpr::Response r = cpr::Get(cpr::Url{target_url},
+    cpr::Timeout{std::chrono::seconds(5)},
+    cpr::ConnectTimeout{std::chrono::seconds(2)});
   if (r.status_code != 200) {
-    spdlog::error("Failed to call plantuml, status_code: {}, response: {}", r.status_code, r.text);
+    spdlog::error("Failed to call plantuml, status_code: {}, response: {}, err msg: {}",
+      r.status_code, r.text, r.error.message);
     return std::make_pair(false, "");
   }
   return std::make_pair(true, r.text);
@@ -138,7 +141,10 @@ inline bool PlantUML::init(ContextPtr context_ptr) {
   plantuml_server_ = toml::find_or<std::string>(config_->raw_toml_, "plantuml", "server", PLANTUML_REMOTE_SERVER);
   diagram_header_ = toml::find_or_default<std::string>(config_->raw_toml_, "plantuml", "header");
   if (!jar_path_.empty() && (plantuml_server_.empty() || plantuml_server_ == PLANTUML_REMOTE_SERVER)) {
-    start_picoweb_server();
+    if (!start_picoweb_server()) {
+      return false;
+    }
+    std::this_thread::sleep_for(std::chrono::seconds(2)); // 等待2s，等服务就绪
     plantuml_server_ = fmt::format("127.0.0.1:{}", picweb_port_);
     picoweb_server_started_ = true;
   }

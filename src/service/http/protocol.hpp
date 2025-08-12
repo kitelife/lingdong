@@ -309,6 +309,7 @@ static std::string ICO = "image/x-icon";
 static std::string PLAIN = "text/plain";
 static std::string JSON = "application/json";
 static std::string X_WWW_FORM_URL_ENCODED = "application/x-www-form-urlencoded";
+static std::string SVG = "image/svg+xml";
 
 }
 
@@ -325,6 +326,7 @@ static tsl::robin_map<std::string, ContentType> FILE_SUFFIX_TYPE_M_CONTENT_TYPE{
   {"xml", {content_type::XML, false}},
   {"ico", {content_type::ICO, true}},
   {"json", {content_type::JSON, false}},
+  {"svg", {content_type::SVG, false}},
 };
 
 class HttpResponse {
