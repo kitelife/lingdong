@@ -172,10 +172,20 @@ static void rss_register_handler(const HttpRequest& req, const HttpResponsePtr& 
     resp->with_code(HttpStatusCode::BAD_REQUEST);
     return;
   }
-  cpr::Response r = cpr::Get(cpr::Url{rss_url});
   nlohmann::json resp_json;
   resp->with_header(header::ContentType, content_type::JSON);
   resp->with_code(HttpStatusCode::OK);
+  //
+  auto& si = storage::LocalSqlite::singleton();
+  auto qr_ptr = si.query(fmt::format(R"(SELECT id FROM rss_subscription WHERE url="{}")", rss_url));
+  if (!qr_ptr->rows.empty()) {
+    resp_json["code"] = 100,
+    resp_json["msg"] = "已订阅过";
+    resp->with_body(resp_json.dump(2));
+    return;
+  }
+  //
+  cpr::Response r = cpr::Get(cpr::Url{rss_url});
   if (r.status_code != cpr::status::HTTP_OK) {
     resp_json["code"] = 101;
     resp_json["msg"] = "failure to access this url";
@@ -184,16 +194,48 @@ static void rss_register_handler(const HttpRequest& req, const HttpResponsePtr& 
   }
   utils::RSS rss;
   rss.parse(r.text);
-  resp_json["code"] = rss.parse_result_code();
-  resp_json["msg"] = rss.parse_result_msg();
-  if (rss.parse_result_code() == 0) {
-    nlohmann::json data_json;
-    rss.to_json(data_json);
-    resp_json["data"] = data_json;
+  if (rss.parse_result_code() != 0) {
+    resp_json["code"] = rss.parse_result_code();
+    resp_json["msg"] = rss.parse_result_msg();
+    resp->with_body(resp_json.dump(2));
+    return;
+  }
+  // spdlog::debug("rss: {}", r.text);
+  if (rss_title.empty()) {
+    rss_title = rss.title();
+  }
+  //
+  si.exec(fmt::format(R"(INSERT INTO rss_subscription (title, url, tag, updated_time) VALUES ("{}", "{}", "{}", "{}"))",
+      rss_title, rss_url, rss_tag, rss.updated_time()));
+  auto id_qr_ptr = si.query(fmt::format(R"(SELECT id FROM rss_subscription WHERE url="{}")", rss_url));
+  if (id_qr_ptr->rows.empty()) {
+    throw std::runtime_error{"failure to add rss subscription"};
+  }
+  auto row0 = id_qr_ptr->rows[0];
+  int64_t subscription_id = std::any_cast<int64_t>(row0[0].second);
+  //
+  bool has_err = false;
+  auto trans_ptr = si.with_transaction();
+  try {
+    for (const auto entry : rss.entries()) {
+      std::string insert_sql = fmt::format(R"(INSERT INTO rss_item (subscription_id, title, url, content, has_read, updated_time) VALUES ({}, "{}", "{}", "{}", 0, "{}"))", subscription_id, entry.title, entry.link, entry.content, entry.updated_time);
+      si.exec(insert_sql);
+    }
+    trans_ptr->commit();
+  } catch (std::runtime_error& err) {
+    trans_ptr->rollback();
+    spdlog::error("failure to add rss subscription, err: {}", err.what());
+    has_err = true;
+  }
+  if (has_err) {
+    resp->with_code(HttpStatusCode::INTERNAL_ERR);
+    resp_json["code"] = 500;
+    resp_json["msg"] = "Internal Error";
+  } else {
+    resp_json["code"] = 0;
+    resp_json["msg"] = "success";
   }
   resp->with_body(resp_json.dump(2));
-  spdlog::debug("rss: {}", r.text);
-  // TODO: 存储 rss 记录
 }
 
 }

@@ -299,6 +299,7 @@ static tsl::robin_map<HttpStatusCode, std::string> CODE2MSG{
   {HttpStatusCode::INTERNAL_ERR, "Internal Error"}};
 
 
+// https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/MIME_types/Common_types
 namespace content_type {
 
 static std::string CSS = "text/css";
@@ -310,6 +311,12 @@ static std::string PLAIN = "text/plain";
 static std::string JSON = "application/json";
 static std::string X_WWW_FORM_URL_ENCODED = "application/x-www-form-urlencoded";
 static std::string SVG = "image/svg+xml";
+static std::string PNG = "image/png";
+static std::string JPEG = "image/jpeg";
+static std::string GIF = "image/gif";
+static std::string TTF = "font/ttf";
+static std::string WOFF = "font/woff";
+static std::string WOFF2 = "font/woff2";
 
 }
 
@@ -324,9 +331,18 @@ static tsl::robin_map<std::string, ContentType> FILE_SUFFIX_TYPE_M_CONTENT_TYPE{
   {"html", {content_type::HTML, false}},
   {"htm", {content_type::HTML, false}},
   {"xml", {content_type::XML, false}},
-  {"ico", {content_type::ICO, true}},
   {"json", {content_type::JSON, false}},
   {"svg", {content_type::SVG, false}},
+  {"txt", {content_type::PLAIN, false}},
+
+  {"png", {content_type::PNG, true}},
+  {"jpeg", {content_type::JPEG, true}},
+  {"jpg", {content_type::JPEG, true}},
+  {"ico", {content_type::ICO, true}},
+  {"gif", {content_type::GIF, true}},
+  {"ttf", {content_type::TTF, true}},
+  {"woff", {content_type::WOFF, true}},
+  {"woff2", {content_type::WOFF2, true}},
 };
 
 class HttpResponse {

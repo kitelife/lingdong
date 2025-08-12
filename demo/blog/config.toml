@@ -38,4 +38,8 @@ category_id = "DIC_kwDOAIMBx84Ctgkx"
 
 [storage]
 db_file_path = "../dist/ling.db"
-init_sql = "CREATE TABLE IF NOT EXISTS access_log (id INTEGER PRIMARY KEY AUTOINCREMENT, peer TEXT, http_action TEXT, query_path TEXT, user_agent TEXT, created_time TEXT)"
+init_sql = [
+    "CREATE TABLE IF NOT EXISTS access_log (id INTEGER PRIMARY KEY AUTOINCREMENT, peer TEXT, http_action TEXT, query_path TEXT, user_agent TEXT, created_time TEXT)",
+    "CREATE TABLE IF NOT EXISTS rss_subscription (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, url TEXT, tag TEXT, updated_time TEXT)",
+    "CREATE TABLE IF NOT EXISTS rss_item (id INTEGER PRIMARY KEY AUTOINCREMENT, subscription_id INTEGER, title TEXT, url TEXT, content TEXT, has_read INTEGER, updated_time TEXT)"
+]

@@ -41,6 +41,22 @@ public:
     return parse_result_msg_;
   }
 
+  std::string title() const {
+    return title_;
+  }
+
+  std::string link() const {
+    return link_;
+  }
+
+  std::string updated_time() const {
+    return updated_time_;
+  }
+
+  std::vector<RssEntry> entries() {
+    return entries_;
+  }
+
 private:
   std::string title_;
   std::string link_;

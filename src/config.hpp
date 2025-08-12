@@ -63,12 +63,12 @@ public:
   void parse(const toml::basic_value<toml::type_config>& raw_toml_);
 
   std::string db_file_path;
-  std::string init_sql;
+  std::vector<std::string> init_sql;
 };
 
 inline void Storage::parse(const toml::basic_value<toml::type_config>& raw_toml_) {
   db_file_path = toml::find_or_default<std::string>(raw_toml_, "storage", "db_file_path");
-  init_sql = toml::find_or_default<std::string>(raw_toml_, "storage", "init_sql");
+  init_sql = toml::find_or_default<std::vector<std::string>>(raw_toml_, "storage", "init_sql");
 }
 
 using StoragePtr = std::shared_ptr<Storage>;

@@ -1,18 +1,24 @@
 #pragma once
 
+#include <SQLiteCpp/SQLiteCpp.h>
+
+#include <any>
 #include <string>
 #include <utility>
 
-#include <SQLiteCpp/SQLiteCpp.h>
-
 namespace ling::storage {
+
+using ColNameValue = std::pair<std::string, std::any>;
+using ColVec = std::vector<ColNameValue>;
+using RowVec = std::vector<ColVec>;
 
 class QueryResult {
 public:
-  std::vector<std::vector<SQLite::Column>> rows;
+  RowVec rows;
 };
 
 using QueryResultPtr = std::shared_ptr<QueryResult>;
+using TransPtr = std::unique_ptr<SQLite::Transaction>;
 
 class LocalSqlite {
 public:
@@ -23,9 +29,10 @@ public:
 
   LocalSqlite() = default;
 
-  bool open(const std::string& db_file_path, const std::string& init_sql = "");
+  bool open(const std::string& db_file_path, const std::vector<std::string>& init_sql);
   int exec(const std::string& sql);
-  QueryResultPtr query(const std::string& sql);
+  TransPtr with_transaction() const;
+  QueryResultPtr query(const std::string& sql) const;
 
 private:
   std::string db_file_path_;
