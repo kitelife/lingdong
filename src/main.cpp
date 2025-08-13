@@ -38,6 +38,8 @@ bool test_post(const std::string& post_file) {
 int main(int argc, char** argv) {
   google::ParseCommandLineFlags(&argc, &argv, true);
   spdlog::set_level(spdlog::level::debug);
+  spdlog::flush_on(spdlog::level::warn);
+  spdlog::flush_every(std::chrono::seconds(30));
   // 单篇测试使用
   if (!FLAGS_test_post.empty()) {
     if (!test_post(FLAGS_test_post)) {

@@ -1,73 +1,85 @@
 #pragma once
 
+#include <absl/strings/escaping.h>
+#include <cpr/cpr.h>
+
 #include <filesystem>
 #include <fstream>
 #include <utility>
-
-#include <absl/strings/escaping.h>
-#include <cpr/cpr.h>
+#include <utils/executor.hpp>
 
 #include "protocol.hpp"
 #include "storage/local_sqlite.h"
 #include "utils//time.hpp"
 #include "utils/guard.hpp"
-#include "utils/strings.hpp"
 #include "utils/rss.hpp"
+#include "utils/strings.hpp"
 
 namespace ling::http {
 
-using RouteHandler = void(*)(const HttpRequest&, const HttpResponsePtr&, const std::function<void(HttpResponsePtr)>&);
+using RouteHandler = void (*)(const HttpRequest&, const HttpResponsePtr&, const std::function<void(HttpResponsePtr)>&);
 using DoneCallback = std::function<void(HttpResponsePtr)>;
 
 class DoneCallbackGuard {
 public:
-  explicit DoneCallbackGuard(DoneCallback cb, HttpResponsePtr resp_ptr): cb_func_(std::move(cb)), resp_ptr_(std::move(resp_ptr)) {}
+  explicit DoneCallbackGuard(DoneCallback cb, HttpResponsePtr resp_ptr)
+      : cb_func_(std::move(cb)), resp_ptr_(std::move(resp_ptr)) {}
   ~DoneCallbackGuard() {
     if (resp_ptr_ != nullptr) {
       cb_func_(resp_ptr_);
     }
   }
+
 private:
   DoneCallback cb_func_;
   HttpResponsePtr resp_ptr_;
 };
 
-// TODO: 基于线程池异步处理
 static void log_req(const HttpRequest& req) {
   std::string peer = fmt::format("{}:{}", req.from.first, req.from.second);
   spdlog::info("{} {} from {}", req.action, req.raw_q, peer);
+  //
   std::string user_agent = req.headers.at(header::UserAgent);
   std::string now_str = utils::time_now_str();
+  auto action = req.action;
+  auto path = req.q.path;
   //
-  std::string sql = fmt::format(R"(INSERT INTO access_log (peer, http_action, query_path, user_agent, created_time) VALUES ("{}", "{}", "{}", "{}", "{}"))",
-    peer, req.action, req.q.path, user_agent, now_str);
-  if (storage::LocalSqlite::singleton().exec(sql) != 1) {
-    spdlog::warn("Failed to log req");
-  }
+  utils::default_executor().async_execute([peer, action, path, user_agent, now_str]() {
+    std::string sql = fmt::format(
+      R"(INSERT INTO access_log (peer, http_action, query_path, user_agent, created_time) VALUES ("{}", "{}", "{}", "{}", "{}"))",
+      peer, action, path, user_agent, now_str);
+    if (storage::LocalSqlite::singleton().exec(sql) != 1) {
+      spdlog::warn("Failed to log req");
+    }
+  });
 }
 
 // 限流响应 429
 static void rate_limited_handler(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) {
-  DoneCallbackGuard guard {cb, resp};
+  DoneCallbackGuard guard{cb, resp};
   resp->with_code(HttpStatusCode::TOO_MANY_REQUESTS);
 }
 
 // 兜底，静态文件请求处理
 static void static_file_handler(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) {
   std::string path = std::string(req.q.path);
-  if (path[path.size()-1] == '/') {
+  if (path[path.size() - 1] == '/') {
     path += "index.html";
   }
-  DoneCallbackGuard guard {cb, resp}; // guard
-  std::filesystem::path file_path {"." + path};
+  DoneCallbackGuard guard{cb, resp};  // guard
+  std::filesystem::path file_path{"." + path};
   if (!exists(file_path)) {
     resp->with_body(CODE2MSG[HttpStatusCode::NOT_FOUND]);
     resp->with_code(HttpStatusCode::NOT_FOUND);
     return;
   }
+  std::string suffix_type = utils::find_suffix_type(path);
+  if (suffix_type == "html" || suffix_type == "htm") {
+    log_req(req);
+  }
   std::ifstream file_stream;
   file_stream.open(file_path);
-  DeferGuard defer_guard([&]() {file_stream.close();});
+  DeferGuard defer_guard([&]() { file_stream.close(); });
   if (file_stream.fail()) {
     resp->with_body(CODE2MSG[HttpStatusCode::INTERNAL_ERR]);
     resp->with_code(HttpStatusCode::INTERNAL_ERR);
@@ -75,11 +87,6 @@ static void static_file_handler(const HttpRequest& req, const HttpResponsePtr& r
   }
   std::string resp_content((std::istreambuf_iterator<char>(file_stream)), std::istreambuf_iterator<char>());
   resp->with_body(resp_content);
-  std::string suffix_type = utils::find_suffix_type(path);
-  //
-  if (suffix_type == "html" || suffix_type == "htm") {
-    log_req(req);
-  }
   //
   if (!suffix_type.empty() && FILE_SUFFIX_TYPE_M_CONTENT_TYPE.contains(suffix_type)) {
     resp->with_header(header::ContentType, FILE_SUFFIX_TYPE_M_CONTENT_TYPE[suffix_type].type_name);
@@ -87,14 +94,12 @@ static void static_file_handler(const HttpRequest& req, const HttpResponsePtr& r
 }
 
 // 获取 pv & uv 统计数据
-static void access_stat_handler(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) {
-
-}
+static void access_stat_handler(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) {}
 
 // 工具类
 // /tool/echo/
 static void simple_echo_handler(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) {
-  DoneCallbackGuard guard {cb, resp}; // guard
+  DoneCallbackGuard guard{cb, resp};  // guard
   nlohmann::ordered_json resp_json;
   resp_json["From"] = fmt::format("{}:{}", req.from.first, req.from.second);
   resp_json["Action"] = req.action;
@@ -115,7 +120,7 @@ static void simple_echo_handler(const HttpRequest& req, const HttpResponsePtr& r
 
 // /tool/base64
 static void base64_handler(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) {
-  DoneCallbackGuard guard {cb, resp};
+  DoneCallbackGuard guard{cb, resp};
   auto src = req.body;
   if (src.empty()) {
     const auto v_iter = req.q.params.find("src");
@@ -130,9 +135,9 @@ static void base64_handler(const HttpRequest& req, const HttpResponsePtr& resp, 
   const bool to_decode = req.q.params.find("to_decode") != req.q.params.end();
   //
   std::string target;
-  if (to_decode) { // decode
+  if (to_decode) {  // decode
     for_web ? absl::WebSafeBase64Unescape(src, &target) : absl::Base64Unescape(src, &target);
-  } else { // encode
+  } else {  // encode
     for_web ? absl::WebSafeBase64Escape(src, &target) : absl::Base64Escape(src, &target);
   }
   //
@@ -150,7 +155,7 @@ static void rss_provider_handler(const HttpRequest& req, const HttpResponsePtr& 
 }
 
 static void rss_register_handler(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) {
-  DoneCallbackGuard guard {cb, resp};
+  DoneCallbackGuard guard{cb, resp};
   //
   std::string rss_url;
   std::string rss_title;
@@ -185,8 +190,7 @@ static void rss_register_handler(const HttpRequest& req, const HttpResponsePtr& 
   auto& si = storage::LocalSqlite::singleton();
   auto qr_ptr = si.query(fmt::format(R"(SELECT id FROM rss_subscription WHERE url="{}")", rss_url));
   if (!qr_ptr->rows.empty()) {
-    resp_json["code"] = 100,
-    resp_json["msg"] = "已订阅过";
+    resp_json["code"] = 100, resp_json["msg"] = "已订阅过";
     resp->with_body(resp_json.dump(2));
     return;
   }
@@ -212,7 +216,7 @@ static void rss_register_handler(const HttpRequest& req, const HttpResponsePtr& 
   }
   //
   si.exec(fmt::format(R"(INSERT INTO rss_subscription (title, url, tag, updated_time) VALUES ("{}", "{}", "{}", "{}"))",
-      rss_title, rss_url, rss_tag, rss.updated_time()));
+                      rss_title, rss_url, rss_tag, rss.updated_time()));
   auto id_qr_ptr = si.query(fmt::format(R"(SELECT id FROM rss_subscription WHERE url="{}")", rss_url));
   if (id_qr_ptr->rows.empty()) {
     throw std::runtime_error{"failure to add rss subscription"};
@@ -224,7 +228,9 @@ static void rss_register_handler(const HttpRequest& req, const HttpResponsePtr& 
   auto trans_ptr = si.with_transaction();
   try {
     for (const auto& entry : rss.entries()) {
-      std::string insert_sql = fmt::format(R"(INSERT INTO rss_item (subscription_id, title, url, content, has_read, updated_time) VALUES ({}, "{}", "{}", "{}", 0, "{}"))", subscription_id, entry.title, entry.link, entry.content, entry.updated_time);
+      std::string insert_sql = fmt::format(
+          R"(INSERT INTO rss_item (subscription_id, title, url, content, has_read, updated_time) VALUES ({}, "{}", "{}", "{}", 0, "{}"))",
+          subscription_id, entry.title, entry.link, entry.content, entry.updated_time);
       si.exec(insert_sql);
     }
     trans_ptr->commit();
@@ -245,17 +251,13 @@ static void rss_register_handler(const HttpRequest& req, const HttpResponsePtr& 
 }
 
 // https://bytebytego.com/courses/system-design-interview/design-a-url-shortener
-static void url_shortener_handler(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) {
-
-}
+static void url_shortener_handler(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) {}
 
 // 计算器
 // - 中缀表示法
 // - 前缀表示法 / 波兰表示法
 // - 后缀表示法 / 逆波兰表示法
 // 支持 整数&浮点数&大整数
-static void calculator_handler(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) {
+static void calculator_handler(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) {}
 
-}
-
-}
+}  // namespace ling::http

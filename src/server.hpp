@@ -11,6 +11,7 @@
 #include "service/http/router.hpp"
 #include "storage/local_sqlite.h"
 #include "utils/guard.hpp"
+#include "utils/executor.hpp"
 
 DEFINE_string(host, "127.0.0.1", "server host to listen");
 DEFINE_uint32(port, 8000, "server port to listen");
@@ -214,6 +215,10 @@ static void on_new_connection(uv_stream_t* server, int status) {
   }
 }
 
+static void cleanup_before_exit() {
+  utils::default_executor().join();
+}
+
 static bool start_server(const ConfigPtr& conf_ptr) {
   auto dist_dir = conf_ptr->dist_dir;
   //
@@ -235,7 +240,9 @@ static bool start_server(const ConfigPtr& conf_ptr) {
     spdlog::error("listen failed: {}", uv_strerror(r));
     return false;
   }
-  return uv_run(loop_.get(), UV_RUN_DEFAULT);
+  bool ret_status = uv_run(loop_.get(), UV_RUN_DEFAULT);
+  cleanup_before_exit();
+  return ret_status;
 }
 
 static bool start() {

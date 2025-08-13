@@ -112,6 +112,8 @@ add_executable(lingdong src/main.cpp
         src/utils/strings.hpp
         src/utils/guard.hpp
         src/utils/rate_limit.hpp
+        src/utils/blocking_queue.hpp
+        src/utils/executor.hpp
 )
 target_compile_options(lingdong PRIVATE -O0 -g)
 
