@@ -16,3 +16,9 @@
 [submodule "third_party/xsimd"]
 	path = third_party/xsimd
 	url = https://github.com/xtensor-stack/xsimd.git
+[submodule "third_party/folly"]
+	path = third_party/folly
+	url = git@github.com:facebook/folly.git
+[submodule "third_party/fast_float"]
+	path = third_party/fast_float
+	url = git@github.com:fastfloat/fast_float.git

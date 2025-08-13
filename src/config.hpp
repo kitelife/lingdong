@@ -73,6 +73,22 @@ inline void Storage::parse(const toml::basic_value<toml::type_config>& raw_toml_
 
 using StoragePtr = std::shared_ptr<Storage>;
 
+class ServerConf {
+public:
+  ServerConf() = default;
+  void parse(const toml::basic_value<toml::type_config>& raw_toml_);
+
+  uint32_t global_rate_limit;
+  uint32_t per_client_rate_limit;
+};
+
+inline void ServerConf::parse(const toml::basic_value<toml::type_config>& raw_toml_) {
+  global_rate_limit = toml::find_or_default<uint32_t>(raw_toml_, "server", "global_rate_limit_per_sec");
+  per_client_rate_limit = toml::find_or_default<uint32_t>(raw_toml_, "server", "per_client_rate_limit_per_sec");
+}
+
+using ServerConfPtr = std::shared_ptr<ServerConf>;
+
 class Config {
 public:
   Config() = default;
@@ -89,7 +105,8 @@ public:
   Giscus giscus;
   //
   ThemePtr theme_ptr;
-  Storage storage;
+  Storage storage {};
+  ServerConf server_conf {};
   std::vector<std::string> plugins;
   std::string dist_dir;
   //
@@ -119,6 +136,7 @@ inline void Config::parse() {
   theme_ptr = std::make_shared<Theme>((path(theme_dir) / path(theme_name)).string());
   //
   storage.parse(raw_toml_);
+  server_conf.parse(raw_toml_);
   //
   plugins = toml::find_or_default<std::vector<std::string>>(raw_toml_, "plugins");
   dist_dir = toml::find_or<std::string>(raw_toml_, "dist_dir", "dist");

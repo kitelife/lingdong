@@ -130,7 +130,9 @@ inline void RequestBuffer::handle(uv_stream_t *client) {
   if (protocol_ == Protocol::HTTP) {
     auto& http_req = with_http_request();
     http_req.from = peer;
-    http::http_route(http_req, [client](const http::HttpResponsePtr& resp_ptr) {
+    //
+    static auto& http_router = http::Router::singleton(); // !!!
+    http_router.route(http_req, [client](const http::HttpResponsePtr& resp_ptr) {
       resp_ptr->send(client);
     });
     return;

@@ -43,3 +43,7 @@ init_sql = [
     "CREATE TABLE IF NOT EXISTS rss_subscription (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, url TEXT, tag TEXT, updated_time TEXT)",
     "CREATE TABLE IF NOT EXISTS rss_item (id INTEGER PRIMARY KEY AUTOINCREMENT, subscription_id INTEGER, title TEXT, url TEXT, content TEXT, has_read INTEGER, updated_time TEXT)"
 ]
+
+[server]
+global_rate_limit_per_sec = 200
+per_client_rate_limit_per_sec = 20

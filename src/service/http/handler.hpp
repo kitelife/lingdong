@@ -46,6 +46,12 @@ static void log_req(const HttpRequest& req) {
   }
 }
 
+// 限流响应 429
+static void rate_limited_handler(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) {
+  DoneCallbackGuard guard {cb, resp};
+  resp->with_code(HttpStatusCode::TOO_MANY_REQUESTS);
+}
+
 // 兜底，静态文件请求处理
 static void static_file_handler(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) {
   std::string path = std::string(req.q.path);
@@ -217,7 +223,7 @@ static void rss_register_handler(const HttpRequest& req, const HttpResponsePtr& 
   bool has_err = false;
   auto trans_ptr = si.with_transaction();
   try {
-    for (const auto entry : rss.entries()) {
+    for (const auto& entry : rss.entries()) {
       std::string insert_sql = fmt::format(R"(INSERT INTO rss_item (subscription_id, title, url, content, has_read, updated_time) VALUES ({}, "{}", "{}", "{}", 0, "{}"))", subscription_id, entry.title, entry.link, entry.content, entry.updated_time);
       si.exec(insert_sql);
     }
@@ -236,6 +242,20 @@ static void rss_register_handler(const HttpRequest& req, const HttpResponsePtr& 
     resp_json["msg"] = "success";
   }
   resp->with_body(resp_json.dump(2));
+}
+
+// https://bytebytego.com/courses/system-design-interview/design-a-url-shortener
+static void url_shortener_handler(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) {
+
+}
+
+// 计算器
+// - 中缀表示法
+// - 前缀表示法 / 波兰表示法
+// - 后缀表示法 / 逆波兰表示法
+// 支持 整数&浮点数&大整数
+static void calculator_handler(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) {
+
 }
 
 }
