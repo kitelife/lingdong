@@ -165,7 +165,7 @@ static void on_read(uv_stream_t *client, ssize_t nread, const uv_buf_t *buf) {
     if (status == ParseStatus::COMPLETE) { // 请求完整了
       // TODO: 异步并发处理
       req_buffer->handle(client);
-    } else if (status == ParseStatus::INVALID) { // 不合法的请求
+    } else { // 不合法的请求
       spdlog::error("Illegal request");
     }
   } else if (nread < 0) {

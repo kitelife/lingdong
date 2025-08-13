@@ -63,8 +63,16 @@ inline bool Executor::async_execute(const AsyncTask& t) {
 }
 
 inline void Executor::join() {
-  done_ = true;
+  if (done_) {
+    return;
+  }
+  if (auto expect = false; !done_.compare_exchange_strong(expect, true)) {
+    return;
+  }
   task_queue_.close();
+  for (auto& wt : workers_) {
+    wt.join();
+  }
 }
 
 static Executor& default_executor() {
