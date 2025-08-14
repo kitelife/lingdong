@@ -93,9 +93,6 @@ static void static_file_handler(const HttpRequest& req, const HttpResponsePtr& r
   }
 }
 
-// 获取 pv & uv 统计数据
-static void access_stat_handler(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) {}
-
 // 工具类
 // /tool/echo/
 static void simple_echo_handler(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) {
@@ -147,11 +144,6 @@ static void base64_handler(const HttpRequest& req, const HttpResponsePtr& resp, 
   resp->with_body(resp_json.dump(2));
   resp->with_header(header::ContentType, FILE_SUFFIX_TYPE_M_CONTENT_TYPE["json"].type_name);
   resp->with_code(HttpStatusCode::OK);
-}
-
-// 为一些没有提供 rss 的博客/站点提供 rss 生成服务
-static void rss_provider_handler(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) {
-  // TODO:
 }
 
 static void rss_register_handler(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) {
@@ -250,14 +242,28 @@ static void rss_register_handler(const HttpRequest& req, const HttpResponsePtr& 
   resp->with_body(resp_json.dump(2));
 }
 
+// 为一些没有提供 rss 的博客/站点提供 rss 生成服务
+static void rss_provider_handler(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) {
+  // TODO:
+}
+
+// 获取 pv & uv 统计数据
+static void access_stat_handler(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) {
+  // TODO:
+}
+
 // https://bytebytego.com/courses/system-design-interview/design-a-url-shortener
-static void url_shortener_handler(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) {}
+static void url_shortener_handler(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) {
+  // TODO:
+}
 
 // 计算器
 // - 中缀表示法
 // - 前缀表示法 / 波兰表示法
 // - 后缀表示法 / 逆波兰表示法
 // 支持 整数&浮点数&大整数
-static void calculator_handler(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) {}
+static void calculator_handler(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) {
+  // TODO:
+}
 
 }  // namespace ling::http
