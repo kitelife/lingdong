@@ -35,7 +35,7 @@ static std::string get_cmd_stdout(std::string cmd) {
 
 class Mermaid final: public Plugin {
 public:
-  bool init(ContextPtr context_ptr) override;
+  bool init(ContextPtr& context_ptr) override;
   bool run(const MarkdownPtr& md_ptr) override;
 
 private:
@@ -49,7 +49,10 @@ private:
   ConfigPtr config_;
 };
 
-inline bool Mermaid::init(ContextPtr context_ptr) {
+inline bool Mermaid::init(ContextPtr& context_ptr) {
+  if (!Plugin::init(context_ptr)) {
+    return false;
+  }
   config_ = context_ptr->with_config();
   if (!is_npm_exist() || !is_jq_exist()) {
     spdlog::error("npm or jq not exists!");
@@ -63,7 +66,6 @@ inline bool Mermaid::init(ContextPtr context_ptr) {
     }
   }
   spdlog::debug("mermaid cli has installed!");
-  inited_ = true;
   return true;
 }
 

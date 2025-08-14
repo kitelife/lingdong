@@ -11,8 +11,9 @@ namespace ling::plugin {
 class Plugin {
 public:
   virtual ~Plugin() = default;
-  virtual bool init(ContextPtr context_ptr) {
-    return true;
+  virtual bool init(ContextPtr& context_ptr) {
+    auto expected = false, desired = true;
+    return inited_.compare_exchange_strong(expected, desired);
   }
   virtual bool run(const MarkdownPtr& md_ptr) {
     return true;
@@ -26,7 +27,7 @@ public:
   }
 
 protected:
-  bool inited_ = false;
+  std::atomic_bool inited_ = false;
 };
 
 using PluginPtr = std::shared_ptr<Plugin>;

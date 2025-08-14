@@ -18,13 +18,14 @@
 #include "highlight.hpp"
 #include "mathjax.hpp"
 #include "fekatex.hpp"
+#include "gtalk.hpp"
 //
 
 namespace ling::plugin {
 
 class Plugins final : public Plugin {
 public:
-  bool init(ContextPtr context_ptr) override;
+  bool init(ContextPtr& context_ptr) override;
   bool run(const MarkdownPtr& md_ptr) override;
   bool destroy() override;
 
@@ -32,7 +33,7 @@ private:
   std::map<std::string, PluginPtr> plugins_;
 };
 
-inline bool Plugins::init(ContextPtr context_ptr) {
+inline bool Plugins::init(ContextPtr& context_ptr) {
   for (const auto& pn : context_ptr->with_config()->plugins) {
     if (plugin_factory_m[pn] == nullptr) {
       spdlog::error("Has no plugin named {}", pn);

@@ -30,7 +30,7 @@ static void with_public_permission(path p) {
 
 class TypstCmarkerPdf final: public Plugin {
 public:
-  bool init(ContextPtr context_ptr) override;
+  bool init(ContextPtr& context_ptr) override;
   bool run(const MarkdownPtr& md_ptr) override;
   bool destroy() override;
 
@@ -77,7 +77,10 @@ inline bool TypstCmarkerPdf::make_tmp_post_file(const MarkdownPtr& md_ptr) const
 }
 
 
-inline bool TypstCmarkerPdf::init(ContextPtr context_ptr) {
+inline bool TypstCmarkerPdf::init(ContextPtr& context_ptr) {
+  if (!Plugin::init(context_ptr)) {
+    return false;
+  }
   if (!is_typst_exist()) {
     spdlog::error("Failed to enable plugin 'TypstPdf', because typst not installed");
     return false;
@@ -89,15 +92,21 @@ inline bool TypstCmarkerPdf::init(ContextPtr context_ptr) {
     spdlog::error("Please specify a text font for typst");
     return false;
   }
-  if (!exists(tmp_dir)) {
-    create_directory(tmp_dir);
-    with_public_permission(tmp_dir);
+  try {
+    if (!exists(tmp_dir)) {
+      create_directory(tmp_dir);
+      with_public_permission(tmp_dir);
+    }
+    make_typst_wrapper_file();
+    if (!exists(output_dir)) {
+      create_directory(output_dir);
+      with_public_permission(output_dir);
+    }
+  } catch (std::runtime_error& err) {
+    spdlog::error("Plugin TypstCmarkerPdf init error: {}", err.what());
+    return false;
   }
-  make_typst_wrapper_file();
-  if (!exists(output_dir)) {
-    create_directory(output_dir);
-    with_public_permission(output_dir);
-  }
+
   return true;
 }
 

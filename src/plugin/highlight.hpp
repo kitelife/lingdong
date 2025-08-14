@@ -8,10 +8,13 @@ namespace ling::plugin {
 
 class Highlight final : public Plugin {
 public:
-  bool init(ContextPtr context_ptr) override;
+  bool init(ContextPtr& context_ptr) override;
 };
 
-inline bool Highlight::init(ContextPtr context_ptr) {
+inline bool Highlight::init(ContextPtr& context_ptr) {
+  if (!Plugin::init(context_ptr)) {
+    return false;
+  }
   auto& render_ctx = context_ptr->with_render_ctx();
   //
   auto css_part = R"(<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css">)";
@@ -20,8 +23,6 @@ inline bool Highlight::init(ContextPtr context_ptr) {
   auto js_part = R"(<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <script>hljs.highlightAll();</script>)";
   render_ctx[to_string(FeInjectPos::PLUGIN_AFTER_FOOTER_PARTS)].emplace_back(js_part);
-  //
-  inited_ = true;
   return true;
 }
 

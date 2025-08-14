@@ -8,10 +8,13 @@ namespace ling::plugin {
 
 class FeKatex final : public Plugin {
 public:
-  bool init(ContextPtr context_ptr) override;
+  bool init(ContextPtr& context_ptr) override;
 };
 
-inline bool FeKatex::init(ContextPtr context_ptr) {
+inline bool FeKatex::init(ContextPtr& context_ptr) {
+  if (!Plugin::init(context_ptr)) {
+    return false;
+  }
   auto html = R"(<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css" integrity="sha384-5TcZemv2l/9On385z///+d7MSYlvIEw9FuZTIdZ14vJLqWphw7e7ZPuOiCHJcFCP" crossorigin="anonymous">
 
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
@@ -33,8 +36,6 @@ inline bool FeKatex::init(ContextPtr context_ptr) {
 <script defer src="https://cdn.jsdelivr.net/npm/webfontloader@1.6.28/webfontloader.js" integrity="sha256-4O4pS1SH31ZqrSO2A/2QJTVjTPqVe+jnYgOWUVr7EEc=" crossorigin="anonymous"></script>)";
   auto& render_ctx = context_ptr->with_render_ctx();
   render_ctx[to_string(FeInjectPos::PLUGIN_HEAD_PARTS)].emplace_back(html);
-  //
-  inited_ = true;
   return true;
 }
 

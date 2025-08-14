@@ -11,30 +11,6 @@ namespace ling {
 
 using namespace std::filesystem;
 
-class Giscus final {
-public:
-  Giscus() = default;
-  void parse(const toml::basic_value<toml::type_config>& raw_toml_);
-
-  bool enable = false;
-  std::string repo;
-  std::string repo_id;
-  std::string category;
-  std::string category_id;
-};
-
-inline void Giscus::parse(const toml::basic_value<toml::type_config>& raw_toml_) {
-  enable = toml::find_or_default<bool>(raw_toml_, "giscus", "enable");
-  spdlog::debug(enable ? "giscus enabled" : "giscus disabled");
-  if (!enable) {
-    return;
-  }
-  repo = toml::find_or_default<std::string>(raw_toml_, "giscus", "repo");
-  repo_id = toml::find_or_default<std::string>(raw_toml_, "giscus", "repo_id");
-  category = toml::find_or_default<std::string>(raw_toml_, "giscus", "category");
-  category_id = toml::find_or_default<std::string>(raw_toml_, "giscus", "category_id");
-}
-
 class Theme final {
 public:
   explicit Theme(path theme_path) : base_path_(std::move(theme_path)) {
@@ -102,7 +78,6 @@ public:
   std::string site_ico;
   std::vector<std::string> exclude_source_entries;
   std::vector<std::pair<std::string, std::string>> navigation;
-  Giscus giscus;
   //
   ThemePtr theme_ptr;
   Storage storage {};
@@ -128,8 +103,6 @@ inline void Config::parse() {
     }
     navigation.emplace_back(pair[0], pair[1]);
   }
-  //
-  giscus.parse(raw_toml_);
   //
   const std::string theme_dir = toml::find_or_default<std::string>(raw_toml_, "theme_dir");
   const std::string theme_name = toml::find_or_default<std::string>(raw_toml_, "theme_name");

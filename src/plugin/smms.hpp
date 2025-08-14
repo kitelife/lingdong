@@ -226,7 +226,7 @@ inline bool SmmsOpenAPI::del(const std::string& hash) {
 
 class Smms final : public Plugin {
 public:
-  bool init(ContextPtr context_ptr) override;
+  bool init(ContextPtr& context_ptr) override;
   bool run(const MarkdownPtr& md_ptr) override;
   bool destroy() override;
 
@@ -242,7 +242,10 @@ private:
   tsl::robin_set<std::string> smms_supported_exts {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"};
 };
 
-inline bool Smms::init(ContextPtr context_ptr) {
+inline bool Smms::init(ContextPtr& context_ptr) {
+  if (!Plugin::init(context_ptr)) {
+    return false;
+  }
   config_ = context_ptr->with_config();
   const auto api_token = toml::find_or<std::string>(config_->raw_toml_, "smms", "api_token", "");
   if (api_token.empty()) {
@@ -257,9 +260,12 @@ inline bool Smms::init(ContextPtr context_ptr) {
     api_ = SmmsOpenAPI{};
     api_.set_api_token(api_token);
   }
-  load_upload_history();
-  //
-  inited_ = true;
+  try {
+    load_upload_history();
+  } catch (std::runtime_error& err) {
+    spdlog::error("Plugin Smms init error: {}", err.what());
+    return false;
+  }
   return true;
 }
 

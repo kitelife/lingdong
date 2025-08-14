@@ -36,6 +36,14 @@ repo_id = "MDEwOlJlcG9zaXRvcnk4NTg1Njcx"
 category = "giscus"
 category_id = "DIC_kwDOAIMBx84Ctgkx"
 
+[gtalk]
+enable = true
+client_id = ""
+client_secret = ""
+repo = "kitelife.github.com"
+owner = "kitelife"
+admin = "kitelife"
+
 [storage]
 db_file_path = "../dist/ling.db"
 init_sql = [
