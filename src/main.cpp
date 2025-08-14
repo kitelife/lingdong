@@ -8,7 +8,7 @@
 #include "maker.hpp"
 #include "server.hpp"
 
-DEFINE_string(dir, "../demo/blog", "working directory");
+DEFINE_string(dir, "../../demo/blog", "working directory");
 DEFINE_bool(skip_make, true, "skip make or not");
 DEFINE_bool(enable_serve, true, "enable to serve the static site");
 
@@ -36,7 +36,7 @@ bool test_post(const std::string& post_file) {
 }
 
 int main(int argc, char** argv) {
-  google::ParseCommandLineFlags(&argc, &argv, true);
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
   spdlog::set_level(spdlog::level::debug);
   spdlog::flush_on(spdlog::level::warn);
   spdlog::flush_every(std::chrono::seconds(30));

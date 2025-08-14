@@ -3,5 +3,6 @@
 git submodule update
 # https://google.github.io/googletest/quickstart-cmake.html
 #
-cmake -S . -B build
-cmake --build build
+conan install . --build=missing
+cmake --preset conan-release
+cmake --build --preset conan-release
