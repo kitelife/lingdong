@@ -30,12 +30,9 @@ id: linlang
 
 ## 字体
 
-- [仓耳今楷 05](https://www.tsanger.cn/)，中文字体
-- [朱雀仿宋](https://github.com/TrionesType/zhuque)，中文字体
-- [mononoki](https://madmalik.github.io/mononoki/)，等宽字体
-- [Geist Mono](https://fonts.google.com/specimen/Geist+Mono)，等宽字体
-- [DM Mono](https://fonts.google.com/specimen/DM+Mono)，等宽字体
-- [Albert Sans](https://fonts.google.com/specimen/Albert+Sans)，UI&英文
+- 中文字体：[仓耳今楷 05](https://www.tsanger.cn/)、[朱雀仿宋](https://github.com/TrionesType/zhuque)、
+- 等宽字体：[DM Mono](https://fonts.google.com/specimen/DM+Mono)、[mononoki](https://madmalik.github.io/mononoki/)、[Geist Mono](https://fonts.google.com/specimen/Geist+Mono)
+- UI&英文：[Outfit](https://fonts.google.com/specimen/Outfit)、[Albert Sans](https://fonts.google.com/specimen/Albert+Sans)
 
 ## 博客
 
