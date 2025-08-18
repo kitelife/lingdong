@@ -7,7 +7,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build:
+  build-on-macos:
 
     runs-on: macos-latest
 
@@ -17,6 +17,29 @@ jobs:
       run: git submodule update --init --recursive
     - name: install conan
       run: pip install conan
+    - name: conan profile
+      run: conan profile detect
+    - name: conan dep
+      run: conan install . --build=missing
+    - name: cmake present conan
+      run: cmake --preset conan-release
+    - name: cmake build
+      run: cmake --build --preset conan-release
+
+  build-on-ubuntu:
+  
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: git submodule
+      run: git submodule update --init --recursive
+    - name: Install package
+      run: |
+          sudo apt-get update
+          sudo apt-get -y install cmake clang openssl openssl-devel conan
+          which cmake
+          which conan
     - name: conan profile
       run: conan profile detect
     - name: conan dep
