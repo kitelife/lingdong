@@ -17,6 +17,8 @@ jobs:
       run: git submodule update
     - name: install conan
       run: pip install conan
+    - name: conan profile
+      run: conan profile detect
     - name: conan dep
       run: conan install . --build=missing
     - name: cmake present conan
