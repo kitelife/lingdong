@@ -15,7 +15,9 @@ jobs:
     - uses: actions/checkout@v4
     - name: submodule update
       run: git submodule update
-    - name: conan install
+    - name: install conan
+      run: pip install conan
+    - name: conan dep
       run: conan install . --build=missing
     - name: cmake present conan
       run: cmake --preset conan-release
