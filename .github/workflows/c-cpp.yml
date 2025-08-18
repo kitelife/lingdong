@@ -9,14 +9,14 @@ on:
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    runs-on: macos-15-arm64
 
     steps:
     - uses: actions/checkout@v4
     - name: git submodule
       run: git submodule update --init --recursive
-    - name: apt install
-      run: apt install cmake clang openssl openssl-devel conan
+    - name: install conan
+      run: pip install conan
     - name: conan profile
       run: conan profile detect
     - name: conan dep
