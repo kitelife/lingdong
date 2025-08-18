@@ -37,9 +37,10 @@ jobs:
     - name: Install package
       run: |
           sudo apt-get update
-          sudo apt-get -y install cmake clang openssl openssl-devel conan
+          sudo apt-get -y install cmake clang openssl libssl-dev
           which cmake
           which conan
+          pip install conan
     - name: conan profile
       run: conan profile detect
     - name: conan dep
