@@ -24,10 +24,12 @@ jobs:
           which cmake
           pip install conan
           which conan
-          mkdir -p ~/.conan/profiles
           cp ubuntu-clang-conan-profile ~/.conan/profiles/clang
       - name: conan profile
-        run: conan profile detect
+        run: |
+          conan profile detect
+          cp linux-clang-conan-profile ~/.conan/profiles/clang
+          tree ~/.conan/profiles
       - name: conan dep
         run: conan install . --profile=clang --build=missing
       - name: cmake present conan
