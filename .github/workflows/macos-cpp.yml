@@ -1,0 +1,27 @@
+name: MacOS C/C++ CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-on:
+
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: git submodule
+      run: git submodule update --init --recursive
+    - name: install conan
+      run: pip install conan
+    - name: conan profile
+      run: conan profile detect
+    - name: conan dep
+      run: conan install . --build=missing
+    - name: cmake present conan
+      run: cmake --preset conan-release
+    - name: cmake build
+      run: cmake --build --preset conan-release

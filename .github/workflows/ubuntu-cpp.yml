@@ -1,0 +1,35 @@
+name: Ubuntu C/C++ CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-on:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: git submodule
+        run: git submodule update --init --recursive
+      - name: Install package
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install cmake clang openssl libssl-dev
+          which clang
+          which clang++
+          which cmake
+          pip install conan
+          which conan
+          tree
+          mkdir -p ~/.conan/profiles
+          cp ubuntu-clang-conan-profile ~/.conan/profiles/clang
+      - name: conan dep
+        run: conan install . --profile=clang --build=missing
+      - name: cmake present conan
+        run: cmake --preset conan-release
+      - name: cmake build
+        run: cmake --build --preset conan-release
