@@ -1,0 +1,23 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: submodule update
+      run: git submodule update
+    - name: conan install
+      run: conan install . --build=missing
+    - name: cmake present conan
+      run: cmake --preset conan-release
+    - name: cmake build
+      run: cmake --build --preset conan-release
