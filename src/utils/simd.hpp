@@ -75,7 +75,7 @@ static float distance_ip(std::vector<float> va, std::vector<float> vb) {
   __m256 abVec = _mm256_setzero_ps(); // initialize to 0
   __m256 aVec;
   __m256 bVec;
-  int n = dim;
+  int n = va.size();
   while (n >= BATCH_SIZE) {
     aVec = _mm256_loadu_ps(a);                  // load 8 floats from memory
     bVec = _mm256_loadu_ps(b);                  // load 8 floats from memory

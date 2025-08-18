@@ -551,6 +551,7 @@ bool Markdown::parse_paragraph(const std::string& line, const ParagraphPtr& para
         idx += 2;
         break;
       default:
+        break;
     }
   }
   while (idx < clean_line_view.size()) {

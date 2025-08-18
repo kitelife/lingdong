@@ -15,21 +15,21 @@ jobs:
       - uses: actions/checkout@v4
       - name: git submodule
         run: git submodule update --init --recursive
-      - name: Install package
+      - name: env check and install dep
         run: |
-          sudo apt-get update
-          sudo apt-get -y install cmake clang openssl libssl-dev
           which clang
+          clang --version
           which clang++
+          clang++ --version
           which cmake
+          sudo apt-get install libc++-dev libc++abi-dev
           pip install conan
           which conan
-          cp ubuntu-clang-conan-profile ~/.conan/profiles/clang
       - name: conan profile
         run: |
           conan profile detect
-          cp linux-clang-conan-profile ~/.conan/profiles/clang
-          tree ~/.conan/profiles
+          cp linux-clang-conan-profile ~/.conan2/profiles/clang
+          tree ~/.conan2/profiles
       - name: conan dep
         run: conan install . --profile=clang --build=missing
       - name: cmake present conan
