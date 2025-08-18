@@ -22,24 +22,7 @@ find_package(cpr REQUIRED)
 find_package(libuv REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(GTest REQUIRED)
-
-include(FetchContent)
-
-FetchContent_Declare(
-        roaring
-        GIT_REPOSITORY https://github.com/RoaringBitmap/CRoaring.git
-        GIT_TAG v4.3.5
-        GIT_SHALLOW TRUE
-)
-set(ENABLE_ROARING_TESTS OFF CACHE INTERNAL "")
-set(ROARING_BUILD_STATIC ON CACHE INTERNAL "")
-
-FetchContent_MakeAvailable(roaring)
-
-FetchContent_GetProperties(roaring)
-SET(CPP_ROARING_HEADERS ${roaring_SOURCE_DIR}/cpp/roaring64map.hh  ${roaring_SOURCE_DIR}/cpp/roaring.hh)
-file(COPY ${CPP_ROARING_HEADERS} DESTINATION ${roaring_SOURCE_DIR}/include/roaring)
-
+find_package(roaring REQUIRED)
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     add_compile_options(-fdiagnostics-color=always)
@@ -113,7 +96,7 @@ target_link_libraries(
         dl
         #
         tsl::robin_map
-        roaring
+        roaring::roaring
         xsimd
         tinyxml2::tinyxml2
         fmt::fmt

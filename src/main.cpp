@@ -10,6 +10,7 @@
 
 DEFINE_string(dir, "../../demo/blog", "working directory");
 DEFINE_bool(skip_make, true, "skip make or not");
+DEFINE_bool(force_make, false, "ignore cache to force make");
 DEFINE_bool(enable_serve, true, "enable to serve the static site");
 
 DEFINE_string(test_post, "", "for test, to parse single post");
@@ -24,7 +25,7 @@ ConfigPtr load_conf(const std::string& conf_file_path = "config.toml") {
 }
 
 bool test_post(const std::string& post_file) {
-  auto post_ptr = std::make_shared<ling::Post>(std::filesystem::path(post_file));
+  auto post_ptr = std::make_shared<Post>(path(post_file));
   if (!post_ptr->parse()) {
     return false;
   }
@@ -57,7 +58,7 @@ int main(int argc, char** argv) {
   // make
   if (!FLAGS_skip_make) {
     const auto maker = std::make_shared<Maker>();
-    if (!maker->make()) {
+    if (!maker->make(FLAGS_force_make)) {
       spdlog::error("failed to make!");
       return -1;
     }

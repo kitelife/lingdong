@@ -19,6 +19,7 @@ public:
   }
 
 public:
+  path base_path_;
   path static_path_;
   path template_path_;
   //
@@ -26,9 +27,6 @@ public:
   path template_post{"post.html"};
   path template_posts{"posts.html"};
   path template_rss{"rss.xml"};
-
-private:
-  path base_path_;
 };
 
 using ThemePtr = std::shared_ptr<Theme>;
