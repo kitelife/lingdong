@@ -38,9 +38,13 @@ jobs:
       run: |
           sudo apt-get update
           sudo apt-get -y install cmake clang openssl libssl-dev
+          which clang
+          which clang++
           which cmake
           pip install conan
           which conan
+          export CC=/usr/bin/clang
+          export CXX=/usr/bin/clang++
     - name: conan profile
       run: conan profile detect
     - name: conan dep
