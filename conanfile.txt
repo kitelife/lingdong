@@ -14,6 +14,7 @@ cpr/1.12.0
 libuv/1.49.2
 zlib/1.3.1
 gtest/1.16.0
+roaring/4.2.1
 
 [generators]
 CMakeDeps

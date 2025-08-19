@@ -240,7 +240,6 @@ inline bool Maker::parse() {
     spdlog::debug("success to parse post: {}", post->file_path());
     plugins.run(post->parser());
   }
-  plugins.destroy();
   // 按时间从大到小排序，如果时间相同，则比较标题
   std::sort(posts_.begin(), posts_.end(), [](const PostPtr& p1, const PostPtr& p2) {
     if (p1->updated_at() == p2->updated_at()) {
@@ -249,14 +248,16 @@ inline bool Maker::parse() {
     return p1->updated_at() > p2->updated_at();
   });
   //
-  std::for_each(pages_.begin(), pages_.end(), [](auto& page) {
+  std::for_each(pages_.begin(), pages_.end(), [&](auto& page) {
     spdlog::debug("try to pase page: {}", page->file_path());
     if (!page->parse()) {
       spdlog::error("failed to parse page: {}", page->file_path());
       return;
     }
     spdlog::debug("success to parse page: {}", page->file_path());
+    plugins.run(page->parser());
   });
+  plugins.destroy();
   return true;
 }
 

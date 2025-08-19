@@ -79,7 +79,7 @@ static void static_file_handler(const HttpRequest& req, const HttpResponsePtr& r
   }
   std::ifstream file_stream;
   file_stream.open(file_path);
-  DeferGuard defer_guard([&]() { file_stream.close(); });
+  utils::DeferGuard defer_guard([&]() { file_stream.close(); });
   if (file_stream.fail()) {
     resp->with_body(CODE2MSG[HttpStatusCode::INTERNAL_ERR]);
     resp->with_code(HttpStatusCode::INTERNAL_ERR);

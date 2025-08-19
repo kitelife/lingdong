@@ -27,6 +27,7 @@ TEST(MarkdownTest, parse_table) {
         align_text = "right";
         break;
       default:
+        break;
     }
     std::cout << align_text << " |";
   }
