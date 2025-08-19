@@ -24,7 +24,7 @@ ConfigPtr load_conf(const std::string& conf_file_path = "config.toml") {
 }
 
 bool test_post(const std::string& post_file) {
-  auto post_ptr = std::make_shared<ling::Post>(std::filesystem::path(post_file));
+  auto post_ptr = std::make_shared<Post>(path(post_file));
   if (!post_ptr->parse()) {
     return false;
   }

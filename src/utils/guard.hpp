@@ -3,7 +3,7 @@
 #include <utility>
 #include <functional>
 
-namespace ling {
+namespace ling::utils {
 
 class MemoryGuard {
 public:

@@ -37,7 +37,7 @@
     - [x] 评论插件
       - [x] [giscus](https://giscus.app/zh-CN)
       - [x] [GitTalk](https://gitalk.github.io/)
-  - [ ] 状态缓存
+  - [ ] ~~状态缓存~~
   - [ ] AI 简写
   - [ ] 并行化加速
 

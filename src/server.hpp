@@ -110,7 +110,7 @@ inline ParseStatus RequestBuffer::try_parse() {
 inline bool RequestBuffer::fill_peer_info(uv_stream_t* client) {
   int peer_addr_len = sizeof(sockaddr);
   auto* peer_addr = static_cast<sockaddr*>(malloc(peer_addr_len));
-  MemoryGuard memory_guard {peer_addr};
+  utils::MemoryGuard memory_guard {peer_addr};
   auto err_code = uv_tcp_getpeername(reinterpret_cast<uv_tcp_t*>(client), peer_addr, &peer_addr_len);
   if (err_code != 0) {
     spdlog::error("failed to get peer addr");
