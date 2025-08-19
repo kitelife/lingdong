@@ -190,22 +190,24 @@ inline bool PlantUML::run(const MarkdownPtr& md_ptr) {
     if (codeblock->lang_name != "plantuml" && codeblock->lang_name != "plantuml-svg") {
       continue;
     }
-    auto [fst, snd] = diagram_desc2pic(codeblock->lines);
-    if (!fst) {
-      return false;
-    }
     // WARNING: 此处不要使用 absl::Hash，因为它在不同线程中运行时使用的种子不一样，导致同样的输入，生成的哈希值会不一样。
     auto hash_value = std::hash<std::string>{}(absl::StrJoin(codeblock->lines, "\n"));
     auto svg_file_path = target_img_dir_ / fmt::format("{0}.svg", hash_value);
-    std::fstream svg_file_stream;
-    svg_file_stream.open(svg_file_path, std::ios::out | std::ios::trunc);
-    if (!svg_file_stream.is_open()) {
-      spdlog::error("Failed to open plantuml svg file");
-      continue;
+    if (!exists(svg_file_path)) {
+      auto [fst, snd] = diagram_desc2pic(codeblock->lines);
+      if (!fst) {
+        return false;
+      }
+      std::fstream svg_file_stream;
+      svg_file_stream.open(svg_file_path, std::ios::out | std::ios::trunc);
+      if (!svg_file_stream.is_open()) {
+        spdlog::error("Failed to open plantuml svg file");
+        continue;
+      }
+      svg_file_stream << snd;
+      svg_file_stream.flush();
+      svg_file_stream.close();
     }
-    svg_file_stream << snd;
-    svg_file_stream.flush();
-    svg_file_stream.close();
     // 替换
     auto* image_ptr = new Image();
     image_ptr->width = "";

@@ -101,22 +101,25 @@ inline bool Mermaid::run(const MarkdownPtr& md_ptr) {
     auto mmd_diagram = absl::StrJoin(codeblock->lines, "\n");
     auto hash_value = absl::Hash<std::string>{}(mmd_diagram);
     auto mmd_file_path = temp_dir / fmt::format("{0}.mmd", hash_value);
-    std::fstream mmd_file_stream(mmd_file_path, std::ios::out | std::ios::trunc);
-    if (!mmd_file_stream.is_open()) {
-      spdlog::error("Failed to open file {}", mmd_file_path);
-      continue;
-    }
-    mmd_file_stream << mmd_diagram;
-    mmd_file_stream.flush();
-    mmd_file_stream.close();
-    permissions(mmd_file_path, std::filesystem::perms::owner_all | std::filesystem::perms::group_all,
-                std::filesystem::perm_options::add);
     //
     auto svg_file_name = fmt::format("{}.svg", hash_value);
-    auto svg_path = dist_img_dir/ svg_file_name;
-    if (!mmd2svg(mmd_file_path, svg_path)) {
-      spdlog::error("Failed to export mmd to svg!");
-      continue;
+    auto svg_path = dist_img_dir / svg_file_name;
+    if (!exists(svg_path)) {
+      std::fstream mmd_file_stream(mmd_file_path, std::ios::out | std::ios::trunc);
+      if (!mmd_file_stream.is_open()) {
+        spdlog::error("Failed to open file {}", mmd_file_path);
+        continue;
+      }
+      mmd_file_stream << mmd_diagram;
+      mmd_file_stream.flush();
+      mmd_file_stream.close();
+      permissions(mmd_file_path, std::filesystem::perms::owner_all | std::filesystem::perms::group_all,
+                  std::filesystem::perm_options::add);
+
+      if (!mmd2svg(mmd_file_path, svg_path)) {
+        spdlog::error("Failed to export mmd to svg!");
+        continue;
+      }
     }
     // 替换
     auto* image_ptr = new Image();
