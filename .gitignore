@@ -9,3 +9,4 @@ package-lock.json
 .smms_cache/
 demo/blog/plantuml-images/
 _draft/
+.make_cache

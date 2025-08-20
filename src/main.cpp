@@ -9,8 +9,9 @@
 #include "server.hpp"
 
 DEFINE_string(dir, "../../demo/blog", "working directory");
-DEFINE_bool(skip_make, true, "skip make or not");
+DEFINE_bool(skip_make, false, "skip make or not");
 DEFINE_bool(enable_serve, true, "enable to serve the static site");
+DEFINE_bool(ignore_cache, false, "ignore cache to remake");
 
 DEFINE_string(test_post, "", "for test, to parse single post");
 
@@ -57,7 +58,7 @@ int main(int argc, char** argv) {
   // make
   if (!FLAGS_skip_make) {
     const auto maker = std::make_shared<Maker>();
-    if (!maker->make()) {
+    if (!maker->make(FLAGS_ignore_cache)) {
       spdlog::error("failed to make!");
       return -1;
     }
