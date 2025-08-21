@@ -10,3 +10,4 @@ package-lock.json
 demo/blog/plantuml-images/
 _draft/
 .make_cache
+.venv/

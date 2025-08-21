@@ -6,6 +6,11 @@ if [ ${check_status} -eq 1 ] ; then
   brew install cmake
 fi
 
+if [ ! -d ".venv" ]; then
+  virtualenv .venv
+fi
+source .venv/bin/activate
+
 which conan
 check_status=$?
 if [ ${check_status} -eq 1 ]; then
