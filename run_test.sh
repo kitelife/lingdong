@@ -2,10 +2,13 @@
 
 target=$1
 
-pushd build/Release
-if [ "$target" == "" ]; then
+cwd=$(pwd)
+cd build/Release
+
+if [ -z "$target" ]; then
   ctest -E SmmsPluginTest
 else
   ctest -R $target
 fi
-popd
+
+cd ${cwd}

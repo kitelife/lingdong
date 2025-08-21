@@ -1,24 +1,37 @@
 #!/usr/bin/env bash
 
-ret_status=$(which clang)
-if [ ${ret_status} == 1 ]; then
+ret=$(which clang)
+if [ -z "${ret}" ]; then
   sudo apt-get install clang
 fi
 
-ret_status=$(which cmake)
-if [ ${ret_status} == 1 ]; then
+ret=$(which cmake)
+if [ -z "${ret}" ]; then
   sudo apt-get install cmake
 fi
 
 sudo apt-get install libc++-dev libc++abi-dev openssl libssl-dev
 
-which conan
-check_status=$?
-if [ ${check_status} -eq 1 ]; then
+ret=$(which python3)
+if [ -z "${ret}" ]; then
+  sudo apt-get install python3 python3-virtualenv python3-pip
+fi
+alias python=python3
+
+if [ ! -d ".venv" ]; then
+  virtualenv .venv
+fi
+
+source .venv/bin/activate
+
+ret=$(which conan)
+if [ -z "${ret}" ]; then
   pip install conan
 fi
 
-conan profile detect
+if [ ! -f ~/.conan2/profiles/default ]; then
+  conan profile detect
+fi
 cp linux-clang-conan-profile ~/.conan2/profiles/clang
 
 tree ~/.conan2/profiles
