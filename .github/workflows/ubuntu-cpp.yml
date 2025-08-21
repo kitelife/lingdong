@@ -36,3 +36,7 @@ jobs:
         run: cmake --preset conan-release
       - name: cmake build
         run: cmake --build --preset conan-release
+      - name: ctest
+        run: |
+          chmod +x run_test.sh
+          ./run_test.sh

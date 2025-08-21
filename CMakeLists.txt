@@ -1,12 +1,10 @@
-cmake_minimum_required(VERSION 3.23)
+cmake_minimum_required(VERSION 3.31)
+
+project(lingdong LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_C_COMPILER, "clang")
-set(CMAKE_CXX_COMPILER "clang++")
-
-project(lingdong LANGUAGES CXX)
 
 find_package(gflags REQUIRED)
 find_package(fmt REQUIRED)
@@ -24,22 +22,29 @@ find_package(ZLIB REQUIRED)
 find_package(GTest REQUIRED)
 find_package(roaring REQUIRED)
 
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    set(CMAKE_C_COMPILER, "/usr/bin/clang")
+    set(CMAKE_CXX_COMPILER "/usr/bin/clang++")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -mavx2 -mfma")
+endif()
+
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     add_compile_options(-fdiagnostics-color=always)
 elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     add_compile_options(-fcolor-diagnostics)
 endif()
 
-if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -mavx2 -mfma")
-endif()
-
 # https://github.com/pantor/inja, 另一个选择是 https://github.com/jinja2cpp/Jinja2Cpp
 # conan 上的版本太老了
 add_subdirectory(third_party/inja)
 
+# https://github.com/yanyiwu/cppjieba
+add_subdirectory(third_party/cppjieba)
 # https://cmake.org/cmake/help/latest/command/include_directories.html#command:include_directories
-include_directories(src)
+include_directories(src
+        third_party/cppjieba/include
+        third_party/cppjieba/deps/limonp/include
+)
 
 add_executable(lingdong src/main.cpp
         src/maker.hpp
@@ -74,6 +79,7 @@ add_executable(lingdong src/main.cpp
         src/utils/rate_limit.hpp
         src/utils/blocking_queue.hpp
         src/utils/executor.hpp
+        src/utils/tokenizer.hpp
 )
 target_compile_options(lingdong PRIVATE -O0 -g)
 
@@ -101,6 +107,7 @@ target_link_libraries(
         tinyxml2::tinyxml2
         fmt::fmt
         ZLIB::ZLIB
+        cppjieba
 )
 
 # for testing
@@ -126,6 +133,9 @@ add_executable(
 
         src/utils/strings.hpp
         src/utils/time.hpp
+
+        src/utils/tokenizer.hpp
+        src/utils/tokenizer_test.cpp
 )
 target_link_libraries(
         test_lingdong
@@ -145,6 +155,7 @@ target_link_libraries(
         tsl::robin_map
         xsimd
         spdlog::spdlog
+        cppjieba
 )
 include(GoogleTest)
 gtest_discover_tests(test_lingdong)
