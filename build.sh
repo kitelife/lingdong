@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 
 os=$(uname)
+chmod +x ./build_on_*
 if [ "$os" == "Darwin" ]; then
-  sh ./build_on_macosx.sh
+  ./build_on_macosx.sh
 else
-  sh ./build_on_ubuntu.sh
+  ./build_on_ubuntu.sh
 fi
