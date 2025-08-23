@@ -83,5 +83,4 @@ QueryResultPtr LocalSqlite::query(const std::string& sql) const {
   return qr;
 }
 
-
 }

@@ -80,6 +80,7 @@ add_executable(lingdong src/main.cpp
         src/utils/blocking_queue.hpp
         src/utils/executor.hpp
         src/utils/tokenizer.hpp
+        src/utils/ollama.hpp
 )
 target_compile_options(lingdong PRIVATE -O0 -g)
 
@@ -110,6 +111,20 @@ target_link_libraries(
         cppjieba
 )
 
+add_executable(hacker_news src/task/hacker_news.cpp
+        src/utils/executor.hpp
+        src/utils/blocking_queue.hpp
+)
+
+target_compile_options(hacker_news PRIVATE -O0 -g)
+
+target_link_libraries(hacker_news
+        cpr::cpr
+        inja
+        spdlog::spdlog
+        gflags::gflags
+)
+
 # for testing
 enable_testing()
 add_executable(
@@ -136,6 +151,9 @@ add_executable(
 
         src/utils/tokenizer.hpp
         src/utils/tokenizer_test.cpp
+
+        src/utils/ollama.hpp
+        src/utils/ollama_test.cpp
 )
 target_link_libraries(
         test_lingdong
