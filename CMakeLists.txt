@@ -46,6 +46,10 @@ include_directories(src
         third_party/cppjieba/deps/limonp/include
 )
 
+# https://github.com/nmslib/hnswlib
+add_subdirectory(third_party/hnswlib)
+include_directories(third_party/hnswlib)
+
 add_executable(lingdong src/main.cpp
         src/maker.hpp
         src/server.hpp
@@ -114,6 +118,7 @@ target_link_libraries(
 add_executable(hacker_news src/task/hacker_news.cpp
         src/utils/executor.hpp
         src/utils/blocking_queue.hpp
+        src/utils/perf.hpp
 )
 
 target_compile_options(hacker_news PRIVATE -O0 -g)
@@ -123,6 +128,7 @@ target_link_libraries(hacker_news
         inja
         spdlog::spdlog
         gflags::gflags
+        hnswlib
 )
 
 # for testing
