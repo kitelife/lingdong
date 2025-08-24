@@ -3,12 +3,12 @@
 target=$1
 
 cwd=$(pwd)
-cd build/Release
+cd build/Release || exit
 
 if [ -z "$target" ]; then
   ctest -E SmmsPluginTest
 else
-  ctest -R $target
+  ctest -R "$target"
 fi
 
-cd ${cwd}
+cd "${cwd}" || exit

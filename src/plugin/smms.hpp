@@ -140,7 +140,7 @@ inline HistoryVec SmmsOpenAPI::fetch_upload_history() {
       return std::make_pair(false, 0);
     }
     const auto rj = json::parse(r.text);
-    if (!rj.contains("success") || !rj["success"].is_boolean() || rj["success"].get<bool>() == false) {
+    if (!rj.contains("success") || !rj["success"].is_boolean() || !rj["success"].get<bool>()) {
       spdlog::error("Failed to fetch upload history, resp: {}", r.text);
       return std::make_pair(false, 0);
     }
@@ -195,8 +195,8 @@ inline SmmsUploadResult SmmsOpenAPI::upload(const path& image_path) {
     return upload_result;
   }
   const auto rj = json::parse(r.text);
-  if (!rj.contains("success") || !rj["success"].is_boolean() || rj["success"].get<bool>() == false ||
-    !rj.contains("data") || !rj["data"].is_object()) {
+  if (!rj.contains("success") || !rj["success"].is_boolean() || !rj["success"].get<bool>() ||
+      !rj.contains("data") || !rj["data"].is_object()) {
     spdlog::error("Failed to upload image, resp: {}, image path: {}, image name: {}",
       r.text, img_ap.string(), img_ap.filename().string());
     return upload_result;
@@ -217,7 +217,7 @@ inline bool SmmsOpenAPI::del(const std::string& hash) {
     return false;
   }
   const auto rj = json::parse(r.text);
-  if (!rj.contains("success") || !rj["success"].is_boolean() || rj["success"].get<bool>() == false) {
+  if (!rj.contains("success") || !rj["success"].is_boolean() || !rj["success"].get<bool>()) {
     spdlog::error("Failed to delete image, resp: {}", r.text);
     return false;
   }
