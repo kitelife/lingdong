@@ -11,7 +11,8 @@
 
 namespace ling::utils {
 
-using Embeddings = std::vector<std::vector<float>>;
+using Embedding = std::vector<float>;
+using Embeddings = std::vector<Embedding>;
 
 // https://github.com/ollama/ollama
 
@@ -21,6 +22,8 @@ public:
   Embeddings generate_embeddings(std::vector<std::string>& inputs);
   //
   static bool is_service_running();
+  static std::vector<std::string> list_local_models();
+  bool is_model_serving();
 
 private:
   std::string model_name_;
@@ -52,13 +55,47 @@ Embeddings Ollama::generate_embeddings(std::vector<std::string> &inputs) {
     spdlog::error("illegal resp: {}", r.text);
     return {};
   }
-  return rj["embeddings"].get<std::vector<std::vector<float>>>();
+  return rj["embeddings"].get<Embeddings>();
 }
 
 bool Ollama::is_service_running() {
   auto r = cpr::Get(cpr::Url{HOST_+"/api/version"}, cpr::Timeout{std::chrono::milliseconds (500)},
                     cpr::ConnectTimeout{std::chrono::milliseconds (200)});
   return r.error.code == cpr::ErrorCode::OK;
+}
+
+// https://github.com/ollama/ollama/blob/main/docs/api.md#list-local-models
+
+std::vector<std::string> Ollama::list_local_models() {
+  auto r = cpr::Get(cpr::Url{HOST_+"/api/tags"},
+                    cpr::Timeout{std::chrono::milliseconds(500)},
+                    cpr::ConnectTimeout{std::chrono::milliseconds(200)});
+  if (r.status_code != 200) {
+    spdlog::error("failure to list local models");
+    return {};
+  }
+  nlohmann::json j = nlohmann::json::parse(r.text);
+  if (!j.contains("models") || !j["models"].is_array()) {
+    spdlog::error("illegal resp: {}", r.text);
+    return {};
+  }
+  std::vector<std::string> models;
+  for (auto& m : j["models"]) {
+    if (m.contains("model")) {
+      models.emplace_back(m["model"].get<std::string>());
+    }
+  }
+  return models;
+}
+
+bool Ollama::is_model_serving() {
+  if (!Ollama::is_service_running()) {
+    return false;
+  }
+  auto models = list_local_models();
+  return std::any_of(models.begin(), models.end(), [&](const std::string& model) {
+    return model == model_name_;
+  });
 }
 
 }
