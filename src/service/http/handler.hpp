@@ -289,6 +289,8 @@ static void search_hacker_news_handler(const HttpRequest& req, const HttpRespons
     nlohmann::json one {};
     one["id"] = item_ptr->id;
     one["title"] = item_ptr->title;
+    one["url"] = item_ptr->url;
+    one["score"] = item_ptr->score;
     one["ann_score"] = score;
     resp_data["result"].emplace_back(one);
   }

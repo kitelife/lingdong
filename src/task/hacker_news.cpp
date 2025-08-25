@@ -17,10 +17,8 @@
 #include "utils/executor.hpp"
 #include "utils/guard.hpp"
 #include "utils/ollama.hpp"
-#include "utils/perf.hpp"
 
 namespace ling::task {
-
 DEFINE_string(wd, "../../data/hn", "working dir");
 DEFINE_uint32(sub_task, 0, "sub task type");
 DEFINE_uint32(max_item_id, 0, "max limit for item id");
@@ -68,48 +66,47 @@ HackerNewItemPtr HackerNewsApi::item_info(uint32_t id) {
 }
 
 void crawl_hn() {
-  HackerNewsApi api;
-  //
   uint32_t max_item_id;
   if (FLAGS_max_item_id > 0) {
     max_item_id = FLAGS_max_item_id;
   } else {
-    max_item_id = api.max_item_id();
+    max_item_id = HackerNewsApi::max_item_id();
   }
   if (max_item_id == 0) {
     spdlog::error("failure to get max item id");
     return;
   }
-  std::ofstream ofs{HN_ITEM_FILE, std::ios::app};
+  std::ofstream ofs{HN_STORY_FILE, std::ios::app};
   if (!ofs.is_open()) {
     spdlog::error("failure to open hn.json");
     return;
   }
   DeferGuard ifs_close_guard{[&ofs]() {
-      ofs.close();
+    ofs.close();
   }};
   //
   Executor tp{"fetch-hn-item", 1024, 5 * std::thread::hardware_concurrency()};
   DeferGuard tp_join_guard{[&tp]() {
-      tp.join();
+    tp.join();
   }};
   //
   std::queue<std::pair<uint32_t, HackerNewItemPtr>> ready_item_q;
   std::mutex q_lock;
   //
-  auto pf = std::async(std::launch::async, [max_item_id, &api, &tp, &q_lock, &ready_item_q]() {
-      for (uint32_t id = max_item_id; id > 0; id--) {
-        tp.async_execute([id, &api, &q_lock, &ready_item_q]() {
-            auto item_ptr = api.item_info(id);
-            if (item_ptr == nullptr) {
-              spdlog::error("failure to fetch item item for {}", id);
-            }
-            std::lock_guard q_lock_guard{q_lock};
-            ready_item_q.emplace(id, item_ptr);
-        });
-      }
+  auto pf = std::async(std::launch::async, [max_item_id, &tp, &q_lock, &ready_item_q]() {
+    for (uint32_t id = max_item_id; id > 0; id--) {
+      tp.async_execute([id, &q_lock, &ready_item_q]() {
+        auto item_ptr = HackerNewsApi::item_info(id);
+        if (item_ptr == nullptr) {
+          spdlog::error("failure to fetch item item for {}", id);
+        }
+        std::lock_guard q_lock_guard{q_lock};
+        ready_item_q.emplace(id, item_ptr);
+      });
+    }
   });
   uint32_t ready_id_cnt = 0;
+  uint32_t valid_story_cnt = 0;
   while (ready_id_cnt < max_item_id) {
     HackerNewItemPtr item_ptr;
     {
@@ -117,20 +114,35 @@ void crawl_hn() {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
       }
       std::lock_guard q_lock_guard{q_lock};
-      auto &id2ptr = ready_item_q.front();
+      auto& id2ptr = ready_item_q.front();
       item_ptr = id2ptr.second;
       ready_item_q.pop();
     }
     ready_id_cnt++;
-    if (item_ptr == nullptr) {
+    if (item_ptr == nullptr || item_ptr->dead || item_ptr->deleted ||
+      item_ptr->type != "story" || item_ptr->title.empty() || item_ptr->url.empty()) {
       continue;
     }
     nlohmann::json item_info{};
     item_ptr->to_json(item_info);
     ofs << item_info.dump() << std::endl;
+    valid_story_cnt++;
   }
   ofs.flush();
   pf.wait();
+  //
+  nlohmann::json story_meta {};
+  story_meta["max_item_id"] = max_item_id;
+  story_meta["valid_story_cnt"] = valid_story_cnt;
+  story_meta["updated_at"] = std::chrono::duration_cast<milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+  auto meta_s = story_meta.dump();
+  //
+  spdlog::info("finished to crawl hn, meta info: {}", meta_s);
+  //
+  std::ofstream story_meta_ofs {HN_STORY_META_FILE, std::ios::trunc};
+  story_meta_ofs << meta_s;
+  story_meta_ofs.flush();
+  story_meta_ofs.close();
 }
 
 static uint32_t MODEL_BATCH_SIZE = 16;
@@ -151,109 +163,98 @@ void hn_story_to_emb() {
   }
   uint32_t dim = embs[0].size();
   //
-  if (!std::filesystem::exists(HN_ITEM_FILE)) {
-    spdlog::error("{} not exist!", HN_ITEM_FILE);
+  if (!std::filesystem::exists(HN_STORY_FILE)) {
+    spdlog::error("{} not exist!", HN_STORY_FILE);
     return;
   }
-  std::ifstream ifs{HN_ITEM_FILE};
+  std::ifstream ifs{HN_STORY_FILE};
   if (!ifs.is_open()) {
-    spdlog::error("failure to open {}", HN_ITEM_FILE);
+    spdlog::error("failure to open {}", HN_STORY_FILE);
     return;
   }
   DeferGuard ifs_close_guard{[&ifs]() {
-      ifs.close();
+    ifs.close();
   }};
-  std::ofstream ofs{HN_STORY_EMB_FILE};
+  std::ofstream ofs{HN_STORY_EMB_FILE, std::ios::trunc};
   if (!ofs.is_open()) {
     spdlog::error("failure to open {}", HN_STORY_EMB_FILE);
     return;
   }
   DeferGuard ofs_close_guard{[&ofs]() {
-      ofs.close();
+    ofs.close();
   }};
   //
   Executor tp{"conv-story2emb", 1024, std::thread::hardware_concurrency()};
   DeferGuard tp_join_guard{[&tp]() {
-      tp.join();
+    tp.join();
   }};
   //
-  std::queue<std::pair<HackerNewItemPtr, std::vector<float>>> ready_emb_q;
+  std::queue<std::pair<uint32_t, std::vector<float>>> ready_emb_q;
   std::mutex q_lock;
   //
-  auto process_one_batch = [](Executor &tp,
-                              std::queue<std::pair<HackerNewItemPtr, std::vector<float>>> &ready_emb_q,
-                              std::mutex &q_lock, Ollama &mxbai_embed_large_oll,
+  auto process_one_batch = [](Executor& tp,
+                              std::queue<std::pair<uint32_t, std::vector<float>>>& ready_emb_q,
+                              std::mutex& q_lock,
+                              Ollama& mxbai_embed_large_oll,
                               std::vector<nlohmann::json> one_batch) {
-      std::vector<std::pair<nlohmann::json, std::string>> pairs;
-      pairs.reserve(MODEL_BATCH_SIZE);
-      std::transform(one_batch.begin(), one_batch.end(), std::back_inserter(pairs),
-                     [](const nlohmann::json &j) -> std::pair<nlohmann::json, std::string> {
-                         auto text = j["text"].get<std::string>();
-                         auto title = j["title"].get<std::string>();
-                         if (text.empty()) {
-                           return {j, title};
-                         }
-                         return {j, title += ";" + text};
-                     });
-      tp.async_execute([pairs, &mxbai_embed_large_oll, &ready_emb_q, &q_lock]() {
-          std::vector<std::string> model_input;
-          model_input.reserve(pairs.size());
-          for (auto &[_, s]: pairs) {
-            model_input.emplace_back(s);
-          }
-          Embeddings embs = mxbai_embed_large_oll.generate_embeddings(model_input);
-          for (size_t idx = 0; idx < embs.size(); idx++) {
-            HackerNewItemPtr item_ptr = std::make_shared<HackerNewItem>();
-            item_ptr->from_json(const_cast<nlohmann::json &>(pairs[idx].first));
-            std::lock_guard q_lock_guard{q_lock};
-            ready_emb_q.emplace(item_ptr, embs[idx]);
-          }
-      });
+    std::vector<std::pair<uint32_t, std::string>> pairs;
+    pairs.reserve(MODEL_BATCH_SIZE);
+    std::transform(one_batch.begin(), one_batch.end(), std::back_inserter(pairs),
+                   [](const nlohmann::json& j) -> std::pair<nlohmann::json, std::string> {
+                     return {j["id"].get<uint32_t>(), j["title"].get<std::string>()};
+                   });
+    tp.async_execute([pairs, &mxbai_embed_large_oll, &ready_emb_q, &q_lock]() {
+      std::vector<std::string> model_input;
+      model_input.reserve(pairs.size());
+      for (auto& [_, s] : pairs) {
+        model_input.emplace_back(s);
+      }
+      Embeddings embs = mxbai_embed_large_oll.generate_embeddings(model_input);
+      for (size_t idx = 0; idx < embs.size(); idx++) {
+        std::lock_guard q_lock_guard{q_lock};
+        ready_emb_q.emplace(pairs[idx].first, embs[idx]);
+      }
+    });
   };
   //
-  std::atomic_uint32_t item_cnt {0};
-  std::atomic_bool producer_finished {false};
-  auto pf = std::async(std::launch::async, [&ifs, &tp, &ready_emb_q, &q_lock,
-      &mxbai_embed_large_oll, &process_one_batch, &producer_finished, &item_cnt]() {
-      std::vector<nlohmann::json> one_batch;
-      for (std::string line; std::getline(ifs, line);) {
-        auto j = nlohmann::json::parse(line);
-        if (j["type"].get<std::string>() != "story" || j["dead"].get<bool>() ||
-            j["deleted"].get<bool>()) {
-          continue;
-        }
-        one_batch.emplace_back(j);
-        if (one_batch.size() < MODEL_BATCH_SIZE) {
-          continue;
-        }
-        process_one_batch(tp, ready_emb_q, q_lock, mxbai_embed_large_oll, one_batch);
-        item_cnt.fetch_add(one_batch.size()); //
-        one_batch = {};
-      }
-      if (!one_batch.empty()) {
-        process_one_batch(tp, ready_emb_q, q_lock, mxbai_embed_large_oll, one_batch);
-        item_cnt.fetch_add(one_batch.size());
-      }
-      producer_finished = true;
-  });
+  std::atomic_uint32_t item_cnt{0};
+  std::atomic_bool producer_finished{false};
+  auto pf = std::async(std::launch::async, [&ifs, &tp, &ready_emb_q, &q_lock, &mxbai_embed_large_oll,
+                         &process_one_batch, &producer_finished, &item_cnt]() {
+                         std::vector<nlohmann::json> one_batch;
+                         for (std::string line; std::getline(ifs, line);) {
+                           auto j = nlohmann::json::parse(line);
+                           one_batch.emplace_back(j);
+                           if (one_batch.size() < MODEL_BATCH_SIZE) {
+                             continue;
+                           }
+                           process_one_batch(tp, ready_emb_q, q_lock, mxbai_embed_large_oll, one_batch);
+                           item_cnt.fetch_add(one_batch.size()); //
+                           one_batch = {};
+                         }
+                         if (!one_batch.empty()) {
+                           process_one_batch(tp, ready_emb_q, q_lock, mxbai_embed_large_oll, one_batch);
+                           item_cnt.fetch_add(one_batch.size());
+                         }
+                         producer_finished = true;
+                       });
   auto cf = std::async(std::launch::async, [&producer_finished, &item_cnt, &ready_emb_q, &q_lock, &ofs]() {
     uint32_t consume_cnt = 0;
     while (!producer_finished || consume_cnt < item_cnt) {
       while (ready_emb_q.empty()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        std::this_thread::sleep_for(milliseconds(10));
       }
-      auto& [item_ptr, emb] = ready_emb_q.front();
-      nlohmann::json j {};
-      j["id"] = item_ptr->id;
-      j["title"] = item_ptr->title;
-      j["text"] = item_ptr->text;
-      j["url"] = item_ptr->url;
-      j["score"] = item_ptr->score;
+      auto& [story_id, emb] = ready_emb_q.front();
+      nlohmann::json j{};
+      j["id"] = story_id;
       j["emb"] = emb;
       ofs << j.dump() << std::endl;
-      std::lock_guard q_lock_guard {q_lock};
+      std::lock_guard q_lock_guard{q_lock};
       ready_emb_q.pop();
       consume_cnt++;
+      if (consume_cnt % 10000 == 0) {
+        spdlog::info("generate emb cnt: {}", consume_cnt);
+      }
     }
   });
   //
@@ -262,9 +263,9 @@ void hn_story_to_emb() {
   ofs.flush();
   // store meta info
   do {
-    auto meta_info = fmt::format(R"({"model_name": "{}", "dim": "{}", "cnt": {}})",
+    auto meta_info = fmt::format(R"({{"model_name": "{}", "dim": "{}", "cnt": {}}})",
                                  FLAGS_emb_model_name, dim, item_cnt.load());
-    std::ofstream meta_ofs {HN_STORY_EMB_META_FILE};
+    std::ofstream meta_ofs{HN_STORY_EMB_META_FILE};
     if (!meta_ofs.is_open()) {
       spdlog::error("failure to open meta file '{}', meta info: '{}'", HN_STORY_EMB_META_FILE, meta_info);
       break;
@@ -276,17 +277,17 @@ void hn_story_to_emb() {
 }
 
 nlohmann::json fetch_emb_meta_info() {
-  std::filesystem::path meta_file_path {HN_STORY_EMB_META_FILE};
+  std::filesystem::path meta_file_path{HN_STORY_EMB_META_FILE};
   if (!std::filesystem::exists(meta_file_path)) {
     spdlog::error("not exist meta file {}", meta_file_path.string());
     return {};
   }
-  std::ifstream meta_ifs {meta_file_path};
+  std::ifstream meta_ifs{meta_file_path};
   if (!meta_ifs.is_open()) {
     spdlog::error("failure to open meta file '{}'", HN_STORY_EMB_META_FILE);
     return {};
   }
-  DeferGuard ifs_close_guard {[&meta_ifs]() {
+  DeferGuard ifs_close_guard{[&meta_ifs]() {
     meta_ifs.close();
   }};
   std::string line;
@@ -301,12 +302,12 @@ void find_similarity_by_brute_force() {
     spdlog::warn("input sentence is empty!");
     return;
   }
-  std::ifstream ifs {HN_STORY_EMB_FILE};
+  std::ifstream ifs{HN_STORY_EMB_FILE};
   if (!ifs.is_open()) {
     spdlog::error("failure to open {}", HN_STORY_EMB_FILE);
     return;
   }
-  DeferGuard ifs_close_guard {[&ifs]() {
+  DeferGuard ifs_close_guard{[&ifs]() {
     ifs.close();
   }};
   auto j = fetch_emb_meta_info();
@@ -314,7 +315,7 @@ void find_similarity_by_brute_force() {
   spdlog::info("embedding model: {}, dim: {}, cnt: {}",
                model_name, j["dim"].get<uint32_t>(), j["cnt"].get<uint32_t>());
   //
-  Ollama oll_model {model_name};
+  Ollama oll_model{model_name};
   if (!oll_model.is_model_serving()) {
     spdlog::error("please run model '{}' on ollama first", model_name);
     return;
@@ -330,18 +331,18 @@ void find_similarity_by_brute_force() {
   auto cmp = [](nlohmann::json& l, nlohmann::json& r) {
     return l["score"].get<float>() > r["score"].get<float>();
   };
-  std::priority_queue<nlohmann::json, std::vector<nlohmann::json>, decltype(cmp)> pq {cmp}; // 最小堆
+  std::priority_queue<nlohmann::json, std::vector<nlohmann::json>, decltype(cmp)> pq{cmp}; // 最小堆
   uint32_t cnt = 0;
   std::string line;
   while (std::getline(ifs, line)) {
     auto jj = nlohmann::json::parse(line);
-    Embedding cand_emb = jj["emb"].get<Embedding>();
+    auto cand_emb = jj["emb"].get<Embedding>();
     if (cand_emb.size() != query_emb.size()) {
       spdlog::error("dim not equal: {}={}", cand_emb.size(), query_emb.size());
       continue;
     }
     float sim = 0.0;
-    for (size_t idx=0; idx<cand_emb.size(); idx++) {
+    for (size_t idx = 0; idx < cand_emb.size(); idx++) {
       sim += cand_emb[idx] * query_emb[idx];
     }
     jj["score"] = sim;
@@ -356,7 +357,7 @@ void find_similarity_by_brute_force() {
   while (!pq.empty()) {
     const auto& pq_j = pq.top();
     spdlog::info("item: {}, title: '{}', text: '{}', score: {}", pq_j["id"].get<uint32_t>(),
-        pq_j["title"].get<std::string>(), pq_j["text"].get<std::string>(), pq_j["score"].get<float>());
+                 pq_j["title"].get<std::string>(), pq_j["text"].get<std::string>(), pq_j["score"].get<float>());
     pq.pop();
   }
 }
@@ -364,7 +365,7 @@ void find_similarity_by_brute_force() {
 void build_hnsw_index() {
   using namespace hnswlib;
   auto& hn_hnsw = HackNewsHnsw::singleton();
-  std::filesystem::path root_path {"./"};
+  std::filesystem::path root_path{"./"};
   hn_hnsw.data_path(root_path.string());
   hn_hnsw.load_meta();
   auto& meta = hn_hnsw.meta();
@@ -372,7 +373,7 @@ void build_hnsw_index() {
     return;
   }
   //
-  std::filesystem::path emb_file_path {root_path / HN_STORY_EMB_FILE};
+  std::filesystem::path emb_file_path{root_path / HN_STORY_EMB_FILE};
   if (!std::filesystem::exists(emb_file_path)) {
     spdlog::error("not exist emb file: {}", HN_STORY_EMB_FILE);
     return;
@@ -386,17 +387,19 @@ void build_hnsw_index() {
     spdlog::error("failure to open file {}", HN_STORY_EMB_FILE);
     return;
   }
-  DeferGuard emb_ifs_close_guard {[&emb_ifs]() { emb_ifs.close(); }};
+  DeferGuard emb_ifs_close_guard{[&emb_ifs]() {
+    emb_ifs.close();
+  }};
   //
-  InnerProductSpace metric_space {meta.dim};
+  InnerProductSpace metric_space{meta.dim};
   int ef_construction = 100;
   std::shared_ptr<HierarchicalNSW<float>> hnsw_ptr = std::make_shared<HierarchicalNSW<float>>(&metric_space,
-      meta.cnt, meta.dim, ef_construction);
+    meta.cnt, meta.dim, ef_construction);
   //
   uint32_t line_cnt = 0;
   std::atomic_uint32_t point_cnt = 0;
   //
-  Executor tp {"build-hnsw-index"};
+  Executor tp{"build-hnsw-index"};
   for (std::string line; std::getline(emb_ifs, line);) {
     line_cnt++;
     tp.async_execute([line, &hnsw_ptr, &point_cnt]() {
@@ -420,13 +423,13 @@ void find_similarity_by_hnsw() {
   using namespace hnswlib;
   //
   auto& hn_hnsw = ling::storage::HackNewsHnsw::singleton();
-  std::filesystem::path root_path {"./"};
+  std::filesystem::path root_path{"./"};
   hn_hnsw.data_path(root_path.string());
   hn_hnsw.load(); // !!!
   //
   auto& meta = hn_hnsw.meta();
   //
-  Ollama oll_model {meta.model_name};
+  Ollama oll_model{meta.model_name};
   if (!oll_model.is_model_serving()) {
     spdlog::error("please run model '{}' on ollama first", meta.model_name);
     return;
@@ -443,21 +446,21 @@ void find_similarity_by_hnsw() {
     spdlog::error("dim not equal: {} != {}", query_emb.size(), meta.dim);
   }
   auto qr = hn_hnsw.search(query_emb);
-  for (auto& [item_ptr, score] : qr) {
-    spdlog::info("ANN item: id={}, title='{}', score={}", item_ptr->id, item_ptr->title, score);
+  for (auto& [item_ptr, sim] : qr) {
+    spdlog::info("ANN item: id={}, title='{}', url='{}', score={}, sim={}",
+      item_ptr->id, item_ptr->title, item_ptr->score, sim);
   }
 }
-
 } // namespace ling::task
 
 using namespace ling::task;
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
   spdlog::set_level(spdlog::level::debug);
   //
   auto cur_dir = std::filesystem::current_path();
-  std::filesystem::path work_dir {FLAGS_wd};
+  std::filesystem::path work_dir{FLAGS_wd};
   if (!std::filesystem::exists(work_dir)) {
     std::filesystem::create_directories(work_dir);
   }

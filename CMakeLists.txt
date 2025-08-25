@@ -160,6 +160,8 @@ add_executable(
 
         src/utils/ollama.hpp
         src/utils/ollama_test.cpp
+
+        src/tests/format_test.cpp
 )
 target_link_libraries(
         test_lingdong

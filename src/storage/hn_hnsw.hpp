@@ -17,7 +17,8 @@ namespace ling::storage {
 using namespace ling::utils;
 using namespace hnswlib;
 
-static std::string HN_ITEM_FILE = "hn.json";
+static std::string HN_STORY_FILE = "hn_story.json";
+static std::string HN_STORY_META_FILE = "hn_story_meta.json";
 static std::string HN_STORY_EMB_FILE = "hn_story_emb.json";
 static std::string HN_STORY_EMB_META_FILE = "hn_story_emb_meta.json";
 static std::string HN_STORY_HNSW_IDX_FILE = "hn_story_hnsw.bin";
@@ -33,16 +34,10 @@ public:
   std::string type; // The type of item. One of "job", "story", "comment", "poll", or "pollopt".
   std::string by; // The username of the item's author.
   uint64_t time; // Creation date of the item, in Unix Time.
-  std::string text; // The comment, story or poll text. HTML.
   bool dead; // true if the item is dead.
-  uint32_t parent; // The comment's parent: either another comment or the relevant story.
-  uint32_t poll; // The pollopt's associated poll.
-  std::vector<uint32_t> kids; // The ids of the item's comments, in ranked display order.
   std::string url; // The URL of the story.
   int score; // The story's score, or the votes for a pollopt.
   std::string title; // The title of the story, poll or job. HTML.
-  std::vector<uint32_t> parts; // A list of related pollopts, in display order.
-  uint32_t descendants; // In the case of stories or polls, the total comment count.
 
   void from_json(nlohmann::json &j);
 
@@ -65,35 +60,17 @@ inline void HackerNewItem::from_json(nlohmann::json &j) {
   if (j.contains("type")) {
     type = j["type"].get<std::string>();
   }
+  if (j.contains("title")) {
+    title = j["title"].get<std::string>();
+  }
   if (j.contains("score")) {
     score = j["score"].get<int>();
   }
   if (j.contains("deleted")) {
     deleted = j["deleted"].get<bool>();
   }
-  if (j.contains("text")) {
-    text = j["text"].get<std::string>();
-  }
   if (j.contains("dead")) {
     dead = j["dead"].get<bool>();
-  }
-  if (j.contains("parent")) {
-    parent = j["parent"].get<uint32_t>();
-  }
-  if (j.contains("poll")) {
-    poll = j["poll"].get<uint32_t>();
-  }
-  if (j.contains("kids")) {
-    kids = j["kids"].get<std::vector<uint32_t>>();
-  }
-  if (j.contains("title")) {
-    title = j["title"].get<std::string>();
-  }
-  if (j.contains("parts")) {
-    parts = j["parts"].get<std::vector<uint32_t>>();
-  }
-  if (j.contains("descendants")) {
-    descendants = j["descendants"].get<uint32_t>();
   }
 }
 
@@ -103,16 +80,10 @@ inline void HackerNewItem::to_json(nlohmann::json &j) {
   j["type"] = type;
   j["by"] = by;
   j["time"] = time;
-  j["text"] = text;
   j["dead"] = dead;
-  j["parent"] = parent;
-  j["poll"] = poll;
-  j["kids"] = kids;
   j["url"] = url;
   j["score"] = score;
   j["title"] = title;
-  j["parts"] = parts;
-  j["descendants"] = descendants;
 }
 
 class HnEmbMeta {
@@ -193,9 +164,9 @@ inline bool HackNewsHnsw::load_fwd() {
   char stream_buffer[1024 * 512];
   ifs.rdbuf()->pubsetbuf(stream_buffer, 1024 * 512);
   //
-  ifs.open(data_path_ / HN_STORY_EMB_FILE);
+  ifs.open(data_path_ / HN_STORY_FILE);
   if (!ifs.is_open()) {
-    spdlog::error("failure to open file {}", HN_STORY_EMB_FILE);
+    spdlog::error("failure to open file {}", HN_STORY_FILE);
     return false;
   }
   //
