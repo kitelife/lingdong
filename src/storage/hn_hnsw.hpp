@@ -241,6 +241,10 @@ inline bool HackNewsHnsw::load_hnsw() {
 }
 
 inline bool HackNewsHnsw::load() {
+  if (loaded_) {
+    spdlog::warn("HackNewsHnsw load already loaded");
+    return false;
+  }
   auto status = load_meta() && load_fwd() && load_hnsw();
   loaded_ = status;
   return status;
