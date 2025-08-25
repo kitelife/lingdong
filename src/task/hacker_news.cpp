@@ -5,19 +5,22 @@
 #include <vector>
 #include <future>
 #include <queue>
+#include <unordered_map>
 
 #include "cpr/cpr.h"
 #include "nlohmann/json.hpp"
 #include "gflags/gflags.h"
 #include "fmt/format.h"
+#include "hnswlib/hnswlib.h"
 
 #include "utils/executor.hpp"
 #include "utils/guard.hpp"
 #include "utils/ollama.hpp"
+#include "utils/perf.hpp"
 
 namespace ling::task {
 
-DEFINE_string(wd, "../../hn", "working dir");
+DEFINE_string(wd, "../../data/hn", "working dir");
 DEFINE_uint32(sub_task, 0, "sub task type");
 DEFINE_uint32(max_item_id, 0, "max limit for item id");
 DEFINE_string(emb_model_name, "mxbai-embed-large:latest", "embedding model name");
@@ -26,6 +29,8 @@ DEFINE_uint32(topk, 10, "similarity top k");
 
 static std::string HN_ITEM_FILE = "hn.json";
 static std::string HN_STORY_EMB_FILE = "hn_story_emb.json";
+static std::string HN_STORY_EMB_META_FILE = "hn_story_emb_meta.json";
+static std::string HN_STORY_HNSW_IDX_FILE = "hn_story_hnsw.bin";
 
 using namespace ling::utils;
 
@@ -232,6 +237,16 @@ void hn_story_to_emb() {
     spdlog::error("please run ollama service first");
     return;
   }
+  // test, get dim
+  std::vector<std::string> test_input;
+  test_input.emplace_back("简单测试一下，拿向量维度信息");
+  Embeddings embs = mxbai_embed_large_oll.generate_embeddings(test_input);
+  if (embs.size() != test_input.size()) {
+    spdlog::error("failure to test model '{}'", FLAGS_emb_model_name);
+    return;
+  }
+  uint32_t dim = embs[0].size();
+  //
   if (!std::filesystem::exists(HN_ITEM_FILE)) {
     spdlog::error("{} not exist!", HN_ITEM_FILE);
     return;
@@ -261,7 +276,6 @@ void hn_story_to_emb() {
   std::queue<std::pair<HackerNewItemPtr, std::vector<float>>> ready_emb_q;
   std::mutex q_lock;
   //
-  ofs << fmt::format(R"({"model_name": "{}"})", FLAGS_emb_model_name) << std::endl;
   auto process_one_batch = [](Executor &tp,
                               std::queue<std::pair<HackerNewItemPtr, std::vector<float>>> &ready_emb_q,
                               std::mutex &q_lock, Ollama &mxbai_embed_large_oll,
@@ -329,6 +343,8 @@ void hn_story_to_emb() {
       j["id"] = item_ptr->id;
       j["title"] = item_ptr->title;
       j["text"] = item_ptr->text;
+      j["url"] = item_ptr->url;
+      j["score"] = item_ptr->score;
       j["emb"] = emb;
       ofs << j.dump() << std::endl;
       std::lock_guard q_lock_guard {q_lock};
@@ -340,6 +356,38 @@ void hn_story_to_emb() {
   pf.wait();
   cf.wait();
   ofs.flush();
+  // store meta info
+  do {
+    auto meta_info = fmt::format(R"({"model_name": "{}", "dim": "{}", "cnt": {}})",
+                                 FLAGS_emb_model_name, dim, item_cnt.load());
+    std::ofstream meta_ofs {HN_STORY_EMB_META_FILE};
+    if (!meta_ofs.is_open()) {
+      spdlog::error("failure to open meta file '{}', meta info: '{}'", HN_STORY_EMB_META_FILE, meta_info);
+      break;
+    }
+    meta_ofs << meta_info << std::endl;
+    meta_ofs.flush();
+    meta_ofs.close();
+  } while (false);
+}
+
+nlohmann::json fetch_emb_meta_info() {
+  std::filesystem::path meta_file_path {HN_STORY_EMB_META_FILE};
+  if (!std::filesystem::exists(meta_file_path)) {
+    spdlog::error("not exist meta file {}", meta_file_path.string());
+    return {};
+  }
+  std::ifstream meta_ifs {meta_file_path};
+  if (!meta_ifs.is_open()) {
+    spdlog::error("failure to open meta file '{}'", HN_STORY_EMB_META_FILE);
+    return {};
+  }
+  DeferGuard ifs_close_guard {[&meta_ifs]() {
+    meta_ifs.close();
+  }};
+  std::string line;
+  std::getline(meta_ifs, line);
+  return nlohmann::json::parse(line);
 }
 
 void find_similarity_by_brute_force() {
@@ -357,15 +405,10 @@ void find_similarity_by_brute_force() {
   DeferGuard ifs_close_guard {[&ifs]() {
     ifs.close();
   }};
-  std::string line;
-  std::getline(ifs, line);
-  nlohmann::json j = nlohmann::json::parse(line);
-  if (!j.contains("model_name")) {
-    spdlog::error("illegal {}", HN_STORY_EMB_FILE);
-    return;
-  }
+  auto j = fetch_emb_meta_info();
   std::string model_name = j["model_name"].get<std::string>();
-  spdlog::info("embedding model: {}", model_name);
+  spdlog::info("embedding model: {}, dim: {}, cnt: {}",
+               model_name, j["dim"].get<uint32_t>(), j["cnt"].get<uint32_t>());
   //
   Ollama oll_model {model_name};
   if (!oll_model.is_model_serving()) {
@@ -376,7 +419,7 @@ void find_similarity_by_brute_force() {
   model_input.emplace_back(s);
   Embeddings embs = oll_model.generate_embeddings(model_input);
   if (embs.size() != 1) {
-    spdlog::error("failure to generate embedding for '{}'", model_name);
+    spdlog::error("failure to generate embedding for '{}' with model '{}'", s, model_name);
     return;
   }
   const Embedding& query_emb = embs[0];
@@ -385,6 +428,7 @@ void find_similarity_by_brute_force() {
   };
   std::priority_queue<nlohmann::json, std::vector<nlohmann::json>, decltype(cmp)> pq {cmp}; // 最小堆
   uint32_t cnt = 0;
+  std::string line;
   while (std::getline(ifs, line)) {
     auto jj = nlohmann::json::parse(line);
     Embedding cand_emb = jj["emb"].get<Embedding>();
@@ -413,8 +457,111 @@ void find_similarity_by_brute_force() {
   }
 }
 
-void find_similarity_by_hnsw() {
+void build_hnsw_index() {
+  using namespace hnswlib;
+  auto j = fetch_emb_meta_info();
+  if (j.empty() || !j.contains("model_name") || !j.contains("dim") || !j.contains("cnt")) {
+    return;
+  }
+  std::string model_name = j["model_name"].get<std::string>();
+  uint32_t dim = j["dim"].get<uint32_t>();
+  uint32_t cnt = j["cnt"].get<uint32_t>();
+  //
+  std::filesystem::path emb_file_path {HN_STORY_EMB_FILE};
+  if (!std::filesystem::exists(emb_file_path)) {
+    spdlog::error("not exist emb file: {}", HN_STORY_EMB_FILE);
+    return;
+  }
+  std::ifstream emb_ifs {emb_file_path};
+  if (!emb_ifs.is_open()) {
+    spdlog::error("failure to open emb file {}", HN_STORY_EMB_FILE);
+  }
+  DeferGuard emb_ifs_close_guard {[&emb_ifs]() { emb_ifs.close(); }};
+  //
+  InnerProductSpace metric_space {dim};
+  int ef_construction = 200;
+  std::shared_ptr<HierarchicalNSW<float>> hnsw_ptr = std::make_shared<HierarchicalNSW<float>>(&metric_space,
+      cnt, dim, ef_construction);
+  std::string line;
+  uint32_t point_cnt = 0;
+  while (std::getline(emb_ifs, line)) {
+    auto jj = nlohmann::json::parse(line);
+    hnsw_ptr->addPoint(jj["emb"].get<Embedding>().data(), jj["id"].get<uint32_t>());
+    point_cnt++;
+    if (point_cnt % 10000 == 0) {
+      spdlog::info("{} points processed", point_cnt);
+    }
+  }
+  hnsw_ptr->saveIndex(HN_STORY_HNSW_IDX_FILE);
+}
 
+void load_hn_fwd_idx(std::unordered_map<uint32_t, HackerNewItemPtr>& fwd_idx) {
+  std::ifstream ifs {HN_STORY_EMB_FILE};
+  if (!ifs.is_open()) {
+    spdlog::error("failure to open file {}", HN_STORY_EMB_FILE);
+    return;
+  }
+  for (std::string line; std::getline(ifs, line);) {
+    nlohmann::json j = nlohmann::json::parse(line);
+    auto item_ptr = std::make_shared<HackerNewItem>();
+    item_ptr->from_json(j);
+    fwd_idx[item_ptr->id] = item_ptr;
+  }
+}
+
+void find_similarity_by_hnsw() {
+  using namespace hnswlib;
+  //
+  auto j = fetch_emb_meta_info();
+  auto model_name = j["model_name"].get<std::string>();
+  auto dim = j["dim"].get<uint32_t>();
+  //
+  Ollama oll_model {model_name};
+  if (!oll_model.is_model_serving()) {
+    spdlog::error("please run model '{}' on ollama first", model_name);
+    return;
+  }
+  std::vector<std::string> model_input;
+  model_input.emplace_back(FLAGS_like_sentence);
+  Embeddings embs = oll_model.generate_embeddings(model_input);
+  if (embs.size() != 1) {
+    spdlog::error("failure to generate embedding for '{}' with model '{}'", FLAGS_like_sentence, model_name);
+    return;
+  }
+  Embedding& query_emb = embs[0];
+  if (query_emb.size() != dim) {
+    spdlog::error("dim not equal: {} != {}", query_emb.size(), dim);
+  }
+  //
+  std::unordered_map<uint32_t, HackerNewItemPtr> hn_fwd_idx;
+  utils::ScopedTimer fwd_load_timer {"Load-hn-fwd-idx"};
+  load_hn_fwd_idx(hn_fwd_idx);
+  fwd_load_timer.end();
+  //
+  std::filesystem::path hn_hnsw_idx_path {HN_STORY_HNSW_IDX_FILE};
+  if (!std::filesystem::exists(hn_hnsw_idx_path)) {
+    spdlog::error("hnsw idx file '{}' not exist", HN_STORY_HNSW_IDX_FILE);
+    return;
+  }
+  InnerProductSpace metric_space {dim};
+  utils::ScopedTimer hnsw_load_timer {"Load-hnsw-idx"};
+  auto hnsw_ptr = std::make_shared<HierarchicalNSW<float>>(&metric_space, hn_hnsw_idx_path.string());
+  hnsw_load_timer.end();
+  utils::ScopedTimer hnsw_search_timer {"Search-hnsw"};
+  auto result_pq = hnsw_ptr->searchKnn(query_emb.data(), FLAGS_topk);
+  while (!result_pq.empty()) {
+    auto& r = result_pq.top();
+    auto id = r.second;
+    if (hn_fwd_idx.count(id) == 0) {
+      spdlog::warn("result {} has no fwd idx, score: {}", id, r.first);
+    } else {
+      auto& hn_item = hn_fwd_idx[id];
+      nlohmann::json fwd_info_j;
+      hn_item->to_json(fwd_info_j);
+      spdlog::info("result: {}, score: {}, fwd info: {}", id, r.first, fwd_info_j.dump());
+    }
+    result_pq.pop();
+  }
 }
 
 } // namespace ling::task
@@ -444,6 +591,9 @@ int main(int argc, char **argv) {
       find_similarity_by_brute_force();
       break;
     case 3:
+      build_hnsw_index();
+      break;
+    case 4:
       find_similarity_by_hnsw();
       break;
     default:

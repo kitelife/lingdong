@@ -24,23 +24,26 @@ TEST(OllamaTest, test_generate_embeddings) {
     return;
   }
   //
-  Ollama nomic_embed_text_oll {"nomic-embed-text:latest"};
-  Ollama qwen3_4b_oll {"qwen3:4b"};
-  Ollama mxbai_embed_large_oll {"mxbai-embed-large:latest"};
-  //
   std::vector<std::string> inputs;
   inputs.emplace_back("欢迎来上海");
   inputs.emplace_back("我是一个程序员");
-  //
-  call_ollama_generate_embeddings(nomic_embed_text_oll, inputs);
-  call_ollama_generate_embeddings(qwen3_4b_oll, inputs);
-  call_ollama_generate_embeddings(mxbai_embed_large_oll, inputs);
-  //
   std::vector<std::string> inputs2;
   inputs2.emplace_back("安徽人住在上海");
   inputs2.emplace_back("黄浦江边景色美丽");
   //
-  call_ollama_generate_embeddings(nomic_embed_text_oll, inputs2);
-  call_ollama_generate_embeddings(qwen3_4b_oll, inputs2);
-  call_ollama_generate_embeddings(mxbai_embed_large_oll, inputs2);
+  Ollama nomic_embed_text_oll {"nomic-embed-text:latest"};
+  if (nomic_embed_text_oll.is_model_serving()) {
+    call_ollama_generate_embeddings(nomic_embed_text_oll, inputs);
+    call_ollama_generate_embeddings(nomic_embed_text_oll, inputs2);
+  }
+  Ollama qwen3_4b_oll {"qwen3:4b"};
+  if (qwen3_4b_oll.is_model_serving()) {
+    call_ollama_generate_embeddings(qwen3_4b_oll, inputs);
+    call_ollama_generate_embeddings(qwen3_4b_oll, inputs2);
+  }
+  Ollama mxbai_embed_large_oll {"mxbai-embed-large:latest"};
+  if (mxbai_embed_large_oll.is_model_serving()) {
+    call_ollama_generate_embeddings(mxbai_embed_large_oll, inputs);
+    call_ollama_generate_embeddings(mxbai_embed_large_oll, inputs2);
+  }
 }

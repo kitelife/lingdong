@@ -22,7 +22,7 @@ public:
     assert(worker_num > 0);
     task_queue_.reserve(capacity_);
     workers_.reserve(worker_num);
-    for (unsigned int idx = 0; idx < worker_num; idx++) {
+    for (unsigned int idx = 0; idx < worker_num_; idx++) {
       workers_[idx] = std::thread([&, idx]() {
         unsigned int worker_id = idx;
         while (!done_) {
