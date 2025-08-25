@@ -89,7 +89,7 @@ void crawl_hn() {
       ofs.close();
   }};
   //
-  Executor tp{"worker-fetch-hn-item", 1024, 5 * std::thread::hardware_concurrency()};
+  Executor tp{"fetch-hn-item", 1024, 5 * std::thread::hardware_concurrency()};
   DeferGuard tp_join_guard{[&tp]() {
       tp.join();
   }};
@@ -172,7 +172,7 @@ void hn_story_to_emb() {
       ofs.close();
   }};
   //
-  Executor tp{"worker-conv-story2emb", 1024, std::thread::hardware_concurrency()};
+  Executor tp{"conv-story2emb", 1024, std::thread::hardware_concurrency()};
   DeferGuard tp_join_guard{[&tp]() {
       tp.join();
   }};
@@ -363,7 +363,7 @@ void find_similarity_by_brute_force() {
 
 void build_hnsw_index() {
   using namespace hnswlib;
-  auto& hn_hnsw = ling::storage::HackNewsHnsw::singleton();
+  auto& hn_hnsw = HackNewsHnsw::singleton();
   std::filesystem::path root_path {"./"};
   hn_hnsw.data_path(root_path.string());
   hn_hnsw.load_meta();
@@ -377,27 +377,43 @@ void build_hnsw_index() {
     spdlog::error("not exist emb file: {}", HN_STORY_EMB_FILE);
     return;
   }
-  std::ifstream emb_ifs {emb_file_path};
+  //
+  std::ifstream emb_ifs;
+  char stream_buffer[1024 * 512];
+  emb_ifs.rdbuf()->pubsetbuf(stream_buffer, 1024 * 512);
+  emb_ifs.open(emb_file_path);
   if (!emb_ifs.is_open()) {
-    spdlog::error("failure to open emb file {}", HN_STORY_EMB_FILE);
+    spdlog::error("failure to open file {}", HN_STORY_EMB_FILE);
+    return;
   }
   DeferGuard emb_ifs_close_guard {[&emb_ifs]() { emb_ifs.close(); }};
   //
   InnerProductSpace metric_space {meta.dim};
-  int ef_construction = 200;
+  int ef_construction = 100;
   std::shared_ptr<HierarchicalNSW<float>> hnsw_ptr = std::make_shared<HierarchicalNSW<float>>(&metric_space,
       meta.cnt, meta.dim, ef_construction);
-  std::string line;
-  uint32_t point_cnt = 0;
-  while (std::getline(emb_ifs, line)) {
-    auto jj = nlohmann::json::parse(line);
-    hnsw_ptr->addPoint(jj["emb"].get<Embedding>().data(), jj["id"].get<uint32_t>());
-    point_cnt++;
-    if (point_cnt % 10000 == 0) {
-      spdlog::info("{} points processed", point_cnt);
-    }
+  //
+  uint32_t line_cnt = 0;
+  std::atomic_uint32_t point_cnt = 0;
+  //
+  Executor tp {"build-hnsw-index"};
+  for (std::string line; std::getline(emb_ifs, line);) {
+    line_cnt++;
+    tp.async_execute([line, &hnsw_ptr, &point_cnt]() {
+      auto jj = nlohmann::json::parse(line);
+      hnsw_ptr->addPoint(jj["emb"].get<Embedding>().data(), jj["id"].get<uint32_t>());
+      ++point_cnt;
+      if (point_cnt % 10000 == 0) {
+        spdlog::info("{} points processed", point_cnt.load());
+      }
+    });
   }
+  while (point_cnt.load() < line_cnt) {
+    std::this_thread::sleep_for(milliseconds(50));
+  }
+  spdlog::info("hnsw points cnt: {}", point_cnt.load());
   hnsw_ptr->saveIndex((root_path / HN_STORY_HNSW_IDX_FILE).string());
+  tp.join();
 }
 
 void find_similarity_by_hnsw() {
@@ -448,7 +464,7 @@ int main(int argc, char **argv) {
   std::filesystem::current_path(work_dir);
   spdlog::info("change {} to {}", cur_dir.string(), work_dir.string());
   //
-  switch (ling::task::FLAGS_sub_task) {
+  switch (FLAGS_sub_task) {
     case 0:
       crawl_hn();
       break;

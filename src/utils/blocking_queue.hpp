@@ -16,12 +16,13 @@ public:
   explicit BlockingQueue(size_t cap) : capacity_(cap) {}
 
   bool push(const T& data) {
+    if (closed_) {
+      return false;
+    }
     std::unique_lock ul(lock_);
-    while (queue_.size() >= capacity_) {
-      if (full_cond_.wait_until(ul, steady_clock::now()+milliseconds(50)) == std::cv_status::timeout) {
-        if (closed_) {
-          return false;
-        }
+    while (queue_.size() >= capacity_ && !closed_) {
+      if (full_cond_.wait_for(ul, milliseconds(50)) == std::cv_status::timeout) {
+        return false;
       }
     }
     if (closed_) {
@@ -42,13 +43,17 @@ public:
   }
 
   bool pop(T& t) {
+    if (closed_) {
+      return false;
+    }
     std::unique_lock ul(lock_);
-    while (queue_.empty()) {
-      if (empty_cond_.wait_until(ul, steady_clock::now() + milliseconds(50)) == std::cv_status::timeout) {
-        if (closed_) {
-          return false;
-        }
+    while (queue_.empty() && !closed_) {
+      if (empty_cond_.wait_for(ul, milliseconds(50)) == std::cv_status::timeout) {
+        return false;
       }
+    }
+    if (queue_.empty()) {
+      return false;
     }
     t = queue_.front();
     queue_.pop();

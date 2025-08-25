@@ -58,8 +58,14 @@ inline bool Executor::async_execute(const AsyncTask& t) {
   if (done_) {
     return false;
   }
-  task_queue_.push(t);
-  return true;
+  bool status = false;
+  while (!done_) {
+    status = task_queue_.push(t);
+    if (status) {
+      break;
+    }
+  }
+  return status || !done_;
 }
 
 inline void Executor::join() {

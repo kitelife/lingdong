@@ -9,7 +9,7 @@
 #include "server.hpp"
 
 DEFINE_string(dir, "../../demo/blog", "working directory");
-DEFINE_bool(skip_make, false, "skip make or not");
+DEFINE_bool(skip_make, true, "skip make or not");
 DEFINE_bool(enable_serve, true, "enable to serve the static site");
 DEFINE_bool(ignore_cache, false, "ignore cache to remake");
 
