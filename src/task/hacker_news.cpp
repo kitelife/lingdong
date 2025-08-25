@@ -263,7 +263,7 @@ void hn_story_to_emb() {
   ofs.flush();
   // store meta info
   do {
-    auto meta_info = fmt::format(R"({{"model_name": "{}", "dim": "{}", "cnt": {}}})",
+    auto meta_info = fmt::format(R"({{"model_name": "{}", "dim": {}, "cnt": {}}})",
                                  FLAGS_emb_model_name, dim, item_cnt.load());
     std::ofstream meta_ofs{HN_STORY_EMB_META_FILE};
     if (!meta_ofs.is_open()) {
