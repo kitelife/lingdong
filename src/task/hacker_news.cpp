@@ -13,6 +13,7 @@
 #include "fmt/format.h"
 #include "hnswlib/hnswlib.h"
 
+#include "storage/hn_hnsw.hpp"
 #include "utils/executor.hpp"
 #include "utils/guard.hpp"
 #include "utils/ollama.hpp"
@@ -27,105 +28,8 @@ DEFINE_string(emb_model_name, "mxbai-embed-large:latest", "embedding model name"
 DEFINE_string(like_sentence, "", "find item like this sentence");
 DEFINE_uint32(topk, 10, "similarity top k");
 
-static std::string HN_ITEM_FILE = "hn.json";
-static std::string HN_STORY_EMB_FILE = "hn_story_emb.json";
-static std::string HN_STORY_EMB_META_FILE = "hn_story_emb_meta.json";
-static std::string HN_STORY_HNSW_IDX_FILE = "hn_story_hnsw.bin";
-
 using namespace ling::utils;
-
-// https://github.com/HackerNews/API
-
-class HackerNewItem {
-public:
-  HackerNewItem() = default;
-
-  uint32_t id; // The item's unique id.
-  bool deleted; // true if the item is deleted.
-  std::string type; // The type of item. One of "job", "story", "comment", "poll", or "pollopt".
-  std::string by; // The username of the item's author.
-  uint64_t time; // Creation date of the item, in Unix Time.
-  std::string text; // The comment, story or poll text. HTML.
-  bool dead; // true if the item is dead.
-  uint32_t parent; // The comment's parent: either another comment or the relevant story.
-  uint32_t poll; // The pollopt's associated poll.
-  std::vector<uint32_t> kids; // The ids of the item's comments, in ranked display order.
-  std::string url; // The URL of the story.
-  int score; // The story's score, or the votes for a pollopt.
-  std::string title; // The title of the story, poll or job. HTML.
-  std::vector<uint32_t> parts; // A list of related pollopts, in display order.
-  uint32_t descendants; // In the case of stories or polls, the total comment count.
-
-  void from_json(nlohmann::json &j);
-
-  void to_json(nlohmann::json &j);
-};
-
-using HackerNewItemPtr = std::shared_ptr<HackerNewItem>;
-
-void HackerNewItem::from_json(nlohmann::json &j) {
-  id = j["id"].get<uint32_t>();
-  if (j.contains("by")) {
-    by = j["by"].get<std::string>();
-  }
-  if (j.contains("time")) {
-    time = j["time"].get<uint64_t>();
-  }
-  if (j.contains("url")) {
-    url = j["url"].get<std::string>();
-  }
-  if (j.contains("type")) {
-    type = j["type"].get<std::string>();
-  }
-  if (j.contains("score")) {
-    score = j["score"].get<int>();
-  }
-  if (j.contains("deleted")) {
-    deleted = j["deleted"].get<bool>();
-  }
-  if (j.contains("text")) {
-    text = j["text"].get<std::string>();
-  }
-  if (j.contains("dead")) {
-    dead = j["dead"].get<bool>();
-  }
-  if (j.contains("parent")) {
-    parent = j["parent"].get<uint32_t>();
-  }
-  if (j.contains("poll")) {
-    poll = j["poll"].get<uint32_t>();
-  }
-  if (j.contains("kids")) {
-    kids = j["kids"].get<std::vector<uint32_t>>();
-  }
-  if (j.contains("title")) {
-    title = j["title"].get<std::string>();
-  }
-  if (j.contains("parts")) {
-    parts = j["parts"].get<std::vector<uint32_t>>();
-  }
-  if (j.contains("descendants")) {
-    descendants = j["descendants"].get<uint32_t>();
-  }
-}
-
-void HackerNewItem::to_json(nlohmann::json &j) {
-  j["id"] = id;
-  j["deleted"] = deleted;
-  j["type"] = type;
-  j["by"] = by;
-  j["time"] = time;
-  j["text"] = text;
-  j["dead"] = dead;
-  j["parent"] = parent;
-  j["poll"] = poll;
-  j["kids"] = kids;
-  j["url"] = url;
-  j["score"] = score;
-  j["title"] = title;
-  j["parts"] = parts;
-  j["descendants"] = descendants;
-}
+using namespace ling::storage;
 
 class HackerNewsApi {
 public:
@@ -459,15 +363,16 @@ void find_similarity_by_brute_force() {
 
 void build_hnsw_index() {
   using namespace hnswlib;
-  auto j = fetch_emb_meta_info();
-  if (j.empty() || !j.contains("model_name") || !j.contains("dim") || !j.contains("cnt")) {
+  auto& hn_hnsw = ling::storage::HackNewsHnsw::singleton();
+  std::filesystem::path root_path {"./"};
+  hn_hnsw.data_path(root_path.string());
+  hn_hnsw.load_meta();
+  auto& meta = hn_hnsw.meta();
+  if (meta.model_name.empty() || meta.dim == 0 || meta.cnt == 0) {
     return;
   }
-  std::string model_name = j["model_name"].get<std::string>();
-  uint32_t dim = j["dim"].get<uint32_t>();
-  uint32_t cnt = j["cnt"].get<uint32_t>();
   //
-  std::filesystem::path emb_file_path {HN_STORY_EMB_FILE};
+  std::filesystem::path emb_file_path {root_path / HN_STORY_EMB_FILE};
   if (!std::filesystem::exists(emb_file_path)) {
     spdlog::error("not exist emb file: {}", HN_STORY_EMB_FILE);
     return;
@@ -478,10 +383,10 @@ void build_hnsw_index() {
   }
   DeferGuard emb_ifs_close_guard {[&emb_ifs]() { emb_ifs.close(); }};
   //
-  InnerProductSpace metric_space {dim};
+  InnerProductSpace metric_space {meta.dim};
   int ef_construction = 200;
   std::shared_ptr<HierarchicalNSW<float>> hnsw_ptr = std::make_shared<HierarchicalNSW<float>>(&metric_space,
-      cnt, dim, ef_construction);
+      meta.cnt, meta.dim, ef_construction);
   std::string line;
   uint32_t point_cnt = 0;
   while (std::getline(emb_ifs, line)) {
@@ -492,75 +397,38 @@ void build_hnsw_index() {
       spdlog::info("{} points processed", point_cnt);
     }
   }
-  hnsw_ptr->saveIndex(HN_STORY_HNSW_IDX_FILE);
-}
-
-void load_hn_fwd_idx(std::unordered_map<uint32_t, HackerNewItemPtr>& fwd_idx) {
-  std::ifstream ifs {HN_STORY_EMB_FILE};
-  if (!ifs.is_open()) {
-    spdlog::error("failure to open file {}", HN_STORY_EMB_FILE);
-    return;
-  }
-  for (std::string line; std::getline(ifs, line);) {
-    nlohmann::json j = nlohmann::json::parse(line);
-    auto item_ptr = std::make_shared<HackerNewItem>();
-    item_ptr->from_json(j);
-    fwd_idx[item_ptr->id] = item_ptr;
-  }
+  hnsw_ptr->saveIndex((root_path / HN_STORY_HNSW_IDX_FILE).string());
 }
 
 void find_similarity_by_hnsw() {
   using namespace hnswlib;
   //
-  auto j = fetch_emb_meta_info();
-  auto model_name = j["model_name"].get<std::string>();
-  auto dim = j["dim"].get<uint32_t>();
+  auto& hn_hnsw = ling::storage::HackNewsHnsw::singleton();
+  std::filesystem::path root_path {"./"};
+  hn_hnsw.data_path(root_path.string());
+  hn_hnsw.load(); // !!!
   //
-  Ollama oll_model {model_name};
+  auto& meta = hn_hnsw.meta();
+  //
+  Ollama oll_model {meta.model_name};
   if (!oll_model.is_model_serving()) {
-    spdlog::error("please run model '{}' on ollama first", model_name);
+    spdlog::error("please run model '{}' on ollama first", meta.model_name);
     return;
   }
   std::vector<std::string> model_input;
   model_input.emplace_back(FLAGS_like_sentence);
   Embeddings embs = oll_model.generate_embeddings(model_input);
   if (embs.size() != 1) {
-    spdlog::error("failure to generate embedding for '{}' with model '{}'", FLAGS_like_sentence, model_name);
+    spdlog::error("failure to generate embedding for '{}' with model '{}'", FLAGS_like_sentence, meta.model_name);
     return;
   }
   Embedding& query_emb = embs[0];
-  if (query_emb.size() != dim) {
-    spdlog::error("dim not equal: {} != {}", query_emb.size(), dim);
+  if (query_emb.size() != meta.dim) {
+    spdlog::error("dim not equal: {} != {}", query_emb.size(), meta.dim);
   }
-  //
-  std::unordered_map<uint32_t, HackerNewItemPtr> hn_fwd_idx;
-  utils::ScopedTimer fwd_load_timer {"Load-hn-fwd-idx"};
-  load_hn_fwd_idx(hn_fwd_idx);
-  fwd_load_timer.end();
-  //
-  std::filesystem::path hn_hnsw_idx_path {HN_STORY_HNSW_IDX_FILE};
-  if (!std::filesystem::exists(hn_hnsw_idx_path)) {
-    spdlog::error("hnsw idx file '{}' not exist", HN_STORY_HNSW_IDX_FILE);
-    return;
-  }
-  InnerProductSpace metric_space {dim};
-  utils::ScopedTimer hnsw_load_timer {"Load-hnsw-idx"};
-  auto hnsw_ptr = std::make_shared<HierarchicalNSW<float>>(&metric_space, hn_hnsw_idx_path.string());
-  hnsw_load_timer.end();
-  utils::ScopedTimer hnsw_search_timer {"Search-hnsw"};
-  auto result_pq = hnsw_ptr->searchKnn(query_emb.data(), FLAGS_topk);
-  while (!result_pq.empty()) {
-    auto& r = result_pq.top();
-    auto id = r.second;
-    if (hn_fwd_idx.count(id) == 0) {
-      spdlog::warn("result {} has no fwd idx, score: {}", id, r.first);
-    } else {
-      auto& hn_item = hn_fwd_idx[id];
-      nlohmann::json fwd_info_j;
-      hn_item->to_json(fwd_info_j);
-      spdlog::info("result: {}, score: {}, fwd info: {}", id, r.first, fwd_info_j.dump());
-    }
-    result_pq.pop();
+  auto qr = hn_hnsw.search(query_emb);
+  for (auto& [item_ptr, score] : qr) {
+    spdlog::info("ANN item: id={}, title='{}', score={}", item_ptr->id, item_ptr->title, score);
   }
 }
 

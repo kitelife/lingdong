@@ -10,10 +10,12 @@
 
 #include "protocol.hpp"
 #include "storage/local_sqlite.h"
+#include "storage/hn_hnsw.hpp"
 #include "utils//time.hpp"
 #include "utils/guard.hpp"
 #include "utils/rss.hpp"
 #include "utils/strings.hpp"
+#include "utils/ollama.hpp"
 
 namespace ling::http {
 
@@ -240,6 +242,59 @@ static void rss_register_handler(const HttpRequest& req, const HttpResponsePtr& 
     resp_json["msg"] = "success";
   }
   resp->with_body(resp_json.dump(2));
+}
+
+static void search_hacker_news_handler(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) {
+  using namespace ling::utils;
+  DoneCallbackGuard guard{cb, resp};
+  auto j = nlohmann::json::parse(req.body);
+  if (!j.contains("query")) {
+    resp->with_code(HttpStatusCode::BAD_REQUEST);
+    return;
+  }
+  auto query = j["query"].get<std::string>();
+  uint32_t top_k = 100;
+  if (j.contains("top_k")) {
+    top_k = j["top_k"].get<uint32_t>();
+  }
+  //
+  auto& hn = storage::HackNewsHnsw::singleton();
+  auto& meta = hn.meta();
+  //
+  Ollama oll_model {meta.model_name};
+  if (!oll_model.is_model_serving()) {
+    spdlog::error("please run model '{}' on ollama first", meta.model_name);
+    resp->with_code(HttpStatusCode::INTERNAL_ERR);
+    return;
+  }
+  std::vector<std::string> model_input;
+  model_input.emplace_back(query);
+  Embeddings embs = oll_model.generate_embeddings(model_input);
+  if (embs.size() != 1) {
+    spdlog::error("failure to generate embedding for '{}' with model '{}'", query, meta.model_name);
+    resp->with_code(HttpStatusCode::INTERNAL_ERR);
+    return;
+  }
+  Embedding& query_emb = embs[0];
+  if (query_emb.size() != meta.dim) {
+    spdlog::error("dim not equal: {} != {}", query_emb.size(), meta.dim);
+    resp->with_code(HttpStatusCode::INTERNAL_ERR);
+    return;
+  }
+  auto qr = hn.search(query_emb, top_k);
+  //
+  nlohmann::json resp_data {};
+  resp_data["result"] = nlohmann::json::array();
+  for (auto& [item_ptr, score] : qr) {
+    nlohmann::json one {};
+    one["id"] = item_ptr->id;
+    one["title"] = item_ptr->title;
+    one["ann_score"] = score;
+    resp_data["result"].emplace_back(one);
+  }
+  resp->with_code(HttpStatusCode::OK);
+  resp->with_header(header::ContentType, FILE_SUFFIX_TYPE_M_CONTENT_TYPE["json"].type_name);
+  resp->with_body(resp_data.dump(2));
 }
 
 // 为一些没有提供 rss 的博客/站点提供 rss 生成服务
