@@ -9,10 +9,9 @@
 #include "nlohmann/json.hpp"
 #include "spdlog/spdlog.h"
 
-namespace ling::utils {
+#include "utils/helper.hpp"
 
-using Embedding = std::vector<float>;
-using Embeddings = std::vector<Embedding>;
+namespace ling::utils {
 
 // https://github.com/ollama/ollama
 

@@ -13,6 +13,7 @@ inline static tsl::robin_map<std::string, RouteHandler> routes {
   {"/tool/base64/", base64_handler},
   {"/rss/provider/", rss_provider_handler},
   {"/rss/register/", rss_register_handler},
+  {"/hn/search/", search_hacker_news_handler},
   {"", static_file_handler},
 };
 

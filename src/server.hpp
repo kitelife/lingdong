@@ -10,6 +10,7 @@
 #include "service/http/protocol.hpp"
 #include "service/http/router.hpp"
 #include "storage/local_sqlite.h"
+#include "storage/hn_hnsw.hpp"
 #include "utils/guard.hpp"
 #include "utils/executor.hpp"
 
@@ -200,6 +201,13 @@ static bool init_db(const ConfigPtr& conf_ptr) {
   return db.open(conf_ptr->storage.db_file_path, conf_ptr->storage.init_sql);
 }
 
+static bool load_hn_index(const ConfigPtr& conf_ptr) {
+  auto hn_data_path = toml::find_or_default<std::string>(conf_ptr->raw_toml_, "hn", "data_path");
+  auto& hn_hnsw = storage::HackNewsHnsw::singleton();
+  hn_hnsw.data_path(hn_data_path);
+  return hn_hnsw.load();
+}
+
 namespace server {
 
 static LoopPtr loop_;
@@ -248,8 +256,10 @@ static bool start_server(const ConfigPtr& conf_ptr) {
 static bool start() {
   auto conf_ptr = Context::singleton()->with_config();
   if (!init_db(conf_ptr)) {
-    spdlog::error("Failed to init db");
-    return false;
+    spdlog::error("failure to init db");
+  }
+  if (!load_hn_index(conf_ptr)) {
+    spdlog::error("failure to load HackNews index!");
   }
   return start_server(conf_ptr);
 }
