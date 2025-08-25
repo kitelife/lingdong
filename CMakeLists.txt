@@ -129,6 +129,7 @@ target_link_libraries(hacker_news
         spdlog::spdlog
         gflags::gflags
         hnswlib
+        abseil::abseil
 )
 
 # for testing

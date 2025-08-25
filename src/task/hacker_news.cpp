@@ -12,6 +12,7 @@
 #include "gflags/gflags.h"
 #include "fmt/format.h"
 #include "hnswlib/hnswlib.h"
+#include "absl/time/time.h"
 
 #include "storage/hn_hnsw.hpp"
 #include "utils/executor.hpp"
@@ -76,7 +77,15 @@ void crawl_hn() {
     spdlog::error("failure to get max item id");
     return;
   }
-  std::ofstream ofs{HN_STORY_FILE, std::ios::app};
+  uint32_t last_max_item_id = get_last_max_item_id();
+  //
+  auto next_version = generate_next_version();
+  auto next_version_path = DEFAULT_ROOT_PATH / next_version;
+  if (!exists(next_version_path)) {
+    create_directory(next_version_path);
+  }
+  std::filesystem::path next_version_story_file = next_version_path / HN_STORY_FILE;
+  std::ofstream ofs {next_version_story_file, std::ios::app};
   if (!ofs.is_open()) {
     spdlog::error("failure to open hn.json");
     return;
@@ -93,8 +102,8 @@ void crawl_hn() {
   std::queue<std::pair<uint32_t, HackerNewItemPtr>> ready_item_q;
   std::mutex q_lock;
   //
-  auto pf = std::async(std::launch::async, [max_item_id, &tp, &q_lock, &ready_item_q]() {
-    for (uint32_t id = max_item_id; id > 0; id--) {
+  auto pf = std::async(std::launch::async, [max_item_id, last_max_item_id, &tp, &q_lock, &ready_item_q]() {
+    for (uint32_t id = max_item_id; id > last_max_item_id; id--) {
       tp.async_execute([id, &q_lock, &ready_item_q]() {
         auto item_ptr = HackerNewsApi::item_info(id);
         if (item_ptr == nullptr) {
@@ -105,13 +114,14 @@ void crawl_hn() {
       });
     }
   });
+  uint32_t expected_id_cnt = max_item_id-last_max_item_id;
   uint32_t ready_id_cnt = 0;
   uint32_t valid_story_cnt = 0;
-  while (ready_id_cnt < max_item_id) {
+  while (ready_id_cnt < expected_id_cnt) {
     HackerNewItemPtr item_ptr;
     {
       while (ready_item_q.empty()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        std::this_thread::sleep_for(milliseconds(10));
       }
       std::lock_guard q_lock_guard{q_lock};
       auto& id2ptr = ready_item_q.front();
@@ -139,7 +149,8 @@ void crawl_hn() {
   //
   spdlog::info("finished to crawl hn, meta info: {}", meta_s);
   //
-  std::ofstream story_meta_ofs {HN_STORY_META_FILE, std::ios::trunc};
+  auto next_version_story_meta_file = next_version_path / HN_STORY_META_FILE;
+  std::ofstream story_meta_ofs {next_version_story_meta_file, std::ios::trunc};
   story_meta_ofs << meta_s;
   story_meta_ofs.flush();
   story_meta_ofs.close();
@@ -147,7 +158,7 @@ void crawl_hn() {
 
 static uint32_t MODEL_BATCH_SIZE = 16;
 
-void hn_story_to_emb() {
+void hn_story_to_emb(std::string version) {
   Ollama mxbai_embed_large_oll{FLAGS_emb_model_name};
   if (!mxbai_embed_large_oll.is_model_serving()) {
     spdlog::error("please run ollama service first");
@@ -163,21 +174,23 @@ void hn_story_to_emb() {
   }
   uint32_t dim = embs[0].size();
   //
-  if (!std::filesystem::exists(HN_STORY_FILE)) {
-    spdlog::error("{} not exist!", HN_STORY_FILE);
+  auto story_file_path = DEFAULT_ROOT_PATH / version / HN_STORY_FILE;
+  if (!exists(story_file_path)) {
+    spdlog::error("{} not exist!", story_file_path.string());
     return;
   }
-  std::ifstream ifs{HN_STORY_FILE};
+  std::ifstream ifs {story_file_path};
   if (!ifs.is_open()) {
-    spdlog::error("failure to open {}", HN_STORY_FILE);
+    spdlog::error("failure to open {}", story_file_path.string());
     return;
   }
   DeferGuard ifs_close_guard{[&ifs]() {
     ifs.close();
   }};
-  std::ofstream ofs{HN_STORY_EMB_FILE, std::ios::trunc};
+  auto story_emb_file_path = DEFAULT_ROOT_PATH / version / HN_STORY_EMB_FILE;
+  std::ofstream ofs {story_emb_file_path, std::ios::trunc};
   if (!ofs.is_open()) {
-    spdlog::error("failure to open {}", HN_STORY_EMB_FILE);
+    spdlog::error("failure to open {}", story_emb_file_path.string());
     return;
   }
   DeferGuard ofs_close_guard{[&ofs]() {
@@ -265,9 +278,10 @@ void hn_story_to_emb() {
   do {
     auto meta_info = fmt::format(R"({{"model_name": "{}", "dim": {}, "cnt": {}}})",
                                  FLAGS_emb_model_name, dim, item_cnt.load());
-    std::ofstream meta_ofs{HN_STORY_EMB_META_FILE};
+    auto story_emb_meta_file_path = DEFAULT_ROOT_PATH / version / HN_STORY_EMB_META_FILE;
+    std::ofstream meta_ofs {story_emb_meta_file_path};
     if (!meta_ofs.is_open()) {
-      spdlog::error("failure to open meta file '{}', meta info: '{}'", HN_STORY_EMB_META_FILE, meta_info);
+      spdlog::error("failure to open meta file '{}', meta info: '{}'", story_emb_meta_file_path.string(), meta_info);
       break;
     }
     meta_ofs << meta_info << std::endl;
@@ -276,23 +290,21 @@ void hn_story_to_emb() {
   } while (false);
 }
 
-nlohmann::json fetch_emb_meta_info() {
-  std::filesystem::path meta_file_path{HN_STORY_EMB_META_FILE};
-  if (!std::filesystem::exists(meta_file_path)) {
-    spdlog::error("not exist meta file {}", meta_file_path.string());
-    return {};
+void versioned_hn_story_to_emb() {
+  const auto versions = all_versions();
+  std::vector<std::string> version_cands;
+  for (const auto& v : versions) {
+    auto story_emb_meta_file_path = DEFAULT_ROOT_PATH / v / HN_STORY_EMB_META_FILE;
+    if (!exists(story_emb_meta_file_path)) {
+      version_cands.emplace_back(v);
+    }
   }
-  std::ifstream meta_ifs{meta_file_path};
-  if (!meta_ifs.is_open()) {
-    spdlog::error("failure to open meta file '{}'", HN_STORY_EMB_META_FILE);
-    return {};
+  if (version_cands.empty()) {
+    return;
   }
-  DeferGuard ifs_close_guard{[&meta_ifs]() {
-    meta_ifs.close();
-  }};
-  std::string line;
-  std::getline(meta_ifs, line);
-  return nlohmann::json::parse(line);
+  for (const auto& v : version_cands) {
+    hn_story_to_emb(v);
+  }
 }
 
 void find_similarity_by_brute_force() {
@@ -302,29 +314,17 @@ void find_similarity_by_brute_force() {
     spdlog::warn("input sentence is empty!");
     return;
   }
-  std::ifstream ifs{HN_STORY_EMB_FILE};
-  if (!ifs.is_open()) {
-    spdlog::error("failure to open {}", HN_STORY_EMB_FILE);
-    return;
-  }
-  DeferGuard ifs_close_guard{[&ifs]() {
-    ifs.close();
-  }};
-  auto j = fetch_emb_meta_info();
-  std::string model_name = j["model_name"].get<std::string>();
-  spdlog::info("embedding model: {}, dim: {}, cnt: {}",
-               model_name, j["dim"].get<uint32_t>(), j["cnt"].get<uint32_t>());
   //
-  Ollama oll_model{model_name};
+  Ollama oll_model{FLAGS_emb_model_name};
   if (!oll_model.is_model_serving()) {
-    spdlog::error("please run model '{}' on ollama first", model_name);
+    spdlog::error("please run model '{}' on ollama first", FLAGS_emb_model_name);
     return;
   }
   std::vector<std::string> model_input;
   model_input.emplace_back(s);
   Embeddings embs = oll_model.generate_embeddings(model_input);
   if (embs.size() != 1) {
-    spdlog::error("failure to generate embedding for '{}' with model '{}'", s, model_name);
+    spdlog::error("failure to generate embedding for '{}' with model '{}'", s, FLAGS_emb_model_name);
     return;
   }
   const Embedding& query_emb = embs[0];
@@ -333,31 +333,49 @@ void find_similarity_by_brute_force() {
   };
   std::priority_queue<nlohmann::json, std::vector<nlohmann::json>, decltype(cmp)> pq{cmp}; // 最小堆
   uint32_t cnt = 0;
-  std::string line;
-  while (std::getline(ifs, line)) {
-    auto jj = nlohmann::json::parse(line);
-    auto cand_emb = jj["emb"].get<Embedding>();
-    if (cand_emb.size() != query_emb.size()) {
-      spdlog::error("dim not equal: {}={}", cand_emb.size(), query_emb.size());
-      continue;
+  //
+  auto versions = all_versions();
+  std::vector<std::string> version_cands;
+  for (const auto& v : versions) {
+    if (std::filesystem::exists(DEFAULT_ROOT_PATH / v / HN_STORY_EMB_FILE)) {
+      version_cands.emplace_back(v);
     }
-    float sim = 0.0;
-    for (size_t idx = 0; idx < cand_emb.size(); idx++) {
-      sim += cand_emb[idx] * query_emb[idx];
+  }
+  for (const auto& v : version_cands) {
+    auto p = DEFAULT_ROOT_PATH / v / HN_STORY_EMB_FILE;
+    std::ifstream ifs{p};
+    if (!ifs.is_open()) {
+      spdlog::error("failure to open {}", p.string());
+      return;
     }
-    jj["score"] = sim;
-    pq.push(jj);
-    //
-    if (pq.size() > top_k) {
-      pq.pop();
+    DeferGuard ifs_close_guard{[&ifs]() {
+      ifs.close();
+    }};
+    std::string line;
+    while (std::getline(ifs, line)) {
+      auto jj = nlohmann::json::parse(line);
+      auto cand_emb = jj["emb"].get<Embedding>();
+      if (cand_emb.size() != query_emb.size()) {
+        spdlog::error("dim not equal: {}={}", cand_emb.size(), query_emb.size());
+        continue;
+      }
+      float sim = 0.0;
+      for (size_t idx = 0; idx < cand_emb.size(); idx++) {
+        sim += cand_emb[idx] * query_emb[idx];
+      }
+      jj["ann_score"] = sim;
+      pq.push(jj);
+      //
+      if (pq.size() > top_k) {
+        pq.pop();
+      }
+      cnt++;
     }
-    cnt++;
   }
   spdlog::info("similarity top {}:", top_k);
   while (!pq.empty()) {
     const auto& pq_j = pq.top();
-    spdlog::info("item: {}, title: '{}', text: '{}', score: {}", pq_j["id"].get<uint32_t>(),
-                 pq_j["title"].get<std::string>(), pq_j["text"].get<std::string>(), pq_j["score"].get<float>());
+    spdlog::info("item: {}, score: {}", pq_j["id"].get<uint32_t>(), pq_j["ann_score"].get<float>());
     pq.pop();
   }
 }
@@ -365,17 +383,16 @@ void find_similarity_by_brute_force() {
 void build_hnsw_index() {
   using namespace hnswlib;
   auto& hn_hnsw = HackNewsHnsw::singleton();
-  std::filesystem::path root_path{"./"};
-  hn_hnsw.data_path(root_path.string());
+  hn_hnsw.data_path(DEFAULT_ROOT_PATH.string());
   hn_hnsw.load_meta();
   auto& meta = hn_hnsw.meta();
   if (meta.model_name.empty() || meta.dim == 0 || meta.cnt == 0) {
     return;
   }
   //
-  std::filesystem::path emb_file_path{root_path / HN_STORY_EMB_FILE};
+  std::filesystem::path emb_file_path = DEFAULT_ROOT_PATH / HN_STORY_EMB_FILE;
   if (!std::filesystem::exists(emb_file_path)) {
-    spdlog::error("not exist emb file: {}", HN_STORY_EMB_FILE);
+    spdlog::error("not exist emb file: {}", emb_file_path.string());
     return;
   }
   //
@@ -384,7 +401,7 @@ void build_hnsw_index() {
   emb_ifs.rdbuf()->pubsetbuf(stream_buffer, 1024 * 512);
   emb_ifs.open(emb_file_path);
   if (!emb_ifs.is_open()) {
-    spdlog::error("failure to open file {}", HN_STORY_EMB_FILE);
+    spdlog::error("failure to open file {}", emb_file_path.string());
     return;
   }
   DeferGuard emb_ifs_close_guard{[&emb_ifs]() {
@@ -415,16 +432,15 @@ void build_hnsw_index() {
     std::this_thread::sleep_for(milliseconds(50));
   }
   spdlog::info("hnsw points cnt: {}", point_cnt.load());
-  hnsw_ptr->saveIndex((root_path / HN_STORY_HNSW_IDX_FILE).string());
+  hnsw_ptr->saveIndex((DEFAULT_ROOT_PATH / HN_STORY_HNSW_IDX_FILE).string());
   tp.join();
 }
 
 void find_similarity_by_hnsw() {
   using namespace hnswlib;
   //
-  auto& hn_hnsw = ling::storage::HackNewsHnsw::singleton();
-  std::filesystem::path root_path{"./"};
-  hn_hnsw.data_path(root_path.string());
+  auto& hn_hnsw = HackNewsHnsw::singleton();
+  hn_hnsw.data_path(DEFAULT_ROOT_PATH.string());
   hn_hnsw.load(); // !!!
   //
   auto& meta = hn_hnsw.meta();
@@ -472,7 +488,7 @@ int main(int argc, char** argv) {
       crawl_hn();
       break;
     case 1:
-      hn_story_to_emb();
+      versioned_hn_story_to_emb();
       break;
     case 2:
       find_similarity_by_brute_force();
