@@ -21,6 +21,7 @@ find_package(libuv REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(GTest REQUIRED)
 find_package(roaring REQUIRED)
+find_package(mimalloc REQUIRED)
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     set(CMAKE_C_COMPILER, "/usr/bin/clang")
@@ -113,6 +114,7 @@ target_link_libraries(
         fmt::fmt
         ZLIB::ZLIB
         cppjieba
+        mimalloc-static
 )
 
 add_executable(hacker_news src/task/hacker_news.cpp

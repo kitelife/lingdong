@@ -15,6 +15,7 @@ libuv/1.49.2
 zlib/1.3.1
 gtest/1.16.0
 roaring/4.2.1
+mimalloc/2.1.9
 
 [generators]
 CMakeDeps

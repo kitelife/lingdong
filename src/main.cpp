@@ -3,6 +3,7 @@
 #include <gflags/gflags.h>
 #include <fmt/std.h>
 #include <spdlog/spdlog.h>
+#include <mimalloc-override.h>
 
 #include "context.hpp"
 #include "maker.hpp"
@@ -37,6 +38,13 @@ bool test_post(const std::string& post_file) {
 }
 
 int main(int argc, char** argv) {
+  //
+  mi_option_set(mi_option_show_stats, 1);
+  mi_option_set(mi_option_verbose, 1);
+  mi_option_set(mi_option_show_errors, 1);
+  // Reserve OS memory for use by mimalloc.
+  mi_option_set(mi_option_arena_reserve, 64 * 1024); // 64 MB，该参数单位为 kB，默认 1GB，
+  //
   gflags::ParseCommandLineFlags(&argc, &argv, true);
   spdlog::set_level(spdlog::level::debug);
   spdlog::flush_on(spdlog::level::warn);
