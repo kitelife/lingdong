@@ -159,9 +159,18 @@ inline ParseStatus HttpRequest::parse(char* buffer, size_t buffer_size) {
   // 判断请求体是否结束
   if (headers.contains(header::ContentLength)) {
     long length = std::strtol(headers[header::ContentLength].c_str(), nullptr, 10);
-    if (length > 0 && length == buffer_size-1-headers_end_idx) {
-      body = body = std::string_view(buffer+headers_end_idx+1, length);
-      return ParseStatus::COMPLETE;
+    if (length > 0) {
+      if (length == buffer_size-1-headers_end_idx) {
+        body = std::string_view(buffer+headers_end_idx+1, length);
+        return ParseStatus::COMPLETE;
+      }
+      if (length > buffer_size-1-headers_end_idx) {
+        return ParseStatus::CONTINUE;
+      }
+      if (length < buffer_size-1-headers_end_idx) {
+        spdlog::warn("illegal content length: {}, too small!", length);
+        return ParseStatus::INVALID;
+      }
     }
   } else if (headers_end_idx > 0 && buffer_size > headers_end_idx) {
     if (buffer[buffer_size-1] == '\n' && buffer[buffer_size-2] == '\r' && buffer[buffer_size-3] == '\n' && \

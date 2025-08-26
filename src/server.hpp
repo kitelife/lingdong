@@ -24,6 +24,57 @@ static size_t REQUEST_SIZE_LIMIT {10 * 1024 * 1024}; // 10MB
 
 using LoopPtr = std::shared_ptr<uv_loop_t>;
 
+enum class RequestBufferStage {
+  INIT,
+  PARSING,
+  HANDLING,
+  COMPLETE,
+};
+
+class RequestBuffer;
+using RequestBufferPtr = std::shared_ptr<RequestBuffer>;
+
+class RequestBufferManager {
+public:
+  static RequestBufferManager& instance() {
+    static RequestBufferManager rbm;
+    return rbm;
+  }
+
+  RequestBufferManager();
+  ~RequestBufferManager() {
+    exit_flag_ = true;
+    cleanup_future_.wait_for(std::chrono::seconds(5));
+  }
+
+  RequestBufferPtr with_req_buffer(uv_stream_t* client) {
+    if (request_buffers_.count(client) > 0) {
+      return request_buffers_.at(client);
+    }
+    std::lock_guard lock(mutex_);
+    if (request_buffers_.count(client) > 0) {
+      return request_buffers_.at(client);
+    }
+    request_buffers_[client] = std::make_shared<RequestBuffer>();
+    return request_buffers_.at(client);
+  }
+
+  bool free_req_buffer(uv_stream_t* client) {
+    if (request_buffers_.count(client) > 0) {
+      std::lock_guard lock(mutex_);
+      request_buffers_.erase(client);
+      return true;
+    }
+    return false;
+  }
+
+private:
+  std::mutex mutex_;
+  std::unordered_map<uv_stream_t*, RequestBufferPtr> request_buffers_;
+  std::future<void> cleanup_future_;
+  std::atomic_bool exit_flag_ {false};
+};
+
 class RequestBuffer {
 public:
   RequestBuffer() = default;
@@ -36,6 +87,9 @@ public:
 
   ParseStatus accept(const uv_buf_t* buf, ssize_t nread);
   void handle(uv_stream_t *client);
+  std::chrono::time_point<std::chrono::system_clock>& last_fill_time() {
+    return last_fill_time_;
+  }
 
 private:
   ParseStatus try_parse();
@@ -50,6 +104,8 @@ private:
 private:
   char* buffer_ = nullptr;
   size_t size_ = 0;
+  RequestBufferStage stage_ = RequestBufferStage::INIT;
+  std::chrono::time_point<std::chrono::system_clock> last_fill_time_ = std::chrono::system_clock::now();
   //
   std::pair<std::string, uint> peer;
   Protocol protocol_ = Protocol::UNKNOWN;
@@ -82,10 +138,14 @@ inline ParseStatus RequestBuffer::accept(const uv_buf_t* buf, ssize_t nread) {
   buffer_ = tmp_buffer;
   size_ = tmp_size;
   //
+  last_fill_time_ = std::chrono::system_clock::now();
+  //
   return try_parse();
 }
 
 inline ParseStatus RequestBuffer::try_parse() {
+  stage_ = RequestBufferStage::PARSING;
+  //
   if (size_ <= 0 || buffer_ == nullptr) {
     return ParseStatus::INVALID;
   }
@@ -127,6 +187,8 @@ inline bool RequestBuffer::fill_peer_info(uv_stream_t* client) {
 }
 
 inline void RequestBuffer::handle(uv_stream_t *client) {
+  stage_ = RequestBufferStage::HANDLING;
+  //
   fill_peer_info(client);
   //
   if (protocol_ == Protocol::HTTP) {
@@ -137,12 +199,37 @@ inline void RequestBuffer::handle(uv_stream_t *client) {
     http_router.route(http_req, [client](const http::HttpResponsePtr& resp_ptr) {
       resp_ptr->send(client);
     });
+    stage_ = RequestBufferStage::COMPLETE;
+    RequestBufferManager::instance().free_req_buffer(client); //
     return;
   }
   spdlog::error("Illegal protocol");
 }
 
-using RequestBufferPtr = std::shared_ptr<RequestBuffer>;
+inline RequestBufferManager::RequestBufferManager() {
+  cleanup_future_ = std::async(std::launch::async, [&]() {
+      while (!exit_flag_) {
+        if (request_buffers_.empty()) {
+          std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        }
+        std::vector<uv_stream_t*> keys_to_cleanup;
+        auto now = std::chrono::system_clock::now();
+        for (const auto& [k, v] : request_buffers_) {
+          if ((now - v->last_fill_time()) > std::chrono::seconds(300)) {
+            keys_to_cleanup.emplace_back(k);
+          }
+        }
+        if (keys_to_cleanup.emplace_back()) {
+          std::this_thread::sleep_for(std::chrono::milliseconds(500));
+          continue;
+        }
+        std::lock_guard lock{mutex_};
+        for (const auto k : keys_to_cleanup) {
+          request_buffers_.erase(k);
+        }
+      }
+    });
+}
 
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -161,14 +248,14 @@ static void on_read(uv_stream_t *client, ssize_t nread, const uv_buf_t *buf) {
   if (nread > 0) {
     // accept 需要将 buf 的内容拷贝一份
     // 返回 true，则表示请求体已接收完整
-    auto req_buffer = std::make_shared<RequestBuffer>();
+    auto req_buffer = RequestBufferManager::instance().with_req_buffer(client);
     auto status = req_buffer->accept(buf, nread);
     if (status == ParseStatus::COMPLETE) { // 请求完整了
       // TODO: 异步并发处理
       req_buffer->handle(client);
-    } else { // 不合法的请求
+    } else if (status == ParseStatus::INVALID) { // 不合法的请求
       spdlog::error("Illegal request");
-    }
+    } else {} // 还没接收完成的请求
   } else if (nread < 0) {
     if (nread != UV_EOF) {
       fprintf(stderr, "Read error %s\n", uv_err_name(nread));

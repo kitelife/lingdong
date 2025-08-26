@@ -6,6 +6,7 @@
 #include "nlohmann/json.hpp"
 #include "spdlog/spdlog.h"
 #include "hnswlib/hnswlib.h"
+#include "absl/time/time.h"
 
 #include "utils/helper.hpp"
 #include "utils/guard.hpp"
@@ -47,6 +48,7 @@ public:
 };
 
 using HackerNewItemPtr = std::shared_ptr<HackerNewItem>;
+using HnForwardIndex = std::unordered_map<uint32_t, HackerNewItemPtr>;
 
 inline void HackerNewItem::from_json(nlohmann::json &j) {
   id = j["id"].get<uint32_t>();
@@ -177,7 +179,7 @@ private:
   std::filesystem::path data_path_;
   //
   HnEmbMeta meta_;
-  std::shared_ptr<std::unordered_map<uint32_t, HackerNewItemPtr>> fwd_ptr_ = nullptr;
+  std::shared_ptr<HnForwardIndex> fwd_ptr_ = std::make_shared<HnForwardIndex>();
   std::shared_ptr<HierarchicalNSW<float>> hnsw_ptr_;
   std::atomic_bool loaded_ {false};
   //

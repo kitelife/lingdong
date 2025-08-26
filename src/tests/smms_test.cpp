@@ -3,7 +3,7 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 
-#include "smms.hpp"
+#include "plugin/smms.hpp"
 
 using SmmsOpenAPI = ling::plugin::SmmsOpenAPI;
 

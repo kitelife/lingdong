@@ -1,7 +1,7 @@
 //
 // Created by xiayf on 2025/4/15.
 //
-#include "plantuml.hpp"
+#include "plugin/plantuml.hpp"
 
 #include <absl/hash/hash.h>
 #include <absl/strings/escaping.h>

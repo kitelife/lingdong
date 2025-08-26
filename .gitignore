@@ -12,3 +12,4 @@ _draft/
 .make_cache
 .venv/
 data/
+!src/tests/data/

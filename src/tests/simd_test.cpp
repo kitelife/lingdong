@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 
 
-#include "simd.hpp"
+#include "utils/simd.hpp"
 
 TEST(SimdTest, float_sum) {
   std::vector<float> v = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0};

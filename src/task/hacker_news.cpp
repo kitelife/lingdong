@@ -12,14 +12,15 @@
 #include "gflags/gflags.h"
 #include "fmt/format.h"
 #include "hnswlib/hnswlib.h"
-#include "absl/time/time.h"
 
 #include "storage/hn_hnsw.hpp"
 #include "utils/executor.hpp"
 #include "utils/guard.hpp"
 #include "utils/ollama.hpp"
+#include "utils/simd.hpp"
 
 namespace ling::task {
+
 DEFINE_string(wd, "../../data/hn", "working dir");
 DEFINE_uint32(sub_task, 0, "sub task type");
 DEFINE_uint32(max_item_id, 0, "max limit for item id");
@@ -359,10 +360,12 @@ void find_similarity_by_brute_force() {
         spdlog::error("dim not equal: {}={}", cand_emb.size(), query_emb.size());
         continue;
       }
+      /*
       float sim = 0.0;
       for (size_t idx = 0; idx < cand_emb.size(); idx++) {
         sim += cand_emb[idx] * query_emb[idx];
-      }
+      }*/
+      float sim = simd::distance_ip(cand_emb, query_emb);
       jj["ann_score"] = sim;
       pq.push(jj);
       //

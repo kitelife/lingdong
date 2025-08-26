@@ -1,7 +1,7 @@
 #include "gtest/gtest.h"
 #include "absl/strings/str_join.h"
 
-#include "ollama.hpp"
+#include "utils/ollama.hpp"
 
 using ling::utils::Ollama;
 

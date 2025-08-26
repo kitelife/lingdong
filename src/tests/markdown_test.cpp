@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "markdown.h"
+#include "parser/markdown.h"
 
 TEST(MarkdownTest, parse_table) {
   const auto md_ptr = std::make_shared<ling::Markdown>();

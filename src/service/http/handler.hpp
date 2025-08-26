@@ -299,6 +299,31 @@ static void search_hacker_news_handler(const HttpRequest& req, const HttpRespons
   resp->with_body(resp_data.dump(2));
 }
 
+static void prompt_generate_with_image(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) {
+  using namespace ling::utils;
+  DoneCallbackGuard guard{cb, resp};
+  auto j = nlohmann::json::parse(req.body);
+  if (!j.contains("prompt") || !j.contains("image")) {
+    resp->with_code(HttpStatusCode::BAD_REQUEST);
+    return;
+  }
+  // - gemma3:4b
+  // -
+  Ollama oll_model {""};
+  if (!oll_model.is_model_serving()) {
+    resp->with_code(HttpStatusCode::INTERNAL_ERR);
+    return;
+  }
+  auto resp_generated = oll_model.prompt_generate_with_image(j["prompt"].get<std::string>(), j["image"].get<std::string>());
+  if (resp_generated.empty()) {
+    resp->with_code(HttpStatusCode::INTERNAL_ERR);
+    return;
+  }
+  resp->with_code(HttpStatusCode::OK);
+  resp->with_header(header::ContentType, FILE_SUFFIX_TYPE_M_CONTENT_TYPE["json"].type_name);
+  resp->with_body(fmt::format(R"({{"result": "{}"}})", resp_generated));
+}
+
 // 为一些没有提供 rss 的博客/站点提供 rss 生成服务
 static void rss_provider_handler(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) {
   // TODO:

@@ -119,10 +119,9 @@ add_executable(hacker_news src/task/hacker_news.cpp
         src/utils/executor.hpp
         src/utils/blocking_queue.hpp
         src/utils/perf.hpp
+        src/utils/simd.hpp
 )
-
 target_compile_options(hacker_news PRIVATE -O0 -g)
-
 target_link_libraries(hacker_news
         cpr::cpr
         inja
@@ -130,37 +129,51 @@ target_link_libraries(hacker_news
         gflags::gflags
         hnswlib
         abseil::abseil
+        xsimd
+)
+
+add_executable(image2base64 src/task/image2base64.cpp
+        src/utils/image.hpp
+)
+target_compile_options(image2base64 PRIVATE -O3 -g)
+target_link_libraries(image2base64
+        gflags::gflags
+        abseil::abseil
+        spdlog::spdlog
 )
 
 # for testing
 enable_testing()
 add_executable(
         test_lingdong
-        src/plugin/plantuml_test.cpp
-        src/plugin/smms_test.cpp
-        src/utils/strings_test.cpp
-        src/utils/time_test.cpp
+        src/tests/plantuml_test.cpp
+        src/tests/smms_test.cpp
+        src/tests/strings_test.cpp
+        src/tests/time_test.cpp
         src/config.hpp
         src/context.hpp
         src/plugin/plantuml.hpp
         src/plugin/mermaid.hpp
         src/plugin/smms.hpp
 
-        src/parser/markdown_test.cpp
+        src/tests/markdown_test.cpp
         src/parser/markdown.h
         src/parser/markdown.cpp
 
         src/utils/simd.hpp
-        src/utils/simd_test.cpp
+        src/tests/simd_test.cpp
 
         src/utils/strings.hpp
         src/utils/time.hpp
 
         src/utils/tokenizer.hpp
-        src/utils/tokenizer_test.cpp
+        src/tests/tokenizer_test.cpp
 
         src/utils/ollama.hpp
-        src/utils/ollama_test.cpp
+        src/tests/ollama_test.cpp
+
+        src/utils/image.hpp
+        src/tests/image_test.cpp
 
         src/tests/format_test.cpp
 )

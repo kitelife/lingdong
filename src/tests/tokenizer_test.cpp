@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "tokenizer.hpp"
+#include "utils/tokenizer.hpp"
 
 TEST(TokenizerTest, test_cut_for_search) {
   auto tokens = ling::utils::tokenize("hello 欢迎来上海");

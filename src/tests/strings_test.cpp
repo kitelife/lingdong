@@ -2,9 +2,9 @@
 // Created by xiayf on 2025/4/15.
 //
 
-#include "strings.hpp"
-
 #include <gtest/gtest.h>
+
+#include "utils/strings.hpp"
 
 TEST(StringsTest, view_strip_empty) {
   std::string input = "  \t this is a test string ";
