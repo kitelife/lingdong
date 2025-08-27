@@ -1,26 +1,22 @@
 #pragma once
 
-#include <gflags/gflags.h>
+#include <future>
+
 #include <spdlog/spdlog.h>
 #include <uv.h>
 
-#include "context.hpp"
-#include "server.hpp"
 #include "service/protocol.h"
 #include "service/http/protocol.hpp"
 #include "service/http/router.hpp"
-#include "storage/local_sqlite.h"
-#include "storage/hn_hnsw.hpp"
 #include "utils/guard.hpp"
 #include "utils/executor.hpp"
 
-DEFINE_string(host, "127.0.0.1", "server host to listen");
-DEFINE_uint32(port, 8000, "server port to listen");
-
-namespace ling {
+namespace ling::http::server {
 
 static int DEFAULT_BACKLOG = 128;
 static size_t REQUEST_SIZE_LIMIT {10 * 1024 * 1024}; // 10MB
+
+static std::unique_ptr<Router> router;
 
 using LoopPtr = std::shared_ptr<uv_loop_t>;
 
@@ -109,7 +105,7 @@ private:
   //
   std::pair<std::string, uint> peer;
   Protocol protocol_ = Protocol::UNKNOWN;
-  http::HttpRequest http_req;
+  HttpRequest http_req;
 };
 
 inline ParseStatus RequestBuffer::accept(const uv_buf_t* buf, ssize_t nread) {
@@ -152,7 +148,7 @@ inline ParseStatus RequestBuffer::try_parse() {
   if (protocol_ == Protocol::UNKNOWN) {
     auto [buffer_ptr, buffer_size] = with_buffer();
     // HTTP 协议探测
-    if (http::probe(buffer_ptr, buffer_size, with_http_request()) == ParseStatus::INVALID) {
+    if (probe(buffer_ptr, buffer_size, with_http_request()) == ParseStatus::INVALID) {
       protocol_ = Protocol::INVALID;
       return ParseStatus::INVALID;
     }
@@ -195,8 +191,7 @@ inline void RequestBuffer::handle(uv_stream_t *client) {
     auto& http_req = with_http_request();
     http_req.from = peer;
     //
-    static auto& http_router = http::Router::singleton(); // !!!
-    http_router.route(http_req, [client](const http::HttpResponsePtr& resp_ptr) {
+    router->route(http_req, [client](const http::HttpResponsePtr& resp_ptr) {
       resp_ptr->send(client);
     });
     stage_ = RequestBufferStage::COMPLETE;
@@ -283,20 +278,6 @@ static bool handle(const LoopPtr& loop_, uv_stream_t* server) {
 
 //----------------------------------------------------------------------------------------------------------------------
 
-static bool init_db(const ConfigPtr& conf_ptr) {
-  auto& db = storage::LocalSqlite::singleton();
-  return db.open(conf_ptr->storage.db_file_path, conf_ptr->storage.init_sql);
-}
-
-static bool load_hn_index(const ConfigPtr& conf_ptr) {
-  auto hn_data_path = toml::find_or_default<std::string>(conf_ptr->raw_toml_, "hn", "data_path");
-  auto& hn_hnsw = storage::HackNewsHnsw::singleton();
-  hn_hnsw.data_path(hn_data_path);
-  return hn_hnsw.load();
-}
-
-namespace server {
-
 static LoopPtr loop_;
 static std::shared_ptr<uv_tcp_t> tcp_server_;
 
@@ -314,19 +295,17 @@ static void cleanup_before_exit() {
   utils::default_executor().join();
 }
 
-static bool start_server(const ConfigPtr& conf_ptr) {
-  auto dist_dir = conf_ptr->dist_dir;
-  //
-  const auto origin_wd = current_path();
-  current_path(absolute(dist_dir));
-  spdlog::info("change working dir from {} to {}", origin_wd, current_path());
-  //
+static bool start_server(const std::string& host, int port) {
+  if (router == nullptr) {
+    spdlog::error("router is null");
+    return false;
+  }
   loop_.reset(uv_default_loop());
   tcp_server_ = std::make_shared<uv_tcp_t>();
   uv_tcp_init(loop_.get(), tcp_server_.get());
   //
   sockaddr_in addr{};
-  uv_ip4_addr(FLAGS_host.c_str(), static_cast<int>(FLAGS_port), &addr);
+  uv_ip4_addr(host.c_str(), port, &addr);
   //
   uv_tcp_bind(tcp_server_.get(), reinterpret_cast<const sockaddr*>(&addr), 0);
   //
@@ -340,16 +319,4 @@ static bool start_server(const ConfigPtr& conf_ptr) {
   return ret_status;
 }
 
-static bool start() {
-  auto conf_ptr = Context::singleton()->with_config();
-  if (!init_db(conf_ptr)) {
-    spdlog::error("failure to init db");
-  }
-  if (!load_hn_index(conf_ptr)) {
-    spdlog::error("failure to load HackNews index!");
-  }
-  return start_server(conf_ptr);
-}
-
-}
 }

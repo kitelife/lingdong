@@ -7,6 +7,7 @@
 #include <tsl/robin_map.h>
 #include <uv.h>
 #include <absl/strings/str_split.h>
+#include "nlohmann/json.hpp"
 
 #include "service/protocol.h"
 #include "utils/strings.hpp"
@@ -15,6 +16,15 @@ namespace ling::http {
 
 static size_t HTTP_FIRST_LINE_LENGTH_LIMIT {5 * 1024}; // 5kB
 static std::string HTTP_VERSION_CODE_1_1 = "1.1";
+
+enum class HTTP_METHOD {
+  UNKNOWN = 0,
+  GET = 1,
+  POST = 2,
+  PUT = 4,
+  HEAD = 8,
+  DELETE = 16,
+};
 
 namespace header {
 
@@ -70,10 +80,10 @@ struct UrlQuery {
   }
 
   std::string json_str() {
-    inja::json j;
+    nlohmann::json j;
     j["path"] = path;
-    j["params"] = inja::json({});
-    for (auto [k, v] : params) {
+    j["params"] = nlohmann::json({});
+    for (auto& [k, v] : params) {
       j["params"][k] = v;
     }
     return j.dump(2);

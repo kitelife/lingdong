@@ -7,11 +7,11 @@
 
 #include "context.hpp"
 #include "maker.hpp"
-#include "server.hpp"
+#include "web.hpp"
 
 DEFINE_string(dir, "../../demo/blog", "working directory");
 DEFINE_bool(skip_make, true, "skip make or not");
-DEFINE_bool(enable_serve, true, "enable to serve the static site");
+DEFINE_bool(enable_web, true, "enable to serve the static site");
 DEFINE_bool(ignore_cache, false, "ignore cache to remake");
 
 DEFINE_string(test_post, "", "for test, to parse single post");
@@ -38,7 +38,6 @@ bool test_post(const std::string& post_file) {
 }
 
 int main(int argc, char** argv) {
-  //
   mi_option_set(mi_option_show_stats, 1);
   mi_option_set(mi_option_verbose, 1);
   mi_option_set(mi_option_show_errors, 1);
@@ -75,9 +74,10 @@ int main(int argc, char** argv) {
     spdlog::info("Skip make!");
   }
   // serve
-  if (FLAGS_enable_serve) {
+  if (FLAGS_enable_web) {
     spdlog::info("try to serve this static site");
-    server::start();
+    WebApp web_app;
+    web_app.start();
   }
   return 0;
 }
