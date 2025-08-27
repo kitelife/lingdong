@@ -282,7 +282,7 @@ public:
   HttpRequest() = default;
   void to_string(std::string& s);
   ParseStatus parse(char* buffer, size_t buffer_size);
-  bool handle(std::function<void(char* resp, size_t resp_size)> cb);
+  void handle(std::function<void(char* resp, size_t resp_size)> cb);
 
 public:
   size_t first_line_end_idx = 0;
@@ -363,14 +363,13 @@ inline ParseStatus HttpRequest::parse(char* buffer, size_t buffer_size) {
   return ParseStatus::INVALID;
 }
 
-inline bool HttpRequest::handle(std::function<void(char* resp, size_t resp_size)> cb) {
+inline void HttpRequest::handle(std::function<void(char* resp, size_t resp_size)> cb) {
   router->route(this, [cb](const HttpResponsePtr& resp_ptr) {
     char* resp_buf = nullptr;
     size_t buf_size = 0;
     resp_ptr->generate(&resp_buf, &buf_size);
     cb(resp_buf, buf_size);
   });
-  return true;
 }
 
 inline void HttpRequest::to_string(std::string& s) {

@@ -96,15 +96,12 @@ private:
   [[nodiscard]] std::pair<char*, size_t> with_buffer() const {
     return std::make_pair(buffer_, size_);
   }
-  bool fill_peer_info(uv_stream_t* client);
 
 private:
   char* buffer_ = nullptr;
   size_t size_ = 0;
   RequestBufferStage stage_ = RequestBufferStage::INIT;
   std::chrono::time_point<std::chrono::system_clock> last_fill_time_ = std::chrono::system_clock::now();
-  //
-  std::pair<std::string, uint> peer;
   Protocol protocol_ = Protocol::UNKNOWN;
   http::HttpRequest http_req_;
 };
@@ -166,7 +163,7 @@ inline ParseStatus RequestBuffer::try_parse() {
   return ParseStatus::INVALID;
 }
 
-inline bool RequestBuffer::fill_peer_info(uv_stream_t* client) {
+static bool parse_peer_info(uv_stream_t* client, std::pair<std::string, int>& peer) {
   int peer_addr_len = sizeof(sockaddr);
   auto* peer_addr = static_cast<sockaddr*>(malloc(peer_addr_len));
   utils::MemoryGuard memory_guard {peer_addr};
@@ -177,8 +174,8 @@ inline bool RequestBuffer::fill_peer_info(uv_stream_t* client) {
   }
   char host[NI_MAXHOST], service[NI_MAXSERV];
   if (getnameinfo(peer_addr, peer_addr_len, host, NI_MAXHOST, service, NI_MAXSERV, NI_NUMERICSERV) == 0) {
-    peer = std::make_pair(std::string(host), std::strtol(service, nullptr, 10));
-    // spdlog::debug("peer host: {}, port: {}", peer.first, peer.second);
+    peer.first = std::string(host);
+    peer.second = std::strtol(service, nullptr, 10);
     return true;
   }
   return false;
@@ -220,11 +217,12 @@ static void after_write_resp(uv_work_t* w, int status) {
 
 inline void RequestBuffer::handle(uv_stream_t *client) {
   stage_ = RequestBufferStage::HANDLING;
-  fill_peer_info(client);
   if (protocol_ == Protocol::HTTP) {
     auto& http_req = with_http_request();
-    http_req.from = peer;
-    auto handle_status = http_req.handle([client](char* resp, size_t resp_size) {
+    if (!parse_peer_info(client, http_req.from)) {
+      spdlog::warn("failed to parse peer info");
+    }
+    http_req.handle([client](char* resp, size_t resp_size) {
       auto req = static_cast<write_req_t*>(malloc(sizeof(write_req_t)));
       req->buf = uv_buf_init(resp, resp_size);
       //
@@ -233,9 +231,6 @@ inline void RequestBuffer::handle(uv_stream_t *client) {
       // 排队由 loop_ 来统一处理
       uv_queue_work(loop_.get(), work, write_resp, after_write_resp);
     });
-    if (!handle_status) {
-      spdlog::warn("failed to handle request");
-    }
     stage_ = RequestBufferStage::COMPLETE;
     RequestBufferManager::instance().free_req_buffer(client); //
     return;
