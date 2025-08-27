@@ -7,15 +7,13 @@
 #include <tsl/robin_map.h>
 #include <uv.h>
 #include <absl/strings/str_split.h>
+
 #include "nlohmann/json.hpp"
 
 #include "service/protocol.h"
 #include "utils/strings.hpp"
 
 namespace ling::http {
-
-static size_t HTTP_FIRST_LINE_LENGTH_LIMIT {5 * 1024}; // 5kB
-static std::string HTTP_VERSION_CODE_1_1 = "1.1";
 
 enum class HTTP_METHOD {
   UNKNOWN = 0,
@@ -26,246 +24,34 @@ enum class HTTP_METHOD {
   DELETE = 16,
 };
 
+class HttpRequest;
+class HttpResponse;
+using HttpResponsePtr = std::shared_ptr<HttpResponse>;
+
+class Router {
+public:
+  virtual ~Router() = default;
+  virtual void route(HttpRequest* req, const std::function<void(HttpResponsePtr)>& cb) = 0;
+  virtual bool add_routes(std::vector<std::pair<std::pair<HTTP_METHOD, std::string>, void (*)(const HttpRequest&, const HttpResponsePtr&, const std::function<void(HttpResponsePtr)>&)>> routes) = 0;
+};
+
+static std::unique_ptr<Router> router;
+
+struct MapBasedRouterConf {
+  uint32_t global_rate_limit;
+  uint32_t per_client_rate_limit;
+  std::function<void(HttpRequest&)> func_log_req;
+};
+
+static size_t HTTP_FIRST_LINE_LENGTH_LIMIT {5 * 1024}; // 5kB
+static std::string HTTP_VERSION_CODE_1_1 = "1.1";
+
 namespace header {
 
 static std::string ContentType {"Content-Type"};
 static std::string ContentLength {"Content-Length"};
 static std::string UserAgent {"User-Agent"};
 
-}
-
-struct UrlQuery {
-  std::string path;
-  tsl::robin_map<std::string, std::string> params;
-
-  static std::pair<std::string, std::string> parse_one(const std::string& param) {
-    std::string pk = param;
-    std::string pv;
-    auto equal_pos = param.find('=');
-    if (equal_pos == std::string::npos || equal_pos == param.size()-1) {
-      return std::make_pair(pk, pv);
-    }
-    pk = utils::view_strip_empty(param.substr(0, equal_pos));
-    pv = param.substr(equal_pos+1, param.size()-1-equal_pos);
-    return std::make_pair(pk, pv);
-  }
-
-  bool parse(std::string& q) {
-    if (q.empty()) {
-      return false;
-    }
-    const auto pos = q.find('?');
-    if (pos == std::string::npos) {
-      path = q.substr(0, q.size());
-      return true;
-    }
-    path = q.substr(0, pos);
-    // example: /?hello=world
-    std::string params_part {utils::view_strip_empty(q.substr(pos+1))};
-    size_t idx = 0;
-    size_t sub_begin = 0;
-    while (idx < params_part.size()) {
-      if (params_part[idx] == '&') {
-        std::string param {utils::view_strip_empty(params_part.substr(sub_begin, idx-sub_begin))};
-        auto [pk, pv] = parse_one(param);
-        params[pk] = pv;
-        sub_begin = idx+1;
-      }
-      idx++;
-    }
-    // spdlog::debug(params_part.substr(sub_begin));
-    auto [pk, pv] = parse_one(std::string(utils::view_strip_empty(params_part.substr(sub_begin))));
-    params[pk] = pv;
-    return true;
-  }
-
-  std::string json_str() {
-    nlohmann::json j;
-    j["path"] = path;
-    j["params"] = nlohmann::json({});
-    for (auto& [k, v] : params) {
-      j["params"][k] = v;
-    }
-    return j.dump(2);
-  }
-};
-
-// https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods/POST
-struct UrlEncodedFormBody {
-  tsl::robin_map<std::string, std::string> params;
-  //
-  void parse(std::string_view s) {
-    const std::vector<std::string> parts = absl::StrSplit(s, '&');
-    for (const auto& sp : parts) {
-      auto pos = sp.find('=');
-      if (pos == std::string::npos) {
-        params[sp] = "";
-      } else {
-        params[sp.substr(0, pos)] = sp.substr(pos+1, sp.size()-1-pos);
-      }
-    }
-  }
-};
-
-class HttpRequest {
-public:
-  HttpRequest() = default;
-  void to_string(std::string& s);
-  ParseStatus parse(char* buffer, size_t buffer_size);
-
-public:
-  size_t first_line_end_idx = 0;
-  bool valid = false;
-  //
-  size_t headers_end_idx = 0;
-  //
-  std::pair<std::string, int> from;
-  //
-  std::string action;
-  std::string raw_q;
-  UrlQuery q;
-  std::string http_version;
-  tsl::robin_map<std::string, std::string> headers;
-  std::string_view body;
-};
-
-inline ParseStatus HttpRequest::parse(char* buffer, size_t buffer_size) {
-  if (first_line_end_idx <= 0) {
-    spdlog::error("illegal parse status");
-    return ParseStatus::INVALID;
-  }
-  if (headers_end_idx == 0) { // 解析请求头
-    size_t cnt = buffer_size-1-first_line_end_idx;
-    std::string_view part_after_first_line {buffer+first_line_end_idx+1, cnt};
-    size_t idx = 1;
-    size_t new_line_begin_idx = 0;
-    while (idx < part_after_first_line.size()) {
-      if (part_after_first_line[idx] == '\n') {
-        if (part_after_first_line[idx-1] == '\r') {
-          if (idx >= 4 && part_after_first_line[idx-1] == '\r' && part_after_first_line[idx-2] == '\n' && part_after_first_line[idx-3] == '\r') { // 请求头结束
-            headers_end_idx = idx+(first_line_end_idx+1);
-            break;
-          }
-          std::string_view header_line = part_after_first_line.substr(new_line_begin_idx, idx-new_line_begin_idx-1);
-          auto pos = header_line.find(':');
-          if (pos == std::string_view::npos) {
-            spdlog::warn("illegal header line: {}", header_line);
-          } else {
-            std::string header_name {utils::view_strip_empty(header_line.substr(0, pos))};
-            std::string header_val {utils::view_strip_empty(header_line.substr(pos+1, header_line.size()-1-pos))};
-            headers[header_name] = header_val;
-          }
-          new_line_begin_idx = idx+1;
-        }
-      }
-      idx++;
-    }
-  }
-  /*
-  if (spdlog::get_level() == spdlog::level::debug) {
-    spdlog::debug("query: {}", q.json_str());
-  }
-  */
-  // 判断请求体是否结束
-  if (headers.contains(header::ContentLength)) {
-    long length = std::strtol(headers[header::ContentLength].c_str(), nullptr, 10);
-    if (length > 0) {
-      if (length == buffer_size-1-headers_end_idx) {
-        body = std::string_view(buffer+headers_end_idx+1, length);
-        return ParseStatus::COMPLETE;
-      }
-      if (length > buffer_size-1-headers_end_idx) {
-        return ParseStatus::CONTINUE;
-      }
-      if (length < buffer_size-1-headers_end_idx) {
-        spdlog::warn("illegal content length: {}, too small!", length);
-        return ParseStatus::INVALID;
-      }
-    }
-  } else if (headers_end_idx > 0 && buffer_size > headers_end_idx) {
-    if (buffer[buffer_size-1] == '\n' && buffer[buffer_size-2] == '\r' && buffer[buffer_size-3] == '\n' && \
-      buffer[buffer_size-4] == '\r') {
-      body = std::string_view(buffer+headers_end_idx+1, buffer_size-1-headers_end_idx);
-      return ParseStatus::COMPLETE;
-    }
-  }
-  return ParseStatus::INVALID;
-}
-
-inline void HttpRequest::to_string(std::string& s) {
-  s += fmt::format("{} {} HTTP/{}\n", action, raw_q, http_version);
-  for (auto [k, v] : headers) {
-    s += fmt::format("{}: {}\n", k, v);
-  }
-  s += "\n";
-  if (!body.empty()) {
-    s += body;
-    s += "\n\n";
-  }
-}
-
-inline ParseStatus probe(const char* buffer, size_t buffer_size, HttpRequest& http_req) {
-  size_t idx = 1;
-  bool least_one_line = false;
-  while (idx < buffer_size) {
-    if (*(buffer+idx) == '\n' && *(buffer+idx-1) == '\r') {
-      least_one_line = true;
-      break;
-    }
-    idx++;
-  }
-  // 安全防护：首行长度限制
-  if (idx >= HTTP_FIRST_LINE_LENGTH_LIMIT) {
-    return ParseStatus::INVALID;
-  }
-  if (!least_one_line) {
-    return ParseStatus::INVALID;
-  }
-  http_req.first_line_end_idx = idx;
-  // 示例：GET /path HTTP/1.1
-  const std::string_view protocol_line {buffer, idx-1};
-  idx = 0;
-  size_t last_blank_idx = 0;
-  while (idx < protocol_line.size()) {
-    if (protocol_line[idx] == ' ' || protocol_line[idx] == '\t') {
-      if (http_req.action.empty()) {
-        http_req.action = protocol_line.substr(0, idx);
-        last_blank_idx = idx;
-      } else if (http_req.raw_q.empty()) {
-        http_req.raw_q = protocol_line.substr(last_blank_idx+1, idx-1-last_blank_idx);
-        http_req.q.parse(http_req.raw_q);
-        last_blank_idx = idx;
-        break;
-      }
-    }
-    idx++;
-  }
-  if (last_blank_idx == 0) {
-    return ParseStatus::INVALID;
-  }
-  idx = last_blank_idx+1;
-  if (protocol_line.size()-idx < 5) {
-    return ParseStatus::INVALID;
-  }
-  const std::string_view protocol_version {buffer+idx, protocol_line.size()-idx};
-  idx = 0;
-  bool match_http = false;
-  while (idx < protocol_version.size()-1) {
-    if (protocol_version[idx] == '/') {
-      if (protocol_version.substr(0, idx) != "HTTP") {
-        break;
-      }
-      match_http = true;
-      http_req.http_version = protocol_version.substr(idx+1, protocol_version.size()-idx);
-      break;
-    }
-    idx++;
-  }
-  if (!match_http || http_req.http_version.empty()) {
-    return ParseStatus::INVALID;
-  }
-  http_req.valid = true;
-  return ParseStatus::CONTINUE;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -387,8 +173,6 @@ private:
   std::string body_;
 };
 
-using HttpResponsePtr = std::shared_ptr<HttpResponse>;
-
 inline bool HttpResponse::send(uv_stream_t* client) {
   size_t buf_size = 0;
   std::vector<std::string> resp_lines;
@@ -438,6 +222,250 @@ inline bool HttpResponse::with_body(std::string body) {
   body_ = std::move(body);
   sealed_ = true;
   return true;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+struct UrlQuery {
+  std::string path;
+  tsl::robin_map<std::string, std::string> params;
+
+  static std::pair<std::string, std::string> parse_one(const std::string& param) {
+    std::string pk = param;
+    std::string pv;
+    auto equal_pos = param.find('=');
+    if (equal_pos == std::string::npos || equal_pos == param.size()-1) {
+      return std::make_pair(pk, pv);
+    }
+    pk = utils::view_strip_empty(param.substr(0, equal_pos));
+    pv = param.substr(equal_pos+1, param.size()-1-equal_pos);
+    return std::make_pair(pk, pv);
+  }
+
+  bool parse(std::string& q) {
+    if (q.empty()) {
+      return false;
+    }
+    const auto pos = q.find('?');
+    if (pos == std::string::npos) {
+      path = q.substr(0, q.size());
+      return true;
+    }
+    path = q.substr(0, pos);
+    // example: /?hello=world
+    std::string params_part {utils::view_strip_empty(q.substr(pos+1))};
+    size_t idx = 0;
+    size_t sub_begin = 0;
+    while (idx < params_part.size()) {
+      if (params_part[idx] == '&') {
+        std::string param {utils::view_strip_empty(params_part.substr(sub_begin, idx-sub_begin))};
+        auto [pk, pv] = parse_one(param);
+        params[pk] = pv;
+        sub_begin = idx+1;
+      }
+      idx++;
+    }
+    // spdlog::debug(params_part.substr(sub_begin));
+    auto [pk, pv] = parse_one(std::string(utils::view_strip_empty(params_part.substr(sub_begin))));
+    params[pk] = pv;
+    return true;
+  }
+
+  std::string json_str() {
+    nlohmann::json j;
+    j["path"] = path;
+    j["params"] = nlohmann::json({});
+    for (auto& [k, v] : params) {
+      j["params"][k] = v;
+    }
+    return j.dump(2);
+  }
+};
+
+// https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods/POST
+struct UrlEncodedFormBody {
+  tsl::robin_map<std::string, std::string> params;
+  //
+  void parse(std::string_view s) {
+    const std::vector<std::string> parts = absl::StrSplit(s, '&');
+    for (const auto& sp : parts) {
+      auto pos = sp.find('=');
+      if (pos == std::string::npos) {
+        params[sp] = "";
+      } else {
+        params[sp.substr(0, pos)] = sp.substr(pos+1, sp.size()-1-pos);
+      }
+    }
+  }
+};
+
+class HttpRequest {
+public:
+  HttpRequest() = default;
+  void to_string(std::string& s);
+  ParseStatus parse(char* buffer, size_t buffer_size);
+  bool handle(uv_stream_t *client);
+
+public:
+  size_t first_line_end_idx = 0;
+  bool valid = false;
+  //
+  size_t headers_end_idx = 0;
+  //
+  std::pair<std::string, int> from;
+  //
+  std::string action;
+  std::string raw_q;
+  UrlQuery q;
+  std::string http_version;
+  tsl::robin_map<std::string, std::string> headers;
+  std::string_view body;
+};
+
+inline ParseStatus HttpRequest::parse(char* buffer, size_t buffer_size) {
+  if (first_line_end_idx <= 0) {
+    spdlog::error("illegal parse status");
+    return ParseStatus::INVALID;
+  }
+  if (headers_end_idx == 0) { // 解析请求头
+    size_t cnt = buffer_size-1-first_line_end_idx;
+    std::string_view part_after_first_line {buffer+first_line_end_idx+1, cnt};
+    size_t idx = 1;
+    size_t new_line_begin_idx = 0;
+    while (idx < part_after_first_line.size()) {
+      if (part_after_first_line[idx] == '\n') {
+        if (part_after_first_line[idx-1] == '\r') {
+          if (idx >= 4 && part_after_first_line[idx-1] == '\r' && part_after_first_line[idx-2] == '\n' && part_after_first_line[idx-3] == '\r') { // 请求头结束
+            headers_end_idx = idx+(first_line_end_idx+1);
+            break;
+          }
+          std::string_view header_line = part_after_first_line.substr(new_line_begin_idx, idx-new_line_begin_idx-1);
+          auto pos = header_line.find(':');
+          if (pos == std::string_view::npos) {
+            spdlog::warn("illegal header line: {}", header_line);
+          } else {
+            std::string header_name {utils::view_strip_empty(header_line.substr(0, pos))};
+            std::string header_val {utils::view_strip_empty(header_line.substr(pos+1, header_line.size()-1-pos))};
+            headers[header_name] = header_val;
+          }
+          new_line_begin_idx = idx+1;
+        }
+      }
+      idx++;
+    }
+  }
+  /*
+  if (spdlog::get_level() == spdlog::level::debug) {
+    spdlog::debug("query: {}", q.json_str());
+  }
+  */
+  // 判断请求体是否结束
+  if (headers.contains(header::ContentLength)) {
+    long length = std::strtol(headers[header::ContentLength].c_str(), nullptr, 10);
+    if (length > 0) {
+      if (length == buffer_size-1-headers_end_idx) {
+        body = std::string_view(buffer+headers_end_idx+1, length);
+        return ParseStatus::COMPLETE;
+      }
+      if (length > buffer_size-1-headers_end_idx) {
+        return ParseStatus::CONTINUE;
+      }
+      if (length < buffer_size-1-headers_end_idx) {
+        spdlog::warn("illegal content length: {}, too small!", length);
+        return ParseStatus::INVALID;
+      }
+    }
+  } else if (headers_end_idx > 0 && buffer_size > headers_end_idx) {
+    if (buffer[buffer_size-1] == '\n' && buffer[buffer_size-2] == '\r' && buffer[buffer_size-3] == '\n' && \
+      buffer[buffer_size-4] == '\r') {
+      body = std::string_view(buffer+headers_end_idx+1, buffer_size-1-headers_end_idx);
+      return ParseStatus::COMPLETE;
+    }
+  }
+  return ParseStatus::INVALID;
+}
+
+inline bool HttpRequest::handle(uv_stream_t *client) {
+  router->route(this, [client](const HttpResponsePtr& resp_ptr) {
+    resp_ptr->send(client);
+  });
+  return true;
+}
+
+inline void HttpRequest::to_string(std::string& s) {
+  s += fmt::format("{} {} HTTP/{}\n", action, raw_q, http_version);
+  for (auto [k, v] : headers) {
+    s += fmt::format("{}: {}\n", k, v);
+  }
+  s += "\n";
+  if (!body.empty()) {
+    s += body;
+    s += "\n\n";
+  }
+}
+
+inline ParseStatus probe(const char* buffer, size_t buffer_size, HttpRequest& http_req) {
+  size_t idx = 1;
+  bool least_one_line = false;
+  while (idx < buffer_size) {
+    if (*(buffer+idx) == '\n' && *(buffer+idx-1) == '\r') {
+      least_one_line = true;
+      break;
+    }
+    idx++;
+  }
+  // 安全防护：首行长度限制
+  if (idx >= HTTP_FIRST_LINE_LENGTH_LIMIT) {
+    return ParseStatus::INVALID;
+  }
+  if (!least_one_line) {
+    return ParseStatus::INVALID;
+  }
+  http_req.first_line_end_idx = idx;
+  // 示例：GET /path HTTP/1.1
+  const std::string_view protocol_line {buffer, idx-1};
+  idx = 0;
+  size_t last_blank_idx = 0;
+  while (idx < protocol_line.size()) {
+    if (protocol_line[idx] == ' ' || protocol_line[idx] == '\t') {
+      if (http_req.action.empty()) {
+        http_req.action = protocol_line.substr(0, idx);
+        last_blank_idx = idx;
+      } else if (http_req.raw_q.empty()) {
+        http_req.raw_q = protocol_line.substr(last_blank_idx+1, idx-1-last_blank_idx);
+        http_req.q.parse(http_req.raw_q);
+        last_blank_idx = idx;
+        break;
+      }
+    }
+    idx++;
+  }
+  if (last_blank_idx == 0) {
+    return ParseStatus::INVALID;
+  }
+  idx = last_blank_idx+1;
+  if (protocol_line.size()-idx < 5) {
+    return ParseStatus::INVALID;
+  }
+  const std::string_view protocol_version {buffer+idx, protocol_line.size()-idx};
+  idx = 0;
+  bool match_http = false;
+  while (idx < protocol_version.size()-1) {
+    if (protocol_version[idx] == '/') {
+      if (protocol_version.substr(0, idx) != "HTTP") {
+        break;
+      }
+      match_http = true;
+      http_req.http_version = protocol_version.substr(idx+1, protocol_version.size()-idx);
+      break;
+    }
+    idx++;
+  }
+  if (!match_http || http_req.http_version.empty()) {
+    return ParseStatus::INVALID;
+  }
+  http_req.valid = true;
+  return ParseStatus::CONTINUE;
 }
 
 }  // namespace ling::http

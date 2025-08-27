@@ -60,12 +60,12 @@ add_executable(lingdong src/main.cpp
         src/parser/markdown.h
 
         src/service/protocol.h
+        src/service/server.hpp
 
         src/service/http/base_app.hpp
         src/service/http/handler.hpp
         src/service/http/protocol.hpp
         src/service/http/router.hpp
-        src/service/http/server.hpp
 
         src/storage/local_sqlite.h
         src/storage/local_sqlite.cpp

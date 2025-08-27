@@ -6,28 +6,16 @@
 #include "utils/guard.hpp"
 
 namespace ling::http {
-class Router {
-public:
-  virtual ~Router() = default;
-  virtual void route(HttpRequest& req, const std::function<void(HttpResponsePtr)>& cb) = 0;
-  virtual bool add_routes(std::vector<std::pair<std::pair<HTTP_METHOD, std::string>, RouteHandler>> routes) = 0;
-};
-
-struct MapBasedRouterConf {
-  uint32_t global_rate_limit;
-  uint32_t per_client_rate_limit;
-  std::function<void(HttpRequest&)> func_log_req;
-};
 
 class MapBasedRouter final : public Router {
 public:
   explicit MapBasedRouter(const MapBasedRouterConf& conf);
-  void route(HttpRequest& req, const std::function<void(HttpResponsePtr)>& cb) override;
+  void route(HttpRequest* req, const std::function<void(HttpResponsePtr)>& cb) override;
   bool add_routes(std::vector<std::pair<std::pair<HTTP_METHOD, std::string>, RouteHandler>> routes) override;
 
 private:
   // 限流响应 429
-  static void rate_limited_handler(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb);
+  static void rate_limited_handler(HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb);
   // 兜底，静态文件请求处理
   void static_file_handler(HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) const;
 
@@ -62,24 +50,24 @@ inline bool MapBasedRouter::add_routes(
   return true;
 }
 
-inline void MapBasedRouter::route(HttpRequest& req, const std::function<void(HttpResponsePtr)>& cb) {
+inline void MapBasedRouter::route(HttpRequest* req, const std::function<void(HttpResponsePtr)>& cb) {
   const HttpResponsePtr resp_ptr = std::make_shared<HttpResponse>();
-  if (!rate_limiter_ptr_->permit(req.from.first)) {
-    rate_limited_handler(req, resp_ptr, cb);
+  if (!rate_limiter_ptr_->permit(req->from.first)) {
+    rate_limited_handler(*req, resp_ptr, cb);
     return;
   }
-  const auto route_path = std::string(req.q.path);
+  const auto route_path = std::string(req->q.path);
   if (!routes_.contains(route_path)) {
-    static_file_handler(req, resp_ptr, cb);
+    static_file_handler(*req, resp_ptr, cb);
     return;
   }
   if (func_log_req_) {
-    func_log_req_(req);
+    func_log_req_(*req);
   }
-  routes_[route_path](req, resp_ptr, cb);
+  routes_[route_path](*req, resp_ptr, cb);
 }
 
-inline void MapBasedRouter::rate_limited_handler(const HttpRequest& req,
+inline void MapBasedRouter::rate_limited_handler(HttpRequest& req,
                                                  const HttpResponsePtr& resp,
                                                  const DoneCallback& cb) {
   DoneCallbackGuard guard{cb, resp};

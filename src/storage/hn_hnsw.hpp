@@ -161,8 +161,8 @@ public:
     static HackNewsHnsw hn_hnsw;
     return hn_hnsw;
   }
-  //
   HackNewsHnsw() = default;
+  //
   void data_path(const std::string& p) {
     data_path_ = p;
   }
@@ -180,6 +180,7 @@ private:
   //
   HnEmbMeta meta_;
   std::shared_ptr<HnForwardIndex> fwd_ptr_ = std::make_shared<HnForwardIndex>();
+  std::shared_ptr<InnerProductSpace> metric_space_ptr_;
   std::shared_ptr<HierarchicalNSW<float>> hnsw_ptr_;
   std::atomic_bool loaded_ {false};
   //
@@ -261,8 +262,8 @@ inline bool HackNewsHnsw::load_hnsw() {
     return false;
   }
   ScopedTimer timer {"load_hnsw"};
-  InnerProductSpace metric_space {meta_.dim};
-  hnsw_ptr_ = std::make_shared<HierarchicalNSW<float>>(&metric_space, hn_hnsw_idx_path.string());
+  metric_space_ptr_ = std::make_shared<InnerProductSpace>(meta_.dim);
+  hnsw_ptr_ = std::make_shared<HierarchicalNSW<float>>(metric_space_ptr_.get(), hn_hnsw_idx_path.string());
   hnsw_ptr_->checkIntegrity();
   return true;
 }

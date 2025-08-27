@@ -6,17 +6,17 @@
 #include <uv.h>
 
 #include "service/protocol.h"
+
 #include "service/http/protocol.hpp"
 #include "service/http/router.hpp"
+
 #include "utils/guard.hpp"
 #include "utils/executor.hpp"
 
-namespace ling::http::server {
+namespace ling::server {
 
 static int DEFAULT_BACKLOG = 128;
 static size_t REQUEST_SIZE_LIMIT {10 * 1024 * 1024}; // 10MB
-
-static std::unique_ptr<Router> router;
 
 using LoopPtr = std::shared_ptr<uv_loop_t>;
 
@@ -105,7 +105,7 @@ private:
   //
   std::pair<std::string, uint> peer;
   Protocol protocol_ = Protocol::UNKNOWN;
-  HttpRequest http_req;
+  http::HttpRequest http_req;
 };
 
 inline ParseStatus RequestBuffer::accept(const uv_buf_t* buf, ssize_t nread) {
@@ -148,7 +148,7 @@ inline ParseStatus RequestBuffer::try_parse() {
   if (protocol_ == Protocol::UNKNOWN) {
     auto [buffer_ptr, buffer_size] = with_buffer();
     // HTTP 协议探测
-    if (probe(buffer_ptr, buffer_size, with_http_request()) == ParseStatus::INVALID) {
+    if (http::probe(buffer_ptr, buffer_size, with_http_request()) == ParseStatus::INVALID) {
       protocol_ = Protocol::INVALID;
       return ParseStatus::INVALID;
     }
@@ -184,16 +184,13 @@ inline bool RequestBuffer::fill_peer_info(uv_stream_t* client) {
 
 inline void RequestBuffer::handle(uv_stream_t *client) {
   stage_ = RequestBufferStage::HANDLING;
-  //
   fill_peer_info(client);
-  //
   if (protocol_ == Protocol::HTTP) {
     auto& http_req = with_http_request();
     http_req.from = peer;
-    //
-    router->route(http_req, [client](const http::HttpResponsePtr& resp_ptr) {
-      resp_ptr->send(client);
-    });
+    if (!http_req.handle(client)) {
+      spdlog::warn("failed to handle request");
+    }
     stage_ = RequestBufferStage::COMPLETE;
     RequestBufferManager::instance().free_req_buffer(client); //
     return;
@@ -296,10 +293,6 @@ static void cleanup_before_exit() {
 }
 
 static bool start_server(const std::string& host, int port) {
-  if (router == nullptr) {
-    spdlog::error("router is null");
-    return false;
-  }
   loop_.reset(uv_default_loop());
   tcp_server_ = std::make_shared<uv_tcp_t>();
   uv_tcp_init(loop_.get(), tcp_server_.get());

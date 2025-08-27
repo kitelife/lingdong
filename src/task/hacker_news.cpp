@@ -385,57 +385,69 @@ void find_similarity_by_brute_force() {
 
 void build_hnsw_index() {
   using namespace hnswlib;
+  //
   auto& hn_hnsw = HackNewsHnsw::singleton();
   hn_hnsw.data_path(DEFAULT_ROOT_PATH.string());
   hn_hnsw.load_meta();
   auto& meta = hn_hnsw.meta();
   if (meta.model_name.empty() || meta.dim == 0 || meta.cnt == 0) {
+    spdlog::error("not valid meta info");
     return;
   }
   //
-  std::filesystem::path emb_file_path = DEFAULT_ROOT_PATH / HN_STORY_EMB_FILE;
-  if (!std::filesystem::exists(emb_file_path)) {
-    spdlog::error("not exist emb file: {}", emb_file_path.string());
+  std::vector<std::string> cand_versions;
+  for (const auto& v : all_versions()) {
+    auto emb_meta_file_path = DEFAULT_ROOT_PATH / v / HN_STORY_EMB_META_FILE;
+    auto emb_file_path = DEFAULT_ROOT_PATH / v / HN_STORY_EMB_FILE;
+    if (!exists(emb_meta_file_path) || !exists(emb_file_path)) {
+      continue;
+    }
+    cand_versions.emplace_back(v);
+  }
+  if (cand_versions.empty()) {
+    spdlog::error("has no valid embedding file");
     return;
   }
   //
-  std::ifstream emb_ifs;
-  char stream_buffer[1024 * 512];
-  emb_ifs.rdbuf()->pubsetbuf(stream_buffer, 1024 * 512);
-  emb_ifs.open(emb_file_path);
-  if (!emb_ifs.is_open()) {
-    spdlog::error("failure to open file {}", emb_file_path.string());
-    return;
-  }
-  DeferGuard emb_ifs_close_guard{[&emb_ifs]() {
-    emb_ifs.close();
-  }};
+  Executor tp{"build-hnsw-index"};
   //
   InnerProductSpace metric_space{meta.dim};
   int ef_construction = 100;
-  std::shared_ptr<HierarchicalNSW<float>> hnsw_ptr = std::make_shared<HierarchicalNSW<float>>(&metric_space,
-    meta.cnt, meta.dim, ef_construction);
-  //
-  uint32_t line_cnt = 0;
-  std::atomic_uint32_t point_cnt = 0;
-  //
-  Executor tp{"build-hnsw-index"};
-  for (std::string line; std::getline(emb_ifs, line);) {
-    line_cnt++;
-    tp.async_execute([line, &hnsw_ptr, &point_cnt]() {
-      auto jj = nlohmann::json::parse(line);
-      hnsw_ptr->addPoint(jj["emb"].get<Embedding>().data(), jj["id"].get<uint32_t>());
-      ++point_cnt;
-      if (point_cnt % 10000 == 0) {
-        spdlog::info("{} points processed", point_cnt.load());
-      }
-    });
+  auto hnsw_ptr = std::make_shared<HierarchicalNSW<float>>(&metric_space, meta.cnt, meta.dim, ef_construction);
+  for (const auto& v : cand_versions) {
+    auto emb_file_path = DEFAULT_ROOT_PATH / v / HN_STORY_EMB_FILE;
+    std::ifstream emb_ifs;
+    char stream_buffer[1024 * 512];
+    emb_ifs.rdbuf()->pubsetbuf(stream_buffer, 1024 * 512);
+    emb_ifs.open(emb_file_path);
+    if (!emb_ifs.is_open()) {
+      spdlog::error("failure to open file {}", emb_file_path.string());
+      continue;
+    }
+    DeferGuard emb_ifs_close_guard{[&emb_ifs]() {
+      emb_ifs.close();
+    }};
+    //
+    uint32_t line_cnt = 0;
+    std::atomic_uint32_t point_cnt = 0;
+    for (std::string line; std::getline(emb_ifs, line);) {
+      line_cnt++;
+      tp.async_execute([line, &hnsw_ptr, &point_cnt]() {
+        auto jj = nlohmann::json::parse(line);
+        hnsw_ptr->addPoint(jj["emb"].get<Embedding>().data(), jj["id"].get<uint32_t>());
+        ++point_cnt;
+        if (point_cnt % 10000 == 0) {
+          spdlog::info("{} points processed", point_cnt.load());
+        }
+      });
+    }
+    while (point_cnt.load() < line_cnt) {
+      std::this_thread::sleep_for(milliseconds(50));
+    }
+    spdlog::info("hnsw points cnt: {}", point_cnt.load());
   }
-  while (point_cnt.load() < line_cnt) {
-    std::this_thread::sleep_for(milliseconds(50));
-  }
-  spdlog::info("hnsw points cnt: {}", point_cnt.load());
   hnsw_ptr->saveIndex((DEFAULT_ROOT_PATH / HN_STORY_HNSW_IDX_FILE).string());
+  //
   tp.join();
 }
 

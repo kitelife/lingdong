@@ -2,7 +2,8 @@
 
 #include "spdlog/spdlog.h"
 
-#include "server.hpp"
+#include "service/http/protocol.hpp"
+#include "service/server.hpp"
 
 namespace ling::http {
 
@@ -23,8 +24,9 @@ inline void BaseApp::start() {
     spdlog::error("failure to prepare!");
     return;
   }
-  server::router = router();
+  http::router = router();
   auto [host, port] = host_port();
+  spdlog::info("run http server on {}:{}", host, port);
   server::start_server(host, port);
 }
 
