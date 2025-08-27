@@ -19,6 +19,7 @@ static int DEFAULT_BACKLOG = 128;
 static size_t REQUEST_SIZE_LIMIT {10 * 1024 * 1024}; // 10MB
 
 using LoopPtr = std::shared_ptr<uv_loop_t>;
+static LoopPtr loop_;
 
 enum class RequestBufferStage {
   INIT,
@@ -90,7 +91,7 @@ public:
 private:
   ParseStatus try_parse();
   http::HttpRequest& with_http_request() {
-    return http_req;
+    return http_req_;
   }
   [[nodiscard]] std::pair<char*, size_t> with_buffer() const {
     return std::make_pair(buffer_, size_);
@@ -105,7 +106,7 @@ private:
   //
   std::pair<std::string, uint> peer;
   Protocol protocol_ = Protocol::UNKNOWN;
-  http::HttpRequest http_req;
+  http::HttpRequest http_req_;
 };
 
 inline ParseStatus RequestBuffer::accept(const uv_buf_t* buf, ssize_t nread) {
@@ -183,13 +184,56 @@ inline bool RequestBuffer::fill_peer_info(uv_stream_t* client) {
   return false;
 }
 
+typedef struct {
+  uv_write_t req;
+  uv_buf_t buf;
+} write_req_t;
+
+static void clean_after_send(uv_write_t* req, int status) {
+  if (status) {
+    fprintf(stderr, "Write error %s\n", uv_strerror(status));
+  }
+  write_req_t* wr = reinterpret_cast<write_req_t*>(req);
+  free(wr->buf.base);
+  free(wr);
+}
+
+struct ClientResp {
+  write_req_t* write_req;
+  uv_stream_t* client;
+
+  ClientResp(write_req_t* w, uv_stream_t* c) : write_req(w), client(c) {}
+};
+
+static void write_resp(uv_work_t* work) {
+  auto client_resp = static_cast<ClientResp*>(work->data);
+  // client 和 buf 由 uv_write 回收内存？
+  // clean_after_send 负责回收 work-> data 和 work 的内存
+  uv_write(reinterpret_cast<uv_write_t*>(client_resp->write_req), client_resp->client, &client_resp->write_req->buf,
+    1, clean_after_send);
+}
+
+static void after_write_resp(uv_work_t* w, int status) {
+  delete static_cast<ClientResp*>(w->data);
+  delete w;
+}
+
 inline void RequestBuffer::handle(uv_stream_t *client) {
   stage_ = RequestBufferStage::HANDLING;
   fill_peer_info(client);
   if (protocol_ == Protocol::HTTP) {
     auto& http_req = with_http_request();
     http_req.from = peer;
-    if (!http_req.handle(client)) {
+    auto handle_status = http_req.handle([client](char* resp, size_t resp_size) {
+      auto req = static_cast<write_req_t*>(malloc(sizeof(write_req_t)));
+      req->buf = uv_buf_init(resp, resp_size);
+      //
+      auto* work = new uv_work_t();
+      work->data = new ClientResp(req, client);
+      // 排队由 loop_ 来统一处理
+      uv_queue_work(loop_.get(), work, write_resp, after_write_resp);
+    });
+    if (!handle_status) {
       spdlog::warn("failed to handle request");
     }
     stage_ = RequestBufferStage::COMPLETE;
@@ -244,8 +288,9 @@ static void on_read(uv_stream_t *client, ssize_t nread, const uv_buf_t *buf) {
     auto req_buffer = RequestBufferManager::instance().with_req_buffer(client);
     auto status = req_buffer->accept(buf, nread);
     if (status == ParseStatus::COMPLETE) { // 请求完整了
-      // TODO: 异步并发处理
-      req_buffer->handle(client);
+      utils::default_executor().async_execute([client, req_buffer]() {
+        req_buffer->handle(client);
+      });
     } else if (status == ParseStatus::INVALID) { // 不合法的请求
       spdlog::error("Illegal request");
     } else {} // 还没接收完成的请求
@@ -276,7 +321,6 @@ static bool handle(const LoopPtr& loop_, uv_stream_t* server) {
 
 //----------------------------------------------------------------------------------------------------------------------
 
-static LoopPtr loop_;
 static std::shared_ptr<uv_tcp_t> tcp_server_;
 
 static void on_new_connection(uv_stream_t* server, int status) {

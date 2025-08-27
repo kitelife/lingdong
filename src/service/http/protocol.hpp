@@ -56,23 +56,6 @@ static std::string UserAgent {"User-Agent"};
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-typedef struct {
-  uv_write_t req;
-  uv_buf_t buf;
-} write_req_t;
-
-static void clean_after_send(uv_write_t* req, int status) {
-  if (status) {
-    fprintf(stderr, "Write error %s\n", uv_strerror(status));
-  }
-  // auto buf = reinterpret_cast<write_req_t*>(req)->buf;
-  // std::cout << std::string(buf.base, buf.len)  << std::endl;
-  //
-  write_req_t* wr = reinterpret_cast<write_req_t*>(req);
-  free(wr->buf.base);
-  free(wr);
-}
-
 enum class HttpStatusCode {
   OK = 200,
 
@@ -155,7 +138,7 @@ public:
   HttpResponse() = default;
   ~HttpResponse() = default;
 
-  bool send(uv_stream_t* client);
+  bool generate(char** resp_buffer, size_t* resp_buffer_size);
   void with_code(HttpStatusCode status_code) {
     code = status_code;
   }
@@ -173,40 +156,35 @@ private:
   std::string body_;
 };
 
-inline bool HttpResponse::send(uv_stream_t* client) {
-  size_t buf_size = 0;
+inline bool HttpResponse::generate(char** resp_buffer, size_t* resp_buffer_size) {
   std::vector<std::string> resp_lines;
   resp_lines.emplace_back(fmt::format("HTTP/{} {} {}\r\n", HTTP_VERSION_CODE_1_1, static_cast<int>(code), CODE2MSG[code]));
-  buf_size += resp_lines.back().size();
+  *resp_buffer_size += resp_lines.back().size();
   for (auto [k, v] : resp_headers) {
     resp_lines.emplace_back(fmt::format("{}: {}\r\n", k, v));
-    buf_size += resp_lines.back().size();
+    *resp_buffer_size += resp_lines.back().size();
   }
   //
   resp_lines.emplace_back(fmt::format("{}: {}\r\n", header::ContentLength, body_.size()));
-  buf_size += resp_lines.back().size();
-  buf_size += body_.size() + 4;
+  *resp_buffer_size += resp_lines.back().size();
+  *resp_buffer_size += body_.size() + 4;
   //
   resp_lines.emplace_back("\r\n");
-  buf_size += resp_lines.back().size();
+  *resp_buffer_size += resp_lines.back().size();
   //
   size_t copy_idx = 0;
-  char* resp_buf = static_cast<char*>(malloc(buf_size));
-  memset(resp_buf, 0, buf_size);
+  *resp_buffer = static_cast<char*>(malloc(*resp_buffer_size));
+  memset(*resp_buffer, 0, *resp_buffer_size);
   for (auto s : resp_lines) {
-    memcpy(resp_buf + copy_idx, s.data(), s.size());
+    memcpy(*resp_buffer + copy_idx, s.data(), s.size());
     copy_idx += s.size();
   }
   if (!body_.empty()) {
-    memcpy(resp_buf + copy_idx, body_.data(), body_.size());
+    memcpy(*resp_buffer + copy_idx, body_.data(), body_.size());
     copy_idx += body_.size();
-    memcpy(resp_buf + copy_idx, "\r\n\r\n", 4);
+    memcpy(*resp_buffer + copy_idx, "\r\n\r\n", 4);
   }
-  copy_idx += 4;
-  auto req = static_cast<write_req_t*>(malloc(sizeof(write_req_t)));
-  req->buf = uv_buf_init(resp_buf, buf_size);
-  // spdlog::debug("Resp: {}", std::string(resp_buf, buf_size));
-  uv_write(reinterpret_cast<uv_write_t*>(req), client, &req->buf, 1, clean_after_send);
+  // copy_idx += 4;
   return true;
 }
 
@@ -304,7 +282,7 @@ public:
   HttpRequest() = default;
   void to_string(std::string& s);
   ParseStatus parse(char* buffer, size_t buffer_size);
-  bool handle(uv_stream_t *client);
+  bool handle(std::function<void(char* resp, size_t resp_size)> cb);
 
 public:
   size_t first_line_end_idx = 0;
@@ -385,9 +363,12 @@ inline ParseStatus HttpRequest::parse(char* buffer, size_t buffer_size) {
   return ParseStatus::INVALID;
 }
 
-inline bool HttpRequest::handle(uv_stream_t *client) {
-  router->route(this, [client](const HttpResponsePtr& resp_ptr) {
-    resp_ptr->send(client);
+inline bool HttpRequest::handle(std::function<void(char* resp, size_t resp_size)> cb) {
+  router->route(this, [cb](const HttpResponsePtr& resp_ptr) {
+    char* resp_buf = nullptr;
+    size_t buf_size = 0;
+    resp_ptr->generate(&resp_buf, &buf_size);
+    cb(resp_buf, buf_size);
   });
   return true;
 }
