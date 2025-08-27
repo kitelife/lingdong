@@ -114,6 +114,7 @@ inline ParseStatus RequestBuffer::accept(const uv_buf_t* buf, ssize_t nread) {
     spdlog::warn("request size exceed limit!");
     return ParseStatus::INVALID;
   }
+  // TODO: 待优化，参考 brpc IOBuf
   char* tmp_buffer = nullptr;
   size_t tmp_size;
   char* copy_base;
