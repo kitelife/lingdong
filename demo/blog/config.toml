@@ -1,6 +1,6 @@
 # https://toml.io/en/
 site_title = "BitPacking" # 道场
-site_url = "https://blog.xiayf.cn/"
+site_url = "https://bit.xiayf.cn/"
 site_desc = "精进，求诸己身"
 site_ico = "/assets/bits_small.ico"
 
