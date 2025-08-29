@@ -2,6 +2,8 @@
 
 静态博客生成器，以及其他。
 
+[DeepWiki 分析](https://deepwiki.com/kitelife/lingdong)
+
 ## Road Map
 
 - 生成器
