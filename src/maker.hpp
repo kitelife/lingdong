@@ -593,7 +593,7 @@ inline void Maker::make_rss(Environment& env) const {
   for (const auto& post : parsed_posts_) {
     render_ctx["posts"][post_idx] = {
         {"title", post->title()},
-        {"desc", inja::htmlescape(post->html())},
+        {"desc", "<![CDATA[" + post->html() + "]]>"},
         {"pub_date", post->updated_at()},
         {"link", fmt::format("{0}/{1}/{2}", site_url, post_dir, post->html_file_name())},
     };

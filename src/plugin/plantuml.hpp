@@ -152,11 +152,10 @@ inline bool PlantUML::init(ContextPtr& context_ptr) {
     picoweb_server_started_ = true;
   }
   //
-  target_img_dir_ = std::filesystem::current_path() / "plantuml-images";
-  if (std::filesystem::exists(target_img_dir_)) {
-    std::filesystem::remove_all(target_img_dir_);
+  target_img_dir_ = current_path() / "plantuml-images";
+  if (!exists(target_img_dir_)) {
+    create_directories(target_img_dir_);
   }
-  create_directories(target_img_dir_);
   return true;
 }
 
