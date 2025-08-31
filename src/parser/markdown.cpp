@@ -989,9 +989,11 @@ std::string CodeBlock::to_html() {
   // 有点 trick，不优雅
   // 应该放在 inja 模板渲染时解决？
   // 不用检测是什么语言的代码，无脑转义？
+  /*
   for (auto& line : lines) {
     line = inja::htmlescape(line);
   }
+  */
   std::string class_name = fmt::format("language-{}", ln);
   return fmt::format(R"(<pre class="{0}"><code>{1}</code></pre>)", class_name, absl::StrJoin(lines, "\n"));
 }
