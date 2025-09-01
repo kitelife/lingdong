@@ -56,8 +56,8 @@ init_sql = [
 ]
 
 [server]
-global_rate_limit_per_sec = 200
-per_client_rate_limit_per_sec = 20
+global_rate_limit_per_sec = 50
+per_client_rate_limit_per_sec = 5
 
 [hn]
 data_path = "../../data/hn"

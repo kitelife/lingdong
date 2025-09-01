@@ -136,7 +136,7 @@ void crawl_hn() {
       item_ptr->type != "story" || item_ptr->title.empty() || item_ptr->url.empty()) {
       continue;
     }
-    auto mark = item_ptr->title + ";" + item_ptr->url;
+    auto mark = item_ptr->url;
     if (story_marks.contains(mark)) {
       continue;
     }

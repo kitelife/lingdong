@@ -44,22 +44,22 @@ public:
     cleanup_future_.wait_for(std::chrono::seconds(5));
   }
 
-  RequestBufferPtr with_req_buffer(uv_stream_t* client) {
-    if (request_buffers_.count(client) > 0) {
-      return request_buffers_.at(client);
+  RequestBufferPtr with_req_buffer(const std::string& k) {
+    if (request_buffers_.count(k) > 0) {
+      return request_buffers_.at(k);
     }
     std::lock_guard lock(mutex_);
-    if (request_buffers_.count(client) > 0) {
-      return request_buffers_.at(client);
+    if (request_buffers_.count(k) > 0) {
+      return request_buffers_.at(k);
     }
-    request_buffers_[client] = std::make_shared<RequestBuffer>();
-    return request_buffers_.at(client);
+    request_buffers_[k] = std::make_shared<RequestBuffer>();
+    return request_buffers_.at(k);
   }
 
-  bool free_req_buffer(uv_stream_t* client) {
-    if (request_buffers_.count(client) > 0) {
+  bool free_req_buffer(const std::string& k) {
+    if (request_buffers_.count(k) > 0) {
       std::lock_guard lock(mutex_);
-      request_buffers_.erase(client);
+      request_buffers_.erase(k);
       return true;
     }
     return false;
@@ -67,7 +67,7 @@ public:
 
 private:
   std::mutex mutex_;
-  std::unordered_map<uv_stream_t*, RequestBufferPtr> request_buffers_;
+  std::unordered_map<std::string, RequestBufferPtr> request_buffers_;
   std::future<void> cleanup_future_;
   std::atomic_bool exit_flag_ {false};
 };
@@ -169,7 +169,6 @@ static bool parse_peer_info(uv_stream_t* client, std::pair<std::string, int>& pe
   utils::MemoryGuard memory_guard {peer_addr};
   auto err_code = uv_tcp_getpeername(reinterpret_cast<uv_tcp_t*>(client), peer_addr, &peer_addr_len);
   if (err_code != 0) {
-    spdlog::error("failed to get peer addr");
     return false;
   }
   char host[NI_MAXHOST], service[NI_MAXSERV];
@@ -232,7 +231,7 @@ inline void RequestBuffer::handle(uv_stream_t *client) {
       uv_queue_work(loop_.get(), work, write_resp, after_write_resp);
     });
     stage_ = RequestBufferStage::COMPLETE;
-    RequestBufferManager::instance().free_req_buffer(client); //
+    RequestBufferManager::instance().free_req_buffer(http_req.from.first+":"+std::to_string(http_req.from.second)); //
     return;
   }
   spdlog::error("Illegal protocol");
@@ -242,21 +241,21 @@ inline RequestBufferManager::RequestBufferManager() {
   cleanup_future_ = std::async(std::launch::async, [&]() {
       while (!exit_flag_) {
         if (request_buffers_.empty()) {
-          std::this_thread::sleep_for(std::chrono::milliseconds(500));
+          std::this_thread::sleep_for(std::chrono::seconds(30));
         }
-        std::vector<uv_stream_t*> keys_to_cleanup;
+        std::vector<std::string> keys_to_cleanup;
         auto now = std::chrono::system_clock::now();
         for (const auto& [k, v] : request_buffers_) {
           if ((now - v->last_fill_time()) > std::chrono::seconds(300)) {
             keys_to_cleanup.emplace_back(k);
           }
         }
-        if (keys_to_cleanup.emplace_back()) {
-          std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        if (keys_to_cleanup.empty()) {
+          std::this_thread::sleep_for(std::chrono::seconds(30));
           continue;
         }
         std::lock_guard lock{mutex_};
-        for (const auto k : keys_to_cleanup) {
+        for (const auto& k : keys_to_cleanup) {
           request_buffers_.erase(k);
         }
       }
@@ -280,15 +279,19 @@ static void on_read(uv_stream_t *client, ssize_t nread, const uv_buf_t *buf) {
   if (nread > 0) {
     // accept 需要将 buf 的内容拷贝一份
     // 返回 true，则表示请求体已接收完整
-    auto req_buffer = RequestBufferManager::instance().with_req_buffer(client);
-    auto status = req_buffer->accept(buf, nread);
-    if (status == ParseStatus::COMPLETE) { // 请求完整了
-      utils::default_executor().async_execute([client, req_buffer]() {
-        req_buffer->handle(client);
-      });
-    } else if (status == ParseStatus::INVALID) { // 不合法的请求
-      spdlog::error("Illegal request");
-    } else {} // 还没接收完成的请求
+    std::pair<std::string, int> peer_info;
+    if (parse_peer_info(client, peer_info)) {
+      auto peer = peer_info.first + ":" + std::to_string(peer_info.second);
+      auto req_buffer = RequestBufferManager::instance().with_req_buffer(peer);
+      auto status = req_buffer->accept(buf, nread);
+      if (status == ParseStatus::COMPLETE) { // 请求完整了
+        utils::default_executor().async_execute([client, req_buffer]() {
+          req_buffer->handle(client);
+        });
+      } else if (status == ParseStatus::INVALID) { // 不合法的请求
+        spdlog::error("Illegal request");
+      } else {} // 还没接收完成的请求
+    }
   } else if (nread < 0) {
     if (nread != UV_EOF) {
       fprintf(stderr, "Read error %s\n", uv_err_name(nread));

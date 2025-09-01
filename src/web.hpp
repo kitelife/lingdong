@@ -32,7 +32,10 @@ static void log_req(const HttpRequest& req) {
   std::string peer = fmt::format("{}:{}", req.from.first, req.from.second);
   spdlog::info("{} {} from {}", req.action, req.raw_q, peer);
   //
-  std::string user_agent = req.headers.at(header::UserAgent);
+  std::string user_agent;
+  if (req.headers.contains(header::UserAgent)) {
+    user_agent = req.headers.at(header::UserAgent);
+  }
   std::string now_str = utils::time_now_str();
   auto action = req.action;
   auto path = req.q.path;
@@ -260,7 +263,7 @@ static void search_hacker_news_handler(const HttpRequest& req, const HttpRespons
   resp_data["result"] = nlohmann::json::array();
   tsl::robin_set<std::string> item_marks;
   for (auto& [item_ptr, score] : qr) {
-    auto mark = item_ptr->title + ";" + item_ptr->url;
+    auto mark = item_ptr->url;
     if (item_marks.contains(mark)) {
       continue;
     }
