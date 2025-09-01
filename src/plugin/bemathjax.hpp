@@ -170,7 +170,7 @@ inline bool BeMathJax::run(const MarkdownPtr& md_ptr) {
 inline bool BeMathJax::destroy() {
   const auto server_pid = utils::get_cmd_stdout(R"(ps aux | grep "node ./.mathjax_server.mjs" | grep -v "grep" | awk -F' ' '{print $2}')");
   spdlog::debug("BeMathJax server id: {}", server_pid);
-  auto status = system(fmt::format("kill -n 9 {}", server_pid).c_str()) == 0;
+  auto status = system(fmt::format("kill -9 {}", server_pid).c_str()) == 0;
   if (exists(MJS_FILE_PATH)) {
     status = status && std::filesystem::remove(MJS_FILE_PATH);
   }

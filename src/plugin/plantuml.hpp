@@ -145,6 +145,7 @@ inline bool PlantUML::init(ContextPtr& context_ptr) {
   diagram_header_ = toml::find_or_default<std::string>(config_->raw_toml_, "plantuml", "header");
   if (!jar_path_.empty() && (plantuml_server_.empty() || plantuml_server_ == PLANTUML_REMOTE_SERVER)) {
     if (!start_picoweb_server()) {
+      spdlog::error("failure to start plantuml picoweb server");
       return false;
     }
     std::this_thread::sleep_for(std::chrono::seconds(2)); // 等待2s，等服务就绪

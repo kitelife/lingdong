@@ -18,6 +18,16 @@ if [ -z "${ret}" ]; then
 fi
 alias python=python3
 
+ret=$(which virtualenv)
+if [ -z "${ret}" ]; then
+  sudo apt-get install python3-virtualenv
+fi
+
+ret=$(which pip)
+if [ -z "${ret}" ]; then
+  sudo apt-get install python3-pip
+fi
+
 if [ ! -d ".venv" ]; then
   virtualenv .venv
 fi
@@ -28,6 +38,8 @@ ret=$(which conan)
 if [ -z "${ret}" ]; then
   pip install conan
 fi
+
+git submodule update --init --recursive
 
 if [ ! -f ~/.conan2/profiles/default ]; then
   conan profile detect

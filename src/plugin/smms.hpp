@@ -29,7 +29,7 @@ using namespace std::filesystem;
 
 static std::string BASE_URL = "https://sm.ms/api/v2";
 static std::string CACHE_DIR = ".smms_cache";
-static std::string UPLOAD_HISTORY_CACHE_FILE = "upload_history.json";
+static std::string UPLOAD_HISTORY_CACHE_FILE = ".upload_history.json";
 
 class SmmsUploadHistory {
 public:
@@ -132,9 +132,11 @@ inline HistoryVec SmmsOpenAPI::fetch_upload_history() {
   HistoryVec history_vec {};
   //
   const auto fetch_one_page = [api_token, url, &history_vec](const int page) -> std::pair<bool, int> {
+    spdlog::info("Attempting to fetch upload history of page {}", page);
     // page 传参好像有点问题
     cpr::Response r = cpr::Get(cpr::Url{url},
-    cpr::Header{{"Authorization", api_token}});
+      cpr::Header{{"Authorization", api_token}},
+      cpr::Parameters{{"page", std::to_string(page)}});
     if (r.status_code != 200) {
       spdlog::error("Failed to fetch upload history, status_code: {}, resp: {}",  r.status_code, r.text);
       return std::make_pair(false, 0);
@@ -316,11 +318,21 @@ inline bool Smms::destroy() {
 }
 
 inline bool Smms::load_upload_history() {
+  HistoryVec vec;
+  //
+  path shared_history_path {path{"./"} / UPLOAD_HISTORY_CACHE_FILE};
+  if (exists(shared_history_path)) {
+    const auto jh = nlohmann::json::parse(utils::read_file_all(shared_history_path));
+    for (const auto& j : jh) {
+      vec.emplace_back();
+      vec.back().from(j);
+    }
+  }
+  //
   const path cache_path {CACHE_DIR};
   if (!exists(cache_path)) {
     create_directories(cache_path);
   }
-  HistoryVec vec;
   path history_fp = cache_path / UPLOAD_HISTORY_CACHE_FILE;
   if (exists(history_fp)) {
     const auto jh = nlohmann::json::parse(utils::read_file_all(history_fp));
