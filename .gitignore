@@ -3,6 +3,7 @@ cmake-build-debug/
 build/
 node_modules/
 dist/
+package.json
 package-lock.json
 .smms_account.json
 .smms_token.json

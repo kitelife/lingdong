@@ -1,37 +1,22 @@
 #pragma once
 
-#include <absl/hash/hash.h>
-#include <absl/strings/str_join.h>
-#include <fmt/core.h>
-#include <spdlog/spdlog.h>
-
 #include <filesystem>
 #include <fstream>
 #include <utility>
 
+#include <absl/hash/hash.h>
+#include <absl/strings/str_join.h>
+#include <absl/strings/strip.h>
+#include <fmt/core.h>
+#include <spdlog/spdlog.h>
+
 #include "parser/markdown.h"
-#include "absl/strings/strip.h"
+#include "utils/helper.hpp"
 #include "plugin.h"
 
 namespace ling::plugin {
 
 using std::filesystem::path;
-
-static std::string get_cmd_stdout(std::string cmd) {
-  constexpr int max_buffer = 256;
-  char buffer[max_buffer];
-  std::string data;
-  //
-  cmd.append(" 2>&1");
-  FILE* stream = popen(cmd.c_str(), "r");
-  if (stream) {
-    while (!feof(stream))
-      if (fgets(buffer, max_buffer, stream) != nullptr)
-        data.append(buffer);
-    pclose(stream);
-  }
-  return data;
-}
 
 class Mermaid final: public Plugin {
 public:
@@ -39,8 +24,6 @@ public:
   bool run(const MarkdownPtr& md_ptr) override;
 
 private:
-  static bool is_npm_exist();
-  static bool is_jq_exist();
   static bool is_mermaid_cli_installed();
   static bool install_mermaid_cli();
   static bool mmd2svg(path& mmd, path& svg);
@@ -54,7 +37,7 @@ inline bool Mermaid::init(ContextPtr& context_ptr) {
     return false;
   }
   config_ = context_ptr->with_config();
-  if (!is_npm_exist() || !is_jq_exist()) {
+  if (!utils::is_npm_exist() || !utils::is_jq_exist()) {
     spdlog::error("npm or jq not exists!");
     return false;
   }
@@ -145,16 +128,8 @@ inline bool Mermaid::mmd2svg(path& mmd, path& svg) {
   return system(cmd.c_str()) == 0;
 }
 
-inline bool Mermaid::is_npm_exist() {
-  return system("which npm > /dev/null 2>&1") == 0;
-}
-
-inline bool Mermaid::is_jq_exist() {
-  return system("which jq > /dev/null 2>&1") == 0;
-}
-
 inline bool Mermaid::is_mermaid_cli_installed() {
-  const auto query_result = get_cmd_stdout("npm query '#@mermaid-js/mermaid-cli' | jq '.[] | select(.name  | type == \"string\") | .name'");
+  const auto query_result = utils::get_cmd_stdout("npm query '#@mermaid-js/mermaid-cli' | jq '.[] | select(.name  | type == \"string\") | .name'");
   return query_result == "\"@mermaid-js/mermaid-cli\"\n";
 }
 

@@ -22,6 +22,8 @@ namespace ling {
 
 using StrPair = std::pair<std::string, std::string>;
 
+class Paragraph;
+
 class PostMetadata final {
 public:
   std::string id;
@@ -73,10 +75,10 @@ public:
 class Heading final : public Element {
 public:
   size_t level_;
-  std::string title_;
+  std::shared_ptr<Paragraph> title_;
 
 public:
-  Heading(const size_t level, std::string title) : level_(level), title_(std::move(title)) {}
+  Heading(const size_t level, std::shared_ptr<Paragraph> title) : level_(level), title_(std::move(title)) {}
   std::string to_html() override;
 };
 
@@ -126,6 +128,7 @@ class InlineLatex final : public InlineFragment {
 public:
   explicit InlineLatex(std::string math_text) : InlineFragment(FragmentType::LATEX), math_text_(std::move(math_text)) {}
   std::string to_html() override;
+  std::string& content();
 
 private:
   std::string math_text_;
@@ -206,10 +209,16 @@ public:
 
 class LatexBlock final : public Element {
 public:
-  std::string content;
-
-public:
+  std::string& content() {
+    return content_;
+  }
+  void content(const std::string& content) {
+    content_ = content;
+  }
   std::string to_html() override;
+
+private:
+  std::string content_;
 };
 
 class HorizontalRule final : public Element {
@@ -296,6 +305,10 @@ public:
     return elements_;
   }
 
+  std::vector<std::shared_ptr<Paragraph>>& paragraphs() {
+    return paragraphs_;
+  }
+
   PostMetadata& metadata() {
     return metadata_;
   }
@@ -309,7 +322,7 @@ private:
   ParseResult parse_latex();
   //
   ParseResult parse_paragraph();
-  static bool parse_paragraph(const std::string& line, const ParagraphPtr& paragraph_ptr);
+  bool parse_paragraph(const std::string& line, const ParagraphPtr& paragraph_ptr);
 
   ParseResult parse_html_element();
   ParseResult parse_table();
@@ -348,6 +361,7 @@ private:
   PostMetadata metadata_;
   std::vector<std::shared_ptr<Element>> elements_;
   std::shared_ptr<Footnotes> footnotes_ptr_ = std::make_shared<Footnotes>();
+  std::vector<std::shared_ptr<Paragraph>> paragraphs_;
 };
 
 using MarkdownPtr = std::shared_ptr<Markdown>;

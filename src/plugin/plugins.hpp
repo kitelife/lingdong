@@ -19,6 +19,7 @@
 #include "mathjax.hpp"
 #include "fekatex.hpp"
 #include "gtalk.hpp"
+#include "bemathjax.hpp"
 //
 
 namespace ling::plugin {

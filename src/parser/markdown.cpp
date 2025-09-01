@@ -193,12 +193,12 @@ ParseResult Markdown::parse_heading() {
   while (title_end > title_start && (last_line[title_end] == ' ' || last_line[title_end] == '\t')) {
     title_end--;
   }
-  std::string heading_title = last_line.substr(title_start, title_end - title_start + 1);
+  // std::string heading_title = last_line.substr(title_start, title_end - title_start + 1);
   auto pp = std::make_shared<Paragraph>(true);
-  if (parse_paragraph(last_line.substr(title_start, title_end - title_start + 1), pp)) {
-    heading_title = pp->to_html();
+  if (!parse_paragraph(last_line.substr(title_start, title_end - title_start + 1), pp)) {
+    spdlog::error("failure to parse Heading paragraph: {}", last_line.substr(title_start, title_end - title_start + 1));
   }
-  const auto heading = std::make_shared<Heading>(level, heading_title);
+  const auto heading = std::make_shared<Heading>(level, pp);
   elements_.push_back(heading);
   return ParseResult::make(0, last_line_idx + 1);
 }
@@ -293,7 +293,7 @@ ParseResult Markdown::parse_latex() {
   if (line_view[0] == '$' && line_view[1] == '$') {
     const auto latex_block_ptr = std::make_shared<LatexBlock>();
     if (view_len > 4 && line_view[view_len - 1] == '$' && line_view[view_len - 2] == '$') {  // 单行情况
-      latex_block_ptr->content = std::string(line_view.substr(2, view_len - 4));
+      latex_block_ptr->content(std::string(line_view.substr(2, view_len - 4)));
     } else {  // 多行情况
       std::vector<std::string> latex_lines;
       latex_lines.emplace_back(line_view.substr(2, view_len - 2));
@@ -312,7 +312,7 @@ ParseResult Markdown::parse_latex() {
       if (!reach_end) {
         return parse_default();
       }
-      latex_block_ptr->content = absl::StrJoin(latex_lines, "\n");
+      latex_block_ptr->content(absl::StrJoin(latex_lines, "\n"));
     }
     elements_.push_back(latex_block_ptr);
     return ParseResult::make(0, line_idx + 1);
@@ -576,6 +576,7 @@ bool Markdown::parse_paragraph(const std::string& line, const ParagraphPtr& para
       idx = pr.next_pos;
     }
   }
+  paragraphs_.emplace_back(paragraph_ptr); // 方便插件对所有内容行做处理
   return true;
 }
 
@@ -918,7 +919,7 @@ std::string Footnotes::to_html() {
 }
 
 std::string Heading::to_html() {
-  return fmt::format("<h{0}>{1}</h{0}>", level_, title_);
+  return fmt::format("<h{0}>{1}</h{0}>", level_, title_->to_html());
 }
 
 std::string Paragraph::to_text() const {
@@ -987,19 +988,17 @@ std::string ItemList::to_html() {
 std::string CodeBlock::to_html() {
   const auto& ln = absl::AsciiStrToLower(lang_name);
   // 有点 trick，不优雅
-  // 应该放在 inja 模板渲染时解决？
-  // 不用检测是什么语言的代码，无脑转义？
-  /*
-  for (auto& line : lines) {
-    line = inja::htmlescape(line);
+  if (ln == "text") {
+    for (auto& line : lines) {
+      line = inja::htmlescape(line);
+    }
   }
-  */
   std::string class_name = fmt::format("language-{}", ln);
   return fmt::format(R"(<pre class="{0}"><code>{1}</code></pre>)", class_name, absl::StrJoin(lines, "\n"));
 }
 
 std::string LatexBlock::to_html() {
-  return fmt::format(R"(<p style="text-align: center">$${0}$$</p>)", content);
+  return fmt::format(R"(<p style="text-align: center">$${0}$$</p>)", content_);
 }
 
 std::string Footnote::to_html() {
@@ -1024,6 +1023,10 @@ std::string InlineLink::to_html() {
 
 std::string InlineLatex::to_html() {
   return fmt::format("${}$", math_text_);
+}
+
+std::string& InlineLatex::content() {
+  return math_text_;
 }
 
 std::string Text::to_html() {

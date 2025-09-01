@@ -95,7 +95,7 @@ inline std::string Post::title() {
         auto* h1 = dynamic_cast<Heading*>(ele.get());
         if (h1 != nullptr) {
           if (h1->level_ == 1) {
-            title_ = h1->title_;
+            title_ = h1->title_->to_html();
             break;
           }
         }
