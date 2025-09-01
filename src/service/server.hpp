@@ -246,6 +246,10 @@ inline RequestBufferManager::RequestBufferManager() {
         std::vector<std::string> keys_to_cleanup;
         auto now = std::chrono::system_clock::now();
         for (const auto& [k, v] : request_buffers_) {
+          std::lock_guard lock{mutex_};
+          if (request_buffers_.count(k) == 0 || v == nullptr) {
+            continue;
+          }
           if ((now - v->last_fill_time()) > std::chrono::seconds(300)) {
             keys_to_cleanup.emplace_back(k);
           }
