@@ -201,15 +201,34 @@ static void rss_register_handler(const HttpRequest& req, const HttpResponsePtr& 
 static void search_hacker_news_handler(const HttpRequest& req, const HttpResponsePtr& resp, const DoneCallback& cb) {
   using namespace ling::utils;
   DoneCallbackGuard guard{cb, resp};
-  auto j = nlohmann::json::parse(req.body);
-  if (!j.contains("query")) {
+  //
+  std::string query;
+  uint32_t top_k = 100;
+  //
+  if (req.body.empty()) {
+    auto& url_params = req.q.params;
+    if (!url_params.contains("query")) {
+      resp->with_code(HttpStatusCode::BAD_REQUEST);
+      return;
+    }
+    query = url_params.at("query");
+    if (url_params.contains("top_k")) {
+      top_k = std::stoi(url_params.at("top_k"));
+    }
+  } else {
+    auto j = nlohmann::json::parse(req.body);
+    if (!j.contains("query")) {
+      resp->with_code(HttpStatusCode::BAD_REQUEST);
+      return;
+    }
+    query = j["query"].get<std::string>();
+    if (j.contains("top_k")) {
+      top_k = j["top_k"].get<uint32_t>();
+    }
+  }
+  if (query.empty()) {
     resp->with_code(HttpStatusCode::BAD_REQUEST);
     return;
-  }
-  auto query = j["query"].get<std::string>();
-  uint32_t top_k = 100;
-  if (j.contains("top_k")) {
-    top_k = j["top_k"].get<uint32_t>();
   }
   //
   auto& hn = storage::HackNewsHnsw::singleton();
@@ -239,7 +258,12 @@ static void search_hacker_news_handler(const HttpRequest& req, const HttpRespons
   //
   nlohmann::json resp_data{};
   resp_data["result"] = nlohmann::json::array();
+  tsl::robin_set<std::string> item_marks;
   for (auto& [item_ptr, score] : qr) {
+    auto mark = item_ptr->title + ";" + item_ptr->url;
+    if (item_marks.contains(mark)) {
+      continue;
+    }
     nlohmann::json one{};
     one["id"] = item_ptr->id;
     one["title"] = item_ptr->title;
@@ -247,6 +271,8 @@ static void search_hacker_news_handler(const HttpRequest& req, const HttpRespons
     one["score"] = item_ptr->score;
     one["ann_score"] = score;
     resp_data["result"].emplace_back(one);
+    //
+    item_marks.emplace(mark);
   }
   resp->with_code(HttpStatusCode::OK);
   resp->with_header(header::ContentType, FILE_SUFFIX_TYPE_M_CONTENT_TYPE["json"].type_name);

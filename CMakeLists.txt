@@ -137,6 +137,7 @@ target_link_libraries(hacker_news
         hnswlib
         abseil::abseil
         xsimd
+        tsl::robin_map
 )
 
 add_executable(image2base64 src/task/image2base64.cpp

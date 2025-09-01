@@ -7,6 +7,7 @@
 #include <queue>
 #include <unordered_map>
 
+#include "tsl/robin_set.h"
 #include "cpr/cpr.h"
 #include "nlohmann/json.hpp"
 #include "gflags/gflags.h"
@@ -118,6 +119,7 @@ void crawl_hn() {
   uint32_t expected_id_cnt = max_item_id-last_max_item_id;
   uint32_t ready_id_cnt = 0;
   uint32_t valid_story_cnt = 0;
+  tsl::robin_set<std::string> story_marks;
   while (ready_id_cnt < expected_id_cnt) {
     HackerNewItemPtr item_ptr;
     {
@@ -134,10 +136,16 @@ void crawl_hn() {
       item_ptr->type != "story" || item_ptr->title.empty() || item_ptr->url.empty()) {
       continue;
     }
+    auto mark = item_ptr->title + ";" + item_ptr->url;
+    if (story_marks.contains(mark)) {
+      continue;
+    }
     nlohmann::json item_info{};
     item_ptr->to_json(item_info);
     ofs << item_info.dump() << std::endl;
     valid_story_cnt++;
+    //
+    story_marks.emplace(mark);
   }
   ofs.flush();
   pf.wait();
