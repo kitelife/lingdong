@@ -317,10 +317,11 @@ private:
   void init();
   bool load();
   bool parse();
-  [[nodiscard]] bool generate() const;
+  [[nodiscard]] bool generate();
   void make_posts(Environment& env) const;
   void make_index(Environment& env) const;
   void make_rss(Environment& env) const;
+  void copy_assets();
 
 private:
   std::vector<path> subdirs_;
@@ -340,19 +341,7 @@ private:
 using MakerPtr = std::shared_ptr<Maker>;
 
 inline void Maker::init() {
-  std::unordered_set<std::string> excluded_entries;
-  const auto conf_ = Context::singleton()->with_config();
-  std::for_each(conf_->exclude_source_entries.begin(), conf_->exclude_source_entries.end(),
-                [&excluded_entries](auto& entry) { excluded_entries.emplace(entry); });
-  const auto& dir_iter = directory_iterator{current_path()};
-  std::for_each(begin(dir_iter), end(dir_iter), [this, &excluded_entries](const directory_entry& entry) {
-    if (excluded_entries.count(entry.path().filename()) > 0) {
-      return;
-    }
-    subdirs_.emplace_back(entry.path());
-  });
-  //
-  dist_path_ = conf_->dist_dir;
+  dist_path_ = Context::singleton()->with_config()->dist_dir;
   post_dir_ = "posts";
   page_dir_ = "pages";
   //
@@ -458,7 +447,7 @@ inline bool Maker::parse() {
 
 // https://docs.getpelican.com/en/latest/themes.html
 // https://github.com/pantor/inja
-inline bool Maker::generate() const {
+inline bool Maker::generate() {
   if (exists(dist_path_)) {
     for (const auto& entry : directory_iterator(dist_path_)) {
       remove_all(entry);
@@ -510,8 +499,28 @@ inline bool Maker::generate() const {
   }
   // index
   make_index(env);
+  // copy assets
+  copy_assets();
+  return true;
+}
+
+inline void Maker::copy_assets() {
+  auto& conf_ = Context::singleton()->with_config();
+  std::unordered_set<std::string> excluded_entries {{"node_modules", "config.toml", "package.json", "package-lock.json"}};
+  const auto& dir_iter = directory_iterator{current_path()};
+  std::for_each(begin(dir_iter), end(dir_iter), [this, &excluded_entries](const directory_entry& entry) {
+    path fn = entry.path().filename();
+    if (excluded_entries.count(fn) > 0) {
+      return;
+    }
+    auto fn_s = fn.string();
+    if (!fn_s.empty() && fn_s[0] == '.') {
+      return;
+    }
+    subdirs_.emplace_back(entry.path());
+  });
   // copy static
-  copy(theme_ptr->static_path_, dist_path_ / "static", copy_options::recursive);
+  copy(conf_->theme_ptr->static_path_, dist_path_ / "static", copy_options::recursive);
   // copy other directories
   std::for_each(subdirs_.begin(), subdirs_.end(), [&](const path& subdir) {
     if (!exists(subdir)) {
@@ -519,12 +528,8 @@ inline bool Maker::generate() const {
     }
     std::string dir_name = subdir.stem().string();
     spdlog::debug("subdir: {}, dir_name: {}", subdir, dir_name);
-    if (dir_name == "posts" || dir_name == "pages" || dir_name[0] == '.') {
-      return;
-    }
     copy(subdir, dist_path_ / dir_name, copy_options::recursive);
   });
-  return true;
 }
 
 inline void Maker::make_posts(Environment& env) const {

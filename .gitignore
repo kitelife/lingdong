@@ -9,6 +9,7 @@ package-lock.json
 .smms_token.json
 .smms_cache/
 demo/blog/plantuml-images/
+demo/blog/mermaid-images/
 _draft/
 .make_cache
 .venv/

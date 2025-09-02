@@ -61,13 +61,16 @@ inline bool Mermaid::run(const MarkdownPtr& md_ptr) {
     spdlog::error("Init before run!");
     return false;
   }
-  auto temp_dir = std::filesystem::current_path() / "temp";
-  auto dist_img_dir = std::filesystem::path(config_->dist_dir) / "images";
+  auto temp_dir = current_path() / ".temp";
+  auto img_dir = current_path() / "mermaid-images";
   if (!exists(temp_dir)) {
     create_directory(temp_dir);
   }
-  if (!exists(dist_img_dir)) {
-    create_directories(dist_img_dir);
+  if (!exists(img_dir)) {
+    if (!create_directories(img_dir)) {
+      spdlog::error("failure to create directory: {}", img_dir.string());
+      return false;
+    }
   }
   for (auto& ele : md_ptr->elements()) {
     if (ele == nullptr) {
@@ -82,11 +85,11 @@ inline bool Mermaid::run(const MarkdownPtr& md_ptr) {
       continue;
     }
     auto mmd_diagram = absl::StrJoin(codeblock->lines, "\n");
-    auto hash_value = absl::Hash<std::string>{}(mmd_diagram);
+    auto hash_value = std::hash<std::string>{}(mmd_diagram);
     auto mmd_file_path = temp_dir / fmt::format("{0}.mmd", hash_value);
     //
     auto svg_file_name = fmt::format("{}.svg", hash_value);
-    auto svg_path = dist_img_dir / svg_file_name;
+    auto svg_path = img_dir / svg_file_name;
     if (!exists(svg_path)) {
       std::fstream mmd_file_stream(mmd_file_path, std::ios::out | std::ios::trunc);
       if (!mmd_file_stream.is_open()) {
@@ -107,7 +110,7 @@ inline bool Mermaid::run(const MarkdownPtr& md_ptr) {
     // 替换
     auto* image_ptr = new Image();
     image_ptr->alt_text = mmd_file_path.stem();
-    image_ptr->uri = "/images/" + svg_file_name;
+    image_ptr->uri = "/mermaid-images/" + svg_file_name;
     //
     for (const auto& [fst, snd] : codeblock->attrs) {
       if (fst == "width") {
