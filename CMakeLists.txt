@@ -24,15 +24,18 @@ find_package(roaring REQUIRED)
 find_package(mimalloc REQUIRED)
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    set(CMAKE_C_COMPILER, "/usr/bin/clang")
+    set(CMAKE_C_COMPILER "/usr/bin/clang")
     set(CMAKE_CXX_COMPILER "/usr/bin/clang++")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -mavx2 -mfma")
 endif()
 
+add_compile_options(-O0 -g)
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     add_compile_options(-fdiagnostics-color=always)
 elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-    add_compile_options(-fcolor-diagnostics)
+    add_compile_options(-fcolor-diagnostics -ftime-trace)
+    set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS} -ftime-trace")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftime-trace")
 endif()
 
 # https://github.com/pantor/inja, 另一个选择是 https://github.com/jinja2cpp/Jinja2Cpp
@@ -92,8 +95,6 @@ add_executable(lingdong src/main.cpp
         src/utils/tokenizer.hpp
         src/utils/ollama.hpp
 )
-target_compile_options(lingdong PRIVATE -O0 -g)
-
 target_link_libraries(
         lingdong
         #
@@ -128,7 +129,6 @@ add_executable(hacker_news src/task/hacker_news.cpp
         src/utils/perf.hpp
         src/utils/simd.hpp
 )
-target_compile_options(hacker_news PRIVATE -O0 -g)
 target_link_libraries(hacker_news
         cpr::cpr
         inja
@@ -143,7 +143,6 @@ target_link_libraries(hacker_news
 add_executable(image2base64 src/task/image2base64.cpp
         src/utils/image.hpp
 )
-target_compile_options(image2base64 PRIVATE -O3 -g)
 target_link_libraries(image2base64
         gflags::gflags
         abseil::abseil
