@@ -988,7 +988,7 @@ std::string ItemList::to_html() {
 std::string CodeBlock::to_html() {
   const auto& ln = absl::AsciiStrToLower(lang_name);
   // 有点 trick，不优雅
-  if (ln == "text") {
+  if (ln == "text" || ln == "html" || ln == "xml") {
     for (auto& line : lines) {
       line = inja::htmlescape(line);
     }
