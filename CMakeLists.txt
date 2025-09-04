@@ -22,6 +22,7 @@ find_package(ZLIB REQUIRED)
 find_package(GTest REQUIRED)
 find_package(roaring REQUIRED)
 find_package(mimalloc REQUIRED)
+find_package(maxminddb REQUIRED)
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     set(CMAKE_C_COMPILER "/usr/bin/clang")
@@ -95,6 +96,7 @@ add_executable(lingdong src/main.cpp
         src/utils/tokenizer.hpp
         src/utils/ollama.hpp
 )
+# target_compile_definitions(lingdong PRIVATE ENABLE_HN_SEARCH)
 target_link_libraries(
         lingdong
         #
@@ -147,6 +149,25 @@ target_link_libraries(image2base64
         gflags::gflags
         abseil::abseil
         spdlog::spdlog
+)
+
+add_executable(viewer_stat src/task/viewer_stat.cpp
+        src/utils/guard.hpp
+        src/utils/mmdb.hpp
+        src/storage/local_sqlite.h
+        src/storage/local_sqlite.cpp
+)
+target_link_libraries(viewer_stat
+        spdlog::spdlog
+        maxminddb::maxminddb
+        gflags::gflags
+        fmt::fmt
+        SQLiteCpp
+        sqlite3
+        abseil::abseil
+        tsl::robin_map
+        inja
+        cpr::cpr
 )
 
 # for testing

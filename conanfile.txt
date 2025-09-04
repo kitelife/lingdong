@@ -16,6 +16,7 @@ zlib/1.3.1
 gtest/1.16.0
 roaring/4.2.1
 mimalloc/2.1.9
+libmaxminddb/1.12.2
 
 [generators]
 CMakeDeps

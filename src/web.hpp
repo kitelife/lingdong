@@ -337,10 +337,13 @@ inline bool WebApp::prepare() {
     spdlog::error("failure to init db");
     return false;
   }
+#ifdef ENABLE_HN_SEARCH
   if (!load_hn_index()) {
     spdlog::error("failure to load HackNews index!");
     return false;
   }
+  spdlog::info("hn index loaded");
+#endif
   //
   auto dist_dir = conf_ptr_->dist_dir;
   const auto origin_wd = current_path();
@@ -351,7 +354,9 @@ inline bool WebApp::prepare() {
       {{HTTP_METHOD::GET, "/tool/echo/"}, simple_echo_handler},
       {{HTTP_METHOD::POST, "/tool/base64/"}, base64_handler},
       {{HTTP_METHOD::POST, "/tool/rss/register"}, rss_register_handler},
+#ifdef ENABLE_HN_SEARCH
       {{HTTP_METHOD::POST, "/tool/hn/search/"}, search_hacker_news_handler},
+#endif
   });
   return true;
 }
