@@ -96,7 +96,11 @@ add_executable(lingdong src/main.cpp
         src/utils/tokenizer.hpp
         src/utils/ollama.hpp
 )
-# target_compile_definitions(lingdong PRIVATE ENABLE_HN_SEARCH)
+
+if (DEFINED ENV{ENABLE_HN_SEARCH})
+    target_compile_definitions(lingdong PRIVATE ENABLE_HN_SEARCH)
+endif()
+
 target_link_libraries(
         lingdong
         #
