@@ -10,6 +10,8 @@
 #include "fmt/format.h"
 #include "spdlog/spdlog.h"
 
+#include "helper.hpp"
+
 /*
  * geoip：
  * - https://maxmind.github.io/MaxMind-DB/
@@ -63,6 +65,7 @@ public:
   void close() const;
   MmdbRecordPtr query_by_ip(const std::string& ip) const;
 private:
+  static MmdbRecordPtr fallback2dbip(const std::string& ip) ;
   std::shared_ptr<MMDB_s> country_mmdb_ = std::make_shared<MMDB_s>();
   std::shared_ptr<MMDB_s> city_mmdb_ = std::make_shared<MMDB_s>();
   //
@@ -72,7 +75,19 @@ private:
   static path COUNTRY_MMDB_FILE;
   static std::string CITY_MMDB_URL;
   static path CITY_MMDB_FILE;
+
+  static std::string DB_IP_API;
 };
+
+path MaxMindGeoLite2Db::ROOT_PATH = {"data/geolite2-mmdb"};
+
+std::string MaxMindGeoLite2Db::COUNTRY_MMDB_URL = "https://github.com/P3TERX/GeoLite.mmdb/raw/download/GeoLite2-Country.mmdb";
+path MaxMindGeoLite2Db::COUNTRY_MMDB_FILE = {"GeoLite2-Country.mmdb"};
+
+std::string MaxMindGeoLite2Db::CITY_MMDB_URL = "https://github.com/P3TERX/GeoLite.mmdb/raw/download/GeoLite2-City.mmdb";
+path MaxMindGeoLite2Db::CITY_MMDB_FILE = {"GeoLite2-City.mmdb"};
+
+std::string MaxMindGeoLite2Db::DB_IP_API = "https://db-ip.com/demo/home.php";
 
 inline bool MaxMindGeoLite2Db::open() {
   if (!check_download()) {
@@ -141,7 +156,10 @@ inline MmdbRecordPtr MaxMindGeoLite2Db::query_by_ip(const std::string& ip) const
     }
     mrp->is_valid = !mrp->country.empty();
   }
-  return mrp;
+  if (mrp->is_valid) {
+    return mrp;
+  }
+  return fallback2dbip(ip);
 }
 
 inline bool MaxMindGeoLite2Db::check_download() {
@@ -196,13 +214,33 @@ inline bool MaxMindGeoLite2Db::check_download() {
   return true;
 }
 
+inline MmdbRecordPtr MaxMindGeoLite2Db::fallback2dbip(const std::string& ip) {
+  spdlog::info("fallback to get from db-ip.com: {}", ip);
+  auto mrp = std::make_shared<MmdbRecord>();
+  auto r = cpr::Get(cpr::Url{DB_IP_API}, cpr::Parameters{{"s", ip}},
+    cpr::Header{{"User-Agent", USER_AGENT}});
+  if (r.status_code != 200) {
+    spdlog::error("failure to call {}?s={}", DB_IP_API, ip);
+    return mrp;
+  }
+  auto rj = nlohmann::json::parse(r.text);
+  if (!rj.contains("status") || rj["status"].get<std::string>() != "ok" || !rj.contains("demoInfo")) {
+    spdlog::error("invalid resp: {}", r.text);
+    return mrp;
+  }
+  auto info = rj["demoInfo"].get<nlohmann::json>();
+  if (info.contains("continentName")) {
+    mrp->continent = info["continentName"].get<std::string>();
+  }
+  if (info.contains("countryName")) {
+    mrp->country = info["countryName"].get<std::string>();
+  }
+  if (info.contains("city")) {
+    mrp->city = info["city"].get<std::string>();
+  }
+  mrp->is_valid = !mrp->continent.empty() || !mrp->country.empty() || !mrp->city.empty();
+  return mrp;
+}
 
-path MaxMindGeoLite2Db::ROOT_PATH = {"data/geolite2-mmdb"};
-
-std::string MaxMindGeoLite2Db::COUNTRY_MMDB_URL = "https://github.com/P3TERX/GeoLite.mmdb/raw/download/GeoLite2-Country.mmdb";
-path MaxMindGeoLite2Db::COUNTRY_MMDB_FILE = {"GeoLite2-Country.mmdb"};
-
-std::string MaxMindGeoLite2Db::CITY_MMDB_URL = "https://github.com/P3TERX/GeoLite.mmdb/raw/download/GeoLite2-City.mmdb";
-path MaxMindGeoLite2Db::CITY_MMDB_FILE = {"GeoLite2-City.mmdb"};
 
 }

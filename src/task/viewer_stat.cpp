@@ -141,7 +141,8 @@ int viewer_stat(const MaxMindGeoLite2Db& mmdb) {
   return 0;
 }
 
-int main() {
+int main(int argc, char* argv[]) {
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
   MaxMindGeoLite2Db mmdb;
   if (!mmdb.open()) {
     spdlog::error("failure to open mmdb");
