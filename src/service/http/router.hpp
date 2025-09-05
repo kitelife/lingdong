@@ -7,6 +7,12 @@
 
 namespace ling::http {
 
+struct MapBasedRouterConf {
+  uint32_t global_rate_limit;
+  uint32_t per_client_rate_limit;
+  std::function<void(HttpRequest&)> func_log_req;
+};
+
 class MapBasedRouter final : public Router {
 public:
   explicit MapBasedRouter(const MapBasedRouterConf& conf);

@@ -37,12 +37,6 @@ public:
 
 static std::unique_ptr<Router> router;
 
-struct MapBasedRouterConf {
-  uint32_t global_rate_limit;
-  uint32_t per_client_rate_limit;
-  std::function<void(HttpRequest&)> func_log_req;
-};
-
 static size_t HTTP_FIRST_LINE_LENGTH_LIMIT {5 * 1024}; // 5kB
 static std::string HTTP_VERSION_CODE_1_1 = "1.1";
 
