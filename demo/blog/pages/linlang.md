@@ -23,7 +23,7 @@ id: linlang
 - [Obsidian](https://obsidian.md/)，笔记工具，免费
   - 插件： Excalidraw / PlantUML / Mermaid / Kanban / Zotero Link
 - [Zotero](https://www.zotero.org/)，论文&文章收集器&阅读器，免费
-- [Koodo Reader](https://koodoreader.com/zh)，电子书阅读器，免费
+- [Readest](https://readest.com/) / [Koodo Reader](https://koodoreader.com/zh)，电子书阅读器，免费
 - [NetNewsWire](https://netnewswire.com/)，RSS 阅读器，免费
 - [draw.io](https://github.com/jgraph/drawio)，绘图工具，免费
 - [Beyond Compare](https://www.scootersoftware.com/)，diff 工具，付费
