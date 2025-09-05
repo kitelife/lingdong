@@ -506,9 +506,10 @@ inline bool Maker::generate() {
 
 inline void Maker::copy_assets() {
   auto& conf_ = Context::singleton()->with_config();
-  std::unordered_set<std::string> excluded_entries {{"node_modules", "config.toml", "package.json", "package-lock.json"}};
+  static std::unordered_set<std::string> excluded_entries {{"node_modules", "config.toml",
+    "package.json", "package-lock.json", "posts", "pages"}};
   const auto& dir_iter = directory_iterator{current_path()};
-  std::for_each(begin(dir_iter), end(dir_iter), [this, &excluded_entries](const directory_entry& entry) {
+  std::for_each(begin(dir_iter), end(dir_iter), [this](const directory_entry& entry) {
     path fn = entry.path().filename();
     if (excluded_entries.count(fn) > 0) {
       return;
