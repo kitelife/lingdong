@@ -12,12 +12,13 @@
 #include "utils/helper.hpp"
 
 namespace ling::utils {
-
 // https://github.com/ollama/ollama
 
 class Ollama {
 public:
-  explicit Ollama(std::string model_name): model_name_(std::move(model_name)) {}
+  explicit Ollama(std::string model_name) : model_name_(std::move(model_name)) {
+  }
+
   Embeddings generate_embeddings(std::vector<std::string>& inputs);
   std::string prompt_generate_with_image(const std::string& prompt, const std::string& image_base64);
   //
@@ -38,18 +39,20 @@ std::string Ollama::ENDPOINT_PROMPT_GENERATE_ = "/api/generate";
 
 // https://github.com/ollama/ollama/blob/main/docs/api.md#generate-embeddings
 
-inline Embeddings Ollama::generate_embeddings(std::vector<std::string> &inputs) {
-  nlohmann::json j {};
+inline Embeddings Ollama::generate_embeddings(std::vector<std::string>& inputs) {
+  nlohmann::json j{};
   j["model"] = model_name_;
   j["input"] = inputs;
   auto start_tp = std::chrono::steady_clock::now();
-  auto r = cpr::Post(cpr::Url{HOST_+ENDPOINT_GENERATE_EMBEDDINGS_},
+  auto r = cpr::Post(cpr::Url{HOST_ + ENDPOINT_GENERATE_EMBEDDINGS_},
                      cpr::Body(j.dump()),
                      cpr::Header{{"Content-Type", "application/json"}});
-  auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now()-start_tp).count();
+  auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+    std::chrono::steady_clock::now() - start_tp).count();
   spdlog::info("call {} to generate embeddings, elapsed {} ms, input size: {}", model_name_, elapsed_ms, inputs.size());
   if (r.status_code != 200) {
-    spdlog::error("failure to generate embeddings with model {}, status code: {}, resp: {}", model_name_, r.status_code,r.text);
+    spdlog::error("failure to generate embeddings with model {}, status code: {}, resp: {}", model_name_, r.status_code,
+                  r.text);
     return {};
   }
   auto rj = nlohmann::json::parse(r.text);
@@ -61,16 +64,16 @@ inline Embeddings Ollama::generate_embeddings(std::vector<std::string> &inputs) 
 }
 
 inline std::string Ollama::prompt_generate_with_image(const std::string& prompt, const std::string& image_base64) {
-  nlohmann::json rb {};
+  nlohmann::json rb{};
   rb["model"] = model_name_;
   rb["prompt"] = prompt;
   rb["stream"] = false;
   auto images = nlohmann::json::array();
   images.push_back(image_base64);
   rb["images"] = images;
-  auto r = cpr::Post(cpr::Url{HOST_+ENDPOINT_PROMPT_GENERATE_},
-    cpr::Body(rb.dump()),
-    cpr::Header{{"Content-Type", "application/json"}});
+  auto r = cpr::Post(cpr::Url{HOST_ + ENDPOINT_PROMPT_GENERATE_},
+                     cpr::Body(rb.dump()),
+                     cpr::Header{{"Content-Type", "application/json"}});
   if (r.status_code != 200) {
     spdlog::error("failure to call model '{}', code: {}, resp: {}", model_name_, r.status_code, r.text);
     return "";
@@ -83,15 +86,15 @@ inline std::string Ollama::prompt_generate_with_image(const std::string& prompt,
 }
 
 inline bool Ollama::is_service_running() {
-  auto r = cpr::Get(cpr::Url{HOST_+"/api/version"}, cpr::Timeout{std::chrono::milliseconds (500)},
-                    cpr::ConnectTimeout{std::chrono::milliseconds (200)});
+  auto r = cpr::Get(cpr::Url{HOST_ + "/api/version"}, cpr::Timeout{std::chrono::milliseconds(500)},
+                    cpr::ConnectTimeout{std::chrono::milliseconds(200)});
   return r.error.code == cpr::ErrorCode::OK;
 }
 
 // https://github.com/ollama/ollama/blob/main/docs/api.md#list-local-models
 
 inline std::vector<std::string> Ollama::list_local_models() {
-  auto r = cpr::Get(cpr::Url{HOST_+"/api/tags"},
+  auto r = cpr::Get(cpr::Url{HOST_ + "/api/tags"},
                     cpr::Timeout{std::chrono::milliseconds(500)},
                     cpr::ConnectTimeout{std::chrono::milliseconds(200)});
   if (r.status_code != 200) {
@@ -113,7 +116,7 @@ inline std::vector<std::string> Ollama::list_local_models() {
 }
 
 inline bool Ollama::is_model_serving() {
-  if (!Ollama::is_service_running()) {
+  if (!is_service_running()) {
     return false;
   }
   auto models = list_local_models();
@@ -121,5 +124,4 @@ inline bool Ollama::is_model_serving() {
     return model == model_name_;
   });
 }
-
 }
