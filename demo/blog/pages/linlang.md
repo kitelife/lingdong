@@ -32,7 +32,7 @@ id: linlang
 
 - 中文字体：[仓耳今楷 05](https://www.tsanger.cn/)、[朱雀仿宋](https://github.com/TrionesType/zhuque)
 - 中文字体 CDN：[ZeoSeven™ Fonts](https://fonts.zeoseven.com/)
-- 等宽字体：[DM Mono](https://fonts.google.com/specimen/DM+Mono)、[mononoki](https://madmalik.github.io/mononoki/)、[Geist Mono](https://fonts.google.com/specimen/Geist+Mono)
+- 等宽字体：[DM Mono](https://fonts.google.com/specimen/DM+Mono)、[Ubuntu Sans Mono](https://github.com/canonical/Ubuntu-Sans-Mono-fonts)、[mononoki](https://madmalik.github.io/mononoki/)、[Geist Mono](https://fonts.google.com/specimen/Geist+Mono)
 - UI&英文：[Outfit](https://fonts.google.com/specimen/Outfit)、[Albert Sans](https://fonts.google.com/specimen/Albert+Sans)
 
 ## 博客
