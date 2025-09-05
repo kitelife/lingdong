@@ -17,6 +17,22 @@ private:
   void* addr_;
 };
 
+template<typename T>
+class TypedMemoryGuard {
+public:
+  explicit TypedMemoryGuard(T* mem_addr): addr_(mem_addr) {}
+  ~TypedMemoryGuard() {
+    if (addr_ != nullptr) {
+      free(addr_);
+    }
+  }
+
+  T *operator->() { return addr_; }
+
+private:
+  T* addr_;
+};
+
 class DeferGuard {
 public:
   explicit DeferGuard(std::function<void()> defer_func): func_(std::move(defer_func)) {}
