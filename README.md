@@ -31,6 +31,7 @@
     - [x] 基于 typst + [cmarker](https://typst.app/universe/package/cmarker/) 导出 pdf 格式
       - 实现不太理想，存在兼容性问题，导致一些 markdown 文件无法转成 pdf
     - [x] mathjax
+      - [x] 构建时将 latex 数学公式转换成 mathjax svg
     - [x] katex（替换掉 mathjax，支持更多的 latex 能力）
     - [ ] 基于 markdown 抽象语法树，生成 typst 源码，然后编译出 pdf
     - [ ] 将 typst 算法伪代码块转换成图片（png/svg）
@@ -41,7 +42,6 @@
       - [x] [GitTalk](https://gitalk.github.io/)
   - [x] 状态缓存
   - [ ] AI 简写
-  - [ ] 并行化加速
 
 - [x] 服务器
   - [x] 简化的 HTTP 协议支持
@@ -51,16 +51,14 @@
   - [ ] 工具列表
     - [x] 静态博客/文件服务
     - [x] base64 编码解码
-    - [ ] pv & uv 统计
+    - [x] pv & uv 统计
     - [ ] RSS 订阅&阅读器
     - [ ] 短地址服务
-    - [ ] 计算器，中缀表示法&前缀表达式&后缀表达式&浮点数&整数&大整数
   - [ ] DAG 执行框架
 
 - [ ] 博文搜索子系统
   - [ ] 构建倒排文件索引
   - [ ] 倒排检索
-- [ ] 基于个人行为（点击/停留时间/赞/踩）的 hacker news 推荐小系统
 
 ## 致谢
 
