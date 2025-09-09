@@ -6,7 +6,7 @@ cwd=$(pwd)
 cd build/Release || exit
 
 if [ -z "$target" ]; then
-  ctest -E SmmsPluginTest
+  ctest -E "SmmsPluginTest|TaskSchedulerTest"
 else
   ctest -R "$target"
 fi

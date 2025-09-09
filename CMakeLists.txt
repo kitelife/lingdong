@@ -23,6 +23,7 @@ find_package(GTest REQUIRED)
 find_package(roaring REQUIRED)
 find_package(mimalloc REQUIRED)
 find_package(maxminddb REQUIRED)
+find_package(croncpp REQUIRED)
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     set(CMAKE_C_COMPILER "/usr/bin/clang")
@@ -95,6 +96,7 @@ add_executable(lingdong src/main.cpp
         src/utils/executor.hpp
         src/utils/tokenizer.hpp
         src/utils/ollama.hpp
+        src/utils/task_scheduler.hpp
 )
 
 if (DEFINED ENV{ENABLE_HN_SEARCH})
@@ -127,6 +129,7 @@ target_link_libraries(
         ZLIB::ZLIB
         cppjieba
         mimalloc-static
+        croncpp::croncpp
 )
 
 add_executable(hacker_news src/task/hacker_news.cpp
@@ -208,6 +211,9 @@ add_executable(
         src/tests/image_test.cpp
 
         src/tests/format_test.cpp
+
+        src/utils/task_scheduler.hpp
+        src/tests/task_scheduler_test.cpp
 )
 target_link_libraries(
         test_lingdong
@@ -228,6 +234,7 @@ target_link_libraries(
         xsimd
         spdlog::spdlog
         cppjieba
+        croncpp::croncpp
 )
 include(GoogleTest)
 gtest_discover_tests(test_lingdong)
