@@ -28,16 +28,29 @@ public:
 
   virtual void exec() {
     func_();
-    exec_cnt_++;
+    ++exec_cnt_;
+  }
+
+  std::atomic_uint32_t& exec_count() {
+    return exec_cnt_;
   }
 
 protected:
   TaskFunc func_;
-  uint32_t exec_cnt_ = 0;
+  std::atomic_uint32_t exec_cnt_ = 0;
 };
 
 using TimerTaskPtr = std::shared_ptr<TimerTask>;
 using TaskTimeEvent = std::pair<milliseconds, TimerTaskPtr>;
+
+struct GreaterComTaskTimeEvent {
+  bool operator()(const TaskTimeEvent& lhs, const TaskTimeEvent& rhs) const {
+    if (lhs.first - rhs.first == microseconds::zero()) {
+      return lhs.second->exec_count() > rhs.second->exec_count();
+    }
+    return lhs.first > rhs.first;
+  }
+};
 
 class FixedRateTask final : public TimerTask {
 public:
@@ -134,7 +147,7 @@ public:
 
 private:
   std::string name_;
-  std::priority_queue<TaskTimeEvent> event_q_;
+  std::priority_queue<TaskTimeEvent, std::vector<TaskTimeEvent>, GreaterComTaskTimeEvent> event_q_ {};
   std::thread loop_;
   std::unique_ptr<Executor> runner_;
   //
@@ -162,6 +175,7 @@ inline TaskScheduler::TaskScheduler(const std::string& name) {
         }
       }
       if (timeout) {
+        this->event_q_.pop();
         runner_->async_execute([&]() {
           task_event.second->exec();
           //
@@ -173,7 +187,6 @@ inline TaskScheduler::TaskScheduler(const std::string& name) {
             }
           }
         });
-        this->event_q_.pop();
         if (!task_event.second->schedule_next_after_exec()) {
           if (auto nt = task_event.second->next_time(); nt <= milliseconds(0)) {
             spdlog::error("illegal next time: {}ms", nt.count());

@@ -96,13 +96,13 @@ void crawl_hn() {
     ofs.close();
   }};
   //
+  std::queue<std::pair<uint32_t, HackerNewItemPtr>> ready_item_q;
+  std::mutex q_lock;
+  //
   Executor tp{"fetch-hn-item", 1024, 5 * std::thread::hardware_concurrency()};
   DeferGuard tp_join_guard{[&tp]() {
     tp.join();
   }};
-  //
-  std::queue<std::pair<uint32_t, HackerNewItemPtr>> ready_item_q;
-  std::mutex q_lock;
   //
   auto pf = std::async(std::launch::async, [max_item_id, last_max_item_id, &tp, &q_lock, &ready_item_q]() {
     for (uint32_t id = max_item_id; id > last_max_item_id; id--) {
