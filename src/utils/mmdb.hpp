@@ -20,6 +20,11 @@
  * - https://www.maxmind.com/en/solutions/ip-geolocation-databases-api-services
  * - https://github.com/P3TERX/GeoLite.mmdb
  */
+/*
+ * 还可以对接 ip2region 等数据，参考：
+ * - https://github.com/zu1k/nali/tree/master
+ * - https://ip2region.net/
+ */
 
 namespace ling::utils {
 using namespace std::filesystem;
