@@ -4,7 +4,6 @@
 
 #include <gtest/gtest.h>
 
-
 #include "utils/simd.hpp"
 
 TEST(SimdTest, float_sum) {

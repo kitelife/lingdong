@@ -43,7 +43,9 @@ protected:
 using TimerTaskPtr = std::shared_ptr<TimerTask>;
 using TaskTimeEvent = std::pair<milliseconds, TimerTaskPtr>;
 
-struct GreaterComTaskTimeEvent {
+// 仿函数
+class GreaterComTaskTimeEvent {
+public:
   bool operator()(const TaskTimeEvent& lhs, const TaskTimeEvent& rhs) const {
     if (lhs.first - rhs.first == microseconds::zero()) {
       return lhs.second->exec_count() > rhs.second->exec_count();
