@@ -190,41 +190,33 @@ target_link_libraries(nebula_get
 
 # for testing
 enable_testing()
-add_executable(
-        test_lingdong
-        src/tests/plantuml_test.cpp
-        src/tests/smms_test.cpp
-        src/tests/strings_test.cpp
-        src/tests/time_test.cpp
+add_executable(test_lingdong
         src/config.hpp
         src/context.hpp
         src/plugin/plantuml.hpp
         src/plugin/mermaid.hpp
         src/plugin/smms.hpp
-
-        src/tests/markdown_test.cpp
         src/parser/markdown.h
         src/parser/markdown.cpp
-
         src/utils/simd.hpp
-        src/tests/simd_test.cpp
-
         src/utils/strings.hpp
         src/utils/time.hpp
-
         src/utils/tokenizer.hpp
-        src/tests/tokenizer_test.cpp
-
         src/utils/ollama.hpp
-        src/tests/ollama_test.cpp
-
         src/utils/image.hpp
-        src/tests/image_test.cpp
-
-        src/tests/format_test.cpp
-
         src/utils/task_scheduler.hpp
-        src/tests/task_scheduler_test.cpp
+
+        tests/plantuml_test.cpp
+        tests/smms_test.cpp
+        tests/strings_test.cpp
+        tests/time_test.cpp
+        tests/markdown_test.cpp
+        tests/simd_test.cpp
+        tests/tokenizer_test.cpp
+        tests/ollama_test.cpp
+        tests/image_test.cpp
+        tests/format_test.cpp
+        tests/task_scheduler_test.cpp
 )
 target_link_libraries(
         test_lingdong
