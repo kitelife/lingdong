@@ -15,3 +15,4 @@ _draft/
 .venv/
 data/
 !src/tests/data/
+.cookie

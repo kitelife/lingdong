@@ -24,6 +24,7 @@ find_package(roaring REQUIRED)
 find_package(mimalloc REQUIRED)
 find_package(maxminddb REQUIRED)
 find_package(croncpp REQUIRED)
+find_package(cryptopp REQUIRED)
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     set(CMAKE_C_COMPILER "/usr/bin/clang")
@@ -175,6 +176,16 @@ target_link_libraries(viewer_stat
         tsl::robin_map
         inja
         cpr::cpr
+)
+add_executable(nebula_get src/task/nebula_get.cpp
+    src/utils/helper.hpp
+)
+target_link_libraries(nebula_get
+        gflags::gflags
+        cpr::cpr
+        cryptopp::cryptopp
+        nlohmann_json
+        spdlog::spdlog
 )
 
 # for testing

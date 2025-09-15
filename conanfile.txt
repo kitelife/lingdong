@@ -18,6 +18,7 @@ roaring/4.2.1
 mimalloc/2.1.9
 libmaxminddb/1.12.2
 croncpp/2023.03.30
+cryptopp/8.9.0
 
 [generators]
 CMakeDeps
