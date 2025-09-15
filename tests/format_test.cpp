@@ -3,8 +3,6 @@
 #include <gtest/gtest.h>
 #include "fmt/format.h"
 
-#include "utils/blocking_queue.hpp"
-
 TEST(FormatTest, test_escape_brace) {
   // '{{' 表示对 '{' 转义/表示符号本身，'}}' 同理
   const auto tpl = R"({{"model_name": "{}", "dim": "{}", "cnt": {}}})";
