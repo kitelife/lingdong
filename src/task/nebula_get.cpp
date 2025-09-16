@@ -13,6 +13,8 @@
 
 #include "utils/helper.hpp"
 
+namespace ling::nebula {
+
 DEFINE_string(app_id, "panama", "app id");
 DEFINE_string(token, "", "token");
 DEFINE_string(url, "", "url");
@@ -77,8 +79,11 @@ nlohmann::json call() {
   }
   return nlohmann::json::parse(r.text);
 }
+}
 
 int main(int argc, char** argv) {
+  using namespace ling::nebula;
+  //
   gflags::ParseCommandLineFlags(&argc, &argv, true);
   if (FLAGS_url.empty()) {
     spdlog::error("please specify an URL");

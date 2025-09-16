@@ -11,6 +11,8 @@
 #include "utils/helper.hpp"
 #include "utils/strings.hpp"
 
+namespace ling::m3u8 {
+
 DEFINE_string(m3u8_url, "", "m3u8 url");
 DEFINE_uint32(concurrent, 8, "concurrent");
 DEFINE_string(output, "", "output file path");
@@ -47,12 +49,12 @@ public:
 };
 
 M3u8Ptr fetch_m3u8(const std::string& m3u8_url) {
-  auto r = cpr::Get(cpr::Url{m3u8_url}, cpr::Header{{"User-Agent", ling::utils::USER_AGENT}});
+  auto r = cpr::Get(cpr::Url{m3u8_url}, cpr::Header{{"User-Agent", utils::USER_AGENT}});
   if (r.status_code != 200) {
     spdlog::error("failure to get {}", m3u8_url);
     return {};
   }
-  int32_t last_slash_idx = ling::utils::find_last_index(m3u8_url, '/');
+  int32_t last_slash_idx = utils::find_last_index(m3u8_url, '/');
   if (last_slash_idx < 0) {
     spdlog::error("invalid m3u8_url: {}", m3u8_url);
     return {};
@@ -100,7 +102,7 @@ std::vector<TaskMeta> gen_task_seq(const M3u8Ptr& m3u8_ptr, uint32_t concurrent)
   uint32_t i = 0;
   while (i < segments.size()) {
     res.emplace_back();
-    for (uint32_t j = 0; j < step && i < segments.size(); ++j,++i) {
+    for (uint32_t j = 0; j < step && i < segments.size(); ++j, ++i) {
       res.back().segments.emplace_back(segments[i]);
     }
     res.back().headers = m3u8_ptr->headers;
@@ -114,12 +116,12 @@ std::vector<TaskMeta> gen_task_seq(const M3u8Ptr& m3u8_ptr, uint32_t concurrent)
 void download(std::vector<TaskMeta>& tasks, path& tmp_output_dir) {
   std::vector<std::future<void>> futures;
   futures.reserve(tasks.size());
-  for (uint32_t idx=0; idx < tasks.size(); idx++) {
+  for (uint32_t idx = 0; idx < tasks.size(); idx++) {
     futures.emplace_back(std::async(std::launch::async, [idx, &tasks, &tmp_output_dir]() {
       auto& task = tasks[idx];
       const auto part_m3u8_path = tmp_output_dir / fmt::format("part-{}.m3u8", task.id);
       const auto part_mp4_path = tmp_output_dir / task.output_file_name;
-      std::ofstream part_m3u8_file {part_m3u8_path};
+      std::ofstream part_m3u8_file{part_m3u8_path};
       part_m3u8_file << absl::StrJoin(task.headers, "\n") << "\n";
       for (const auto& ts : task.segments) {
         part_m3u8_file << ts.meta << "\n" << ts.ts << "\n";
@@ -128,7 +130,8 @@ void download(std::vector<TaskMeta>& tasks, path& tmp_output_dir) {
       part_m3u8_file.flush();
       part_m3u8_file.close();
       //
-      const auto cmd = fmt::format("ffmpeg -protocol_whitelist file,http,https,tcp,tls,crypto -i '{}' -c copy {}", part_m3u8_path.c_str(), part_mp4_path.c_str());
+      const auto cmd = fmt::format("ffmpeg -protocol_whitelist file,http,https,tcp,tls,crypto -i '{}' -c copy {}",
+                                   part_m3u8_path.c_str(), part_mp4_path.c_str());
       spdlog::info("run cmd: {}", cmd);
       if (system(cmd.c_str()) == 0) {
         tasks[idx].status = true;
@@ -142,7 +145,7 @@ void download(std::vector<TaskMeta>& tasks, path& tmp_output_dir) {
 
 void combine(const std::vector<TaskMeta>& tasks, const path& tmp_output_dir, const std::string& output_file_name) {
   const auto part_mp4_list_fp = tmp_output_dir / "part-mp4-list.txt";
-  std::ofstream part_mp4_list_f {part_mp4_list_fp};
+  std::ofstream part_mp4_list_f{part_mp4_list_fp};
   for (const auto& task : tasks) {
     if (task.status) {
       part_mp4_list_f << "file " << task.output_file_name << std::endl;
@@ -159,8 +162,11 @@ void combine(const std::vector<TaskMeta>& tasks, const path& tmp_output_dir, con
     spdlog::error("failed to combine mp4 file");
   }
 }
+}
 
 int main(int argc, char* argv[]) {
+  using namespace ling::m3u8;
+  //
   gflags::ParseCommandLineFlags(&argc, &argv, true);
   //
   auto tmp_output_dir = path(TMP_DIR) / std::to_string(std::hash<std::string>{}(FLAGS_m3u8_url));

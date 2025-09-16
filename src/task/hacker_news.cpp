@@ -20,7 +20,7 @@
 #include "utils/ollama.hpp"
 #include "utils/simd.hpp"
 
-namespace ling::task {
+namespace ling::hn {
 
 DEFINE_string(wd, "../../data/hn", "working dir");
 DEFINE_uint32(sub_task, 0, "sub task type");
@@ -490,11 +490,11 @@ void find_similarity_by_hnsw() {
       item_ptr->id, item_ptr->title, item_ptr->score, sim);
   }
 }
-} // namespace ling::task
-
-using namespace ling::task;
+} // namespace ling::hn
 
 int main(int argc, char** argv) {
+  using namespace ling::hn;
+  //
   gflags::ParseCommandLineFlags(&argc, &argv, true);
   spdlog::set_level(spdlog::level::debug);
   //

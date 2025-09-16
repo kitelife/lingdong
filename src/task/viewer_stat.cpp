@@ -15,12 +15,14 @@
 #include "utils/mmdb.hpp"
 #include "storage/local_sqlite.h"
 
+namespace ling::vs {
+
 DEFINE_string(q, "139.226.50.188", "what ip to query");
 DEFINE_bool(vs, false, "to run viewer stat");
 DEFINE_string(db, "", "sqlite db file path");
 
-using ling::utils::MaxMindGeoLite2Db;
-using ling::storage::LocalSqlite;
+using utils::MaxMindGeoLite2Db;
+using storage::LocalSqlite;
 
 void query_ip_geo(const MaxMindGeoLite2Db& mmdb) {
   auto r = mmdb.query_by_ip(FLAGS_q);
@@ -97,7 +99,7 @@ tsl::robin_map<std::string, uint32_t> stat_viewer_geo(const LocalSqlite& db, con
       viewers.insert(ip);
     }
     //
-    ling::utils::MmdbRecordPtr mrp = mmdb.query_by_ip(ip);
+    utils::MmdbRecordPtr mrp = mmdb.query_by_ip(ip);
     if (!mrp->is_valid) {
       continue;
     }
@@ -140,8 +142,11 @@ int viewer_stat(const MaxMindGeoLite2Db& mmdb) {
   spdlog::info("geo stats: {}", vgj.dump(2));
   return 0;
 }
+}
 
 int main(int argc, char* argv[]) {
+  using namespace ling::vs;
+  //
   gflags::ParseCommandLineFlags(&argc, &argv, true);
   MaxMindGeoLite2Db mmdb;
   if (!mmdb.open()) {
