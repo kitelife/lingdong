@@ -16,3 +16,4 @@ _draft/
 data/
 !src/tests/data/
 .cookie
+.tmp*/

@@ -177,6 +177,7 @@ target_link_libraries(viewer_stat
         inja
         cpr::cpr
 )
+
 add_executable(nebula_get src/task/nebula_get.cpp
     src/utils/helper.hpp
 )
@@ -186,6 +187,17 @@ target_link_libraries(nebula_get
         cryptopp::cryptopp
         nlohmann_json
         spdlog::spdlog
+)
+
+add_executable(m3u8_to_mp4 src/task/m3u8_to_mp4.cpp
+        src/utils/helper.hpp
+        src/utils/strings.hpp
+)
+target_link_libraries(m3u8_to_mp4
+        gflags::gflags
+        cpr::cpr
+        spdlog::spdlog
+        abseil::abseil
 )
 
 # for testing
