@@ -1,5 +1,6 @@
 #include <filesystem>
 #include <fstream>
+#include <csignal>
 
 #include "gflags/gflags.h"
 #include "spdlog/spdlog.h"
@@ -16,6 +17,9 @@ namespace ling::m3u8 {
 DEFINE_string(m3u8_url, "", "m3u8 url");
 DEFINE_uint32(concurrent, 8, "concurrent");
 DEFINE_string(output, "", "output file path");
+
+DEFINE_string(listen_to_file, "", "input file to listen");
+
 DEFINE_bool(retain_tmp, false, "retain tmp dir");
 
 using std::filesystem::path;
@@ -162,23 +166,18 @@ void combine(const std::vector<TaskMeta>& tasks, const path& tmp_output_dir, con
     spdlog::error("failed to combine mp4 file");
   }
 }
-}
 
-int main(int argc, char* argv[]) {
-  using namespace ling::m3u8;
-  //
-  gflags::ParseCommandLineFlags(&argc, &argv, true);
-  //
-  auto tmp_output_dir = path(TMP_DIR) / std::to_string(std::hash<std::string>{}(FLAGS_m3u8_url));
+void process_one(const std::string& m3u8_url, uint32_t concurrent, const std::string& output_file_name) {
+  auto tmp_output_dir = path(TMP_DIR) / std::to_string(std::hash<std::string>{}(m3u8_url));
   if (!std::filesystem::exists(tmp_output_dir)) {
     if (!std::filesystem::create_directories(tmp_output_dir)) {
       spdlog::error("failure to create tmp directory: {}", tmp_output_dir.c_str());
-      return -1;
+      return;
     }
   }
   //
-  auto target_m3u8 = fetch_m3u8(FLAGS_m3u8_url);
-  auto task_seq = gen_task_seq(target_m3u8, FLAGS_concurrent);
+  auto target_m3u8 = fetch_m3u8(m3u8_url);
+  auto task_seq = gen_task_seq(target_m3u8, concurrent);
   //
   download(task_seq, tmp_output_dir);
   uint32_t failed_task_cnt = 0;
@@ -189,10 +188,100 @@ int main(int argc, char* argv[]) {
     spdlog::info("total task cnt: {}, failure task cnt: {}", task_seq.size(), failed_task_cnt);
   }
   //
-  combine(task_seq, tmp_output_dir, FLAGS_output);
+  combine(task_seq, tmp_output_dir, output_file_name);
   //
   if (!FLAGS_retain_tmp) {
     std::filesystem::remove_all(tmp_output_dir);
   }
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+static volatile bool stop = false;
+
+static void SignalHandler(int signal) {
+  spdlog::info("Received signal {}", signal);
+  stop = true;
+}
+
+static void RegisterSignalHandler() {
+  signal(SIGTERM, &SignalHandler);
+  signal(SIGINT, &SignalHandler);
+  signal(SIGQUIT, &SignalHandler);
+  signal(SIGUSR1, &SignalHandler);
+  signal(SIGHUP, SIG_IGN);
+  signal(SIGPIPE, SIG_IGN);
+}
+
+}
+
+int main(int argc, char* argv[]) {
+  using namespace ling::m3u8;
+  using namespace std::filesystem;
+  //
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
+  //
+  if (FLAGS_listen_to_file.empty()) {
+    process_one(FLAGS_m3u8_url, FLAGS_concurrent, FLAGS_output);
+    return 0;
+  }
+  auto input_fp = path(FLAGS_listen_to_file);
+  if (!exists(input_fp)) {
+    spdlog::error("input file not exists: {}", FLAGS_listen_to_file);
+    return -1;
+  }
+  auto last_file_time = last_write_time(input_fp);
+  uint32_t processed_cnt = 0;
+  std::ifstream input_if {input_fp};
+  if (!input_if.is_open()) {
+    spdlog::error("cannot open file: {}", FLAGS_listen_to_file);
+    return -1;
+  }
+  std::string line;
+  // url concurrent output_file
+  while (std::getline(input_if, line)) {
+    processed_cnt++;
+    std::vector<std::string> parts = absl::StrSplit(line, '\t');
+    if (parts.size() != 3) {
+      spdlog::error("invalid format: {}", line);
+      continue;
+    }
+    process_one(parts[0], static_cast<uint32_t>(std::stoi(parts[1])), parts[2]);
+    spdlog::info("processed: {}", line);
+  }
+  input_if.close();
+  //
+  RegisterSignalHandler();
+  //
+  do {
+    auto ft = last_write_time(input_fp);
+    if (ft == last_file_time) {
+      spdlog::info("has no new input, sleep 5s");
+      std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+      continue;
+    }
+    std::ifstream another_input_if {FLAGS_listen_to_file};
+    if (!another_input_if.is_open()) {
+      spdlog::error("cannot open file: {}", FLAGS_listen_to_file);
+      continue;
+    }
+    size_t idx = 0;
+    while (std::getline(another_input_if, line)) {
+      idx++;
+      if (idx <= processed_cnt) {
+        continue;
+      }
+      processed_cnt++;
+      std::vector<std::string> parts = absl::StrSplit(line, '\t');
+      if (parts.size() != 3) {
+        spdlog::error("invalid format: {}", line);
+        continue;
+      }
+      process_one(parts[0], static_cast<uint32_t>(std::stoi(parts[1])), parts[2]);
+      spdlog::info("processed: {}", line);
+    }
+    last_file_time = ft;
+    another_input_if.close();
+  } while (stop == false);
   return 0;
 }
