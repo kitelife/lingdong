@@ -10,11 +10,10 @@
 #include "fmt/format.h"
 
 #include "utils/helper.hpp"
-#include "utils/strings.hpp"
 
 namespace ling::m3u8 {
 
-DEFINE_string(m3u8_url, "", "m3u8 url");
+DEFINE_string(url, "", "m3u8 url");
 DEFINE_uint32(concurrent, 8, "concurrent");
 DEFINE_string(output, "", "output file path");
 
@@ -59,14 +58,14 @@ M3u8Ptr fetch_m3u8(const std::string& m3u8_url) {
     return {};
   }
   //
-  auto last_slash_idx = utils::find_last_index(m3u8_url, '/');
+  auto last_slash_idx = m3u8_url.find_last_of('/');
   if (last_slash_idx < 0) {
     spdlog::error("invalid m3u8_url: {}", m3u8_url);
     return {};
   }
   auto ts_url_prefix = m3u8_url.substr(0, last_slash_idx + 1);
   //
-  auto first_slash_idx = m3u8_url.find('/');
+  auto first_slash_idx = m3u8_url.find('/', 8); // 跳过 https:// 和 http://
   auto ts_url_suffix2 = m3u8_url.substr(0, first_slash_idx);
   //
   std::vector<std::string> ts_vec;
@@ -231,7 +230,7 @@ int main(int argc, char* argv[]) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
   //
   if (FLAGS_listen_to_file.empty()) {
-    process_one(FLAGS_m3u8_url, FLAGS_concurrent, FLAGS_output);
+    process_one(FLAGS_url, FLAGS_concurrent, FLAGS_output);
     return 0;
   }
   auto input_fp = path(FLAGS_listen_to_file);

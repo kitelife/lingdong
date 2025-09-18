@@ -51,18 +51,4 @@ inline std::string find_suffix_type(const std::string& file_path) {
   return suffix_type;
 }
 
-inline int32_t find_last_index(const std::string& input, char mark) {
-  if (input.empty()) {
-    return -1;
-  }
-  int32_t idx = input.size() - 1;
-  do {
-    if (input[idx] == mark) {
-      return idx;
-    }
-    idx--;
-  } while (idx >= 0);
-  return -1;
-}
-
 }
