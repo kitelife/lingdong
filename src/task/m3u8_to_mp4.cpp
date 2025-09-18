@@ -58,12 +58,17 @@ M3u8Ptr fetch_m3u8(const std::string& m3u8_url) {
     spdlog::error("failure to get {}", m3u8_url);
     return {};
   }
-  int32_t last_slash_idx = utils::find_last_index(m3u8_url, '/');
+  //
+  auto last_slash_idx = utils::find_last_index(m3u8_url, '/');
   if (last_slash_idx < 0) {
     spdlog::error("invalid m3u8_url: {}", m3u8_url);
     return {};
   }
   auto ts_url_prefix = m3u8_url.substr(0, last_slash_idx + 1);
+  //
+  auto first_slash_idx = m3u8_url.find('/');
+  auto ts_url_suffix2 = m3u8_url.substr(0, first_slash_idx);
+  //
   std::vector<std::string> ts_vec;
   auto lines = absl::StrSplit(r.text, '\n');
   bool header_end = false;
@@ -92,7 +97,11 @@ M3u8Ptr fetch_m3u8(const std::string& m3u8_url) {
   //
   for (auto& segment : m3u8_ptr->segments) {
     if (segment.ts.find("http://") != 0 && segment.ts.find("https://") != 0) {
-      segment.ts = ts_url_prefix + segment.ts;
+      if (segment.ts[0] == '/') {
+        segment.ts = ts_url_suffix2 + segment.ts;
+      } else {
+        segment.ts = ts_url_prefix + segment.ts;
+      }
     }
   }
   return m3u8_ptr;
@@ -134,7 +143,7 @@ void download(std::vector<TaskMeta>& tasks, path& tmp_output_dir) {
       part_m3u8_file.flush();
       part_m3u8_file.close();
       //
-      const auto cmd = fmt::format("ffmpeg -protocol_whitelist file,http,https,tcp,tls,crypto -i '{}' -c copy {}",
+      const auto cmd = fmt::format("ffmpeg -allowed_extensions ALL -protocol_whitelist file,http,https,tcp,tls,crypto -i '{}' -c copy {}",
                                    part_m3u8_path.c_str(), part_mp4_path.c_str());
       spdlog::info("run cmd: {}", cmd);
       if (system(cmd.c_str()) == 0) {
