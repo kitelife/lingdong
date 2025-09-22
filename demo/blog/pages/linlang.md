@@ -27,6 +27,8 @@ id: linlang
 - [NetNewsWire](https://netnewswire.com/)，RSS 阅读器，免费
 - [draw.io](https://github.com/jgraph/drawio)，绘图工具，免费
 - [Beyond Compare](https://www.scootersoftware.com/)，diff 工具，付费
+- [Clash Party](https://github.com/mihomo-party-org/clash-party)，代理客户端，免费
+- [Ice](https://github.com/jordanbaird/Ice)，MacOS 菜单栏管理器，免费
 
 ## 字体
 
