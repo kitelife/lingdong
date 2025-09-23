@@ -87,6 +87,7 @@ add_executable(lingdong src/main.cpp
         src/plugin/fekatex.hpp
         src/plugin/gtalk.hpp
         src/plugin/bemathjax.hpp
+        src/plugin/zeoseven.hpp
         src/plugin/plugins.hpp
 
         src/utils/taoli.hpp

@@ -10,6 +10,7 @@
 #include "plugin.h"
 
 // 为了执行 static 语句
+#include "zeoseven.hpp"
 #include "mermaid.hpp"
 #include "plantuml.hpp"
 #include "smms.hpp"

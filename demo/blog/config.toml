@@ -11,7 +11,7 @@ theme_name = "default"
 
 navigation = [["关于我", "/pages/about.html"], ["作品", "/pages/works.html"], ["琳琅", "/pages/linlang.html"], ["RSS", "/rss.xml"]]
 
-plugins = ["PlantUML", "Smms", "Giscus", "Highlight", "BeMathjax", "Mermaid"]
+plugins = ["PlantUML", "Smms", "Giscus", "Highlight", "BeMathjax", "Mermaid", "ZeoSeven"]
 
 [plantuml]
 #server = "127.0.0.1:8000"
@@ -45,6 +45,11 @@ admin = "kitelife"
 
 [BeMathJax]
 server_port = 8585
+
+[ZeoSeven]
+font_id = 7
+font_name = "equity_text_a, \"Zhuque Fangsong (technical preview)\""
+font_weight = "normal"
 
 [storage]
 db_file_path = "../dist/ling.db"
